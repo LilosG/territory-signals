@@ -34,11 +34,20 @@ FIRE_DATA = "fire_zones"
 # ---------------------------------------------------------------------------------------
 # loading
 # ---------------------------------------------------------------------------------------
-def load_residential(conn, cfg) -> list[tuple[str, str | None, str | None]]:
-    """(apn, planning_area, land_use) of every parcel with a residential land-use code."""
-    return conn.execute(
-        "select apn, planning_area, land_use from parcels where land_use = any(%s) order by apn",
-        (cfg["residential_codes"],)).fetchall()
+def load_residential(conn, cfg) -> list[tuple[str, str | None, str | None, float | None]]:
+    """(apn, planning_area, land_use, lot_sqft) of every parcel with a residential land-use code."""
+    return [(a, pa, lu, float(lot) if lot is not None else None) for a, pa, lu, lot in conn.execute(
+        "select apn, planning_area, land_use, lot_sqft from parcels where land_use = any(%s) order by apn",
+        (cfg["residential_codes"],))]
+
+
+def area_median_lots(parcels) -> dict[str, float]:
+    """Median lot_sqft of the residential parcels (lot_sqft known) in each planning area."""
+    by: dict[str, list[float]] = defaultdict(list)
+    for _a, area, _lu, lot in parcels:
+        if area is not None and lot:
+            by[area].append(lot)
+    return {a: percentile(v, 50) for a, v in sorted(by.items())}
 
 
 def load_owners(conn, apns: list[str]) -> dict[str, Owner]:
@@ -96,7 +105,8 @@ def loaded_data(conn) -> list[str]:
 # ---------------------------------------------------------------------------------------
 # run
 # ---------------------------------------------------------------------------------------
-def run_score(conn, cfg: Mapping[str, Any], as_of: date, scored_at: datetime | None = None) -> dict[str, Any]:
+def run_score(conn, cfg: Mapping[str, Any], as_of: date, scored_at: datetime | None = None,
+              report_dir: Path | None = None) -> dict[str, Any]:
     scored_at = scored_at or datetime.now(timezone.utc)
     parcels = load_residential(conn, cfg)
     apns = [p[0] for p in parcels]
@@ -107,16 +117,18 @@ def run_score(conn, cfg: Mapping[str, Any], as_of: date, scored_at: datetime | N
     data = loaded_data(conn)
     cutoff = percentile([o.est_equity for o in owners.values() if o.est_equity is not None],
                         cfg["owner_modifiers"]["est_equity_top_quartile"]["percentile"])
+    medians = area_median_lots(parcels)
     rows, area_of = [], {}
     summary: dict[str, Any] = {
         "model_version": cfg["model_version"], "as_of": str(as_of), "residential_parcels": len(parcels),
-        "suppressed": Counter(), "scored": 0, "equity_cutoff": cutoff, "loaded_data": data,
+        "suppressed": Counter(), "scored": 0, "equity_cutoff": cutoff, "loaded_data": data, "area_median_lot_sqft": medians,
         "non_residential_parcels": conn.execute("select count(*) from parcels").fetchone()[0] - len(parcels)}
-    for apn, area, _land_use in parcels:
+    for apn, area, _land_use, lot in parcels:
         if apn in suppressed:
             summary["suppressed"][suppressed[apn].split(":")[0]] += 1
             continue
-        r = score_parcel(sigs.get(apn, []), owners.get(apn), cfg, as_of, snap, cutoff, data)
+        r = score_parcel(sigs.get(apn, []), owners.get(apn), cfg, as_of, snap, cutoff, data,
+                        {"lot_sqft": lot, "area_median_lot_sqft": medians.get(area)})
         area_of[apn] = area
         rows.append((apn, r["score"], Jsonb(r["components"]), r["reason_text"], r["recipe_matches"],
                      r["model_version"], scored_at, r["uses_sample_data"]))
@@ -128,7 +140,36 @@ def run_score(conn, cfg: Mapping[str, Any], as_of: date, scored_at: datetime | N
     conn.commit()
     summary["scored"] = len(rows)
     summary["scored_at"] = scored_at
+    if report_dir is not None:
+        write_scoring_report(summary, cfg, report_dir)
     return summary
+
+
+def write_scoring_report(summary: Mapping[str, Any], cfg: Mapping[str, Any], report_dir: Path) -> Path:
+    report_dir.mkdir(parents=True, exist_ok=True)
+    ratio = next((c["gte"] for c in _walk(cfg["recipes"]["builder_bait"]["when"]) if c.get("parcel")), None)
+    lines = [f"# Scoring report", "", f"Model {summary['model_version']}, as of {summary['as_of']}.", "",
+             f"- residential parcels: {summary['residential_parcels']}; scored: {summary['scored']}; "
+             f"non-residential (not scored): {summary['non_residential_parcels']}",
+             f"- suppressed: {dict(summary['suppressed'])}",
+             f"- fire-zone data loaded: {bool(summary['loaded_data'])}",
+             f"- est_equity top-quartile cutoff (territory 75th percentile): {summary['equity_cutoff']}", "",
+             "## builder_bait lot-size medians",
+             "", f"Median lot_sqft of residential parcels with a known lot size, per planning area. builder_bait requires "
+             f"lot_sqft >= {ratio} x the median of the parcel's planning area.", "",
+             "| Planning area | Median lot_sqft | Threshold (lot_sqft >=) |", "|---|---|---|"]
+    for a, m in summary["area_median_lot_sqft"].items():
+        lines.append(f"| {a} | {m:.1f} | {m * ratio:.1f} |")
+    path = report_dir / "scoring_report.md"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
+def _walk(cond):
+    yield cond
+    for k in ("all", "any"):
+        for c in cond.get(k, ()):
+            yield from _walk(c)
 
 
 # ---------------------------------------------------------------------------------------
@@ -206,7 +247,7 @@ def main(argv=None) -> int:
         if args.profile_land_use:
             print(write_land_use_profile(conn, cfg))
             return 0
-        s = run_score(conn, cfg, args.as_of or date.today())
+        s = run_score(conn, cfg, args.as_of or date.today(), report_dir=REPORT_DIR)
     print(f"model {s['model_version']} as of {s['as_of']}: scored {s['scored']} of "
           f"{s['residential_parcels']} residential parcels ({s['non_residential_parcels']} non-residential "
           f"not scored); suppressed {dict(s['suppressed'])}; fire data loaded: {bool(s['loaded_data'])}")

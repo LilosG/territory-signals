@@ -8,6 +8,8 @@ the latest stored raw record is run through territory/permit_rules.py. Then, per
   - same group and date as the live signal  -> nothing to do
   - different, or no longer derived         -> the old row is stamped superseded_by = this run
   - newly derived (new group/date)          -> a new row is inserted with run_id = this run
+    (also when the group is one the approval once had: the unique key includes superseded_by,
+    so a reinstated group gets a fresh live row)
 Nothing is deleted or overwritten (the one permitted UPDATE is superseded_by null -> run id).
 The parcel link (apn, confidence, match_method) is copied from the signal being replaced.
 A report with live counts before and after is written to sources/reports/.
@@ -24,6 +26,7 @@ from psycopg.types.json import Jsonb
 from territory import permit_rules as rules
 from territory.config import load_client
 from territory.reports import REPORT_DIR
+from territory.scoring_engine import load_scoring_config
 from territory.runner import WorkResult, clean_json, tracked_run
 
 SOURCE_KEY = "permit_rederive"
@@ -48,6 +51,8 @@ def rederive(conn, run_id: str, run_date: date, map_path=None) -> dict:
     link = {}                                   # approval -> (apn, confidence, method) from any live row
     for r in live:
         link.setdefault(r[6], (r[1], r[7], r[8], r[5]))
+    codes = load_scoring_config()["residential_codes"]
+    res_apns = {r[0] for r in conn.execute("select apn from parcels where land_use = any(%s)", (codes,))}
     before = live_counts(conn)
     superseded: list[str] = []
     inserted = 0
@@ -62,7 +67,9 @@ def rederive(conn, run_id: str, run_date: date, map_path=None) -> dict:
         for aid, payload in raws:
             seen_raw.add(aid)
             apn, conf, method, source_key = link[aid]
-            derived = {s["signal_type"]: s for s in rules.derive(payload, aid, mapping["approval_types"], run_date)}
+            derived = {s["signal_type"]: s for s in rules.derive(
+                payload, aid, mapping["approval_types"], run_date, apn in res_apns,
+                mapping["residential_remodel_types"])}
             for stype in PERMIT_TYPES:
                 old, new = by_key.get((aid, stype)), derived.get(stype)
                 same = (old is not None and new is not None and old[3] == new["group"]

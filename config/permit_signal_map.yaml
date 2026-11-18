@@ -10,6 +10,34 @@ status: reviewed   # finalized in Phase 3 from the rules in the Phase 3 prompt; 
 
 signal_groups: [pre_sale_prep, remodel_addition, adu, demolition_lot_split, solar_energy, other]
 
+# Discretionary land-use approvals. They stay 'other' below, but become remodel_addition when the
+# record is residential (residential land-use parcel, or the record's own PROJECT_TYPE/APPROVAL_TYPE
+# says residential). Non-residential records stay 'other'. Grading types are not included.
+residential_remodel_types:
+  - "Coastal Development Permit"
+  - "Coastal Development"
+  - "Emergency Coastal Dev Permit"
+  - "Sensitive Coastal Resource"
+  - "Site Development Permit"
+  - "Site  Development Permit"
+  - "Substantial Conformance Review"
+  - "Conditional Use Permit"
+  - "Neighborhood Use Permit"
+  - "Limited Use Permit"
+  - "Special Permit"
+  - "Variance"
+  - "Variance permit"
+  - "Neighborhood Developmnt Permit"
+  - "Neighborhood Development Permit"
+  - "Planned Development Permit"
+  - "Individual Historical Resource Nomination"
+  - "Mills Act Agreement"
+  - "Emergency Authorization-ESL"
+  - "Emergency Authorization-Hist"
+  - "La Jolla Shores Planned Dist."
+  - "La Jolla Planned District"
+  - "Hillside Review Overlay Zone"
+
 approval_types:
   # ---- pre_sale_prep (7 types, 10405 approvals in territory)
   "No-Plan - Residential - Combination Mech/Elec/Plum": pre_sale_prep   # 4463

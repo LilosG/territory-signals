@@ -6,6 +6,7 @@ as-of date and config/scoring.yaml), so the same inputs always give the same out
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -15,6 +16,7 @@ import yaml
 from dateutil.relativedelta import relativedelta
 
 SCORING_PATH = Path(__file__).resolve().parents[2] / "config" / "scoring.yaml"
+LABELS_PATH = Path(__file__).resolve().parents[2] / "config" / "permit_labels.yaml"
 SAMPLE_LABEL = "(sample data)"
 ESTIMATE_LABEL = "(estimated)"
 
@@ -57,7 +59,23 @@ def load_scoring_config(path: str | Path | None = None) -> dict[str, Any]:
         if key not in cfg:
             raise ValueError(f"scoring config is missing '{key}'")
     cfg["residential_codes"] = [str(c) for c in cfg["residential_land_use"]]
+    cfg["permit_labels"] = load_permit_labels()
     return cfg
+
+
+class MissingPermitLabel(KeyError):
+    """A permit type used in a signal has no plain-English label in config/permit_labels.yaml."""
+
+
+def load_permit_labels(path: str | Path | None = None) -> dict[str, str]:
+    return yaml.safe_load(Path(path or LABELS_PATH).read_text(encoding="utf-8"))["labels"]
+
+
+def permit_label(approval_type: Optional[str], cfg: Mapping[str, Any]) -> str:
+    labels = cfg["permit_labels"]
+    if approval_type not in labels:
+        raise MissingPermitLabel(f"no label in permit_labels.yaml for permit type {approval_type!r}")
+    return labels[approval_type]
 
 
 # ---------------------------------------------------------------------------------------
@@ -150,17 +168,18 @@ def _weight_and_halflife(s: Sig, sc: Mapping[str, Any]) -> tuple[float, Optional
     return float(sc["weight"]), sc.get("half_life_days")
 
 
-def _signal_facts(s: Sig) -> dict[str, Any]:
+def _signal_facts(s: Sig, cfg: Mapping[str, Any]) -> dict[str, Any]:
     d = s.details or {}
     if s.type == "tax_default":
-        return {"tax_defaulted_on": d.get("tax_defaulted_on"), "list": d.get("list"),
-                "signal_date": str(s.date) if s.date else None}
+        # signal_date is the date of the notice/list the parcel appears on; recency decays from it.
+        return {"tax_defaulted_on": d.get("tax_defaulted_on"), "notice": d.get("list"),
+                "notice_date": str(s.date) if s.date else None}
     if s.type == "permit_approved":
-        return {"approval_type": (d.get("approval_type") or "").strip() or None,
+        return {"permit_label": permit_label(d.get("approval_type"), cfg),
                 "approval_id": d.get("approval_id"), "group": s.group,
                 "issue_date": str(s.date) if s.date else None}
     if s.type == "permit_stalled":
-        return {"approval_type": (d.get("approval_type") or "").strip() or None,
+        return {"permit_label": permit_label(d.get("approval_type"), cfg),
                 "approval_id": d.get("approval_id"), "group": s.group,
                 "expire_date": d.get("expire_date"), "days_past_expiry": d.get("days_past_expiry")}
     if s.type == "stro_license_removed":
@@ -189,6 +208,7 @@ def signal_components(signals: Sequence[Sig], cfg: Mapping[str, Any], as_of: dat
             continue
         age = (as_of - s.date).days if s.date else 0
         factor = decay_factor(age, half_life)
+        conf = float(s.confidence)
         comp = {
             "key": f"{s.type}:{s.group}" if s.type == "permit_approved" else s.type,
             "kind": "signal", "family": sc["family"],
@@ -197,9 +217,10 @@ def signal_components(signals: Sequence[Sig], cfg: Mapping[str, Any], as_of: dat
             "signal_date": str(s.date) if s.date else None,
             "confidence": float(s.confidence), "match_method": s.match_method,
             "raw_weight": weight, "half_life_days": half_life, "age_days": age,
-            "decay_factor": round(factor, 6), "contribution": round(weight * factor, 4),
+            "decay_factor": round(factor, 6), "confidence_multiplier": conf,
+            "contribution": round(weight * factor * conf, 4),
             "is_sample": bool(s.is_sample), "is_estimate": bool(s.is_estimate),
-            "facts": _signal_facts(s),
+            "facts": _signal_facts(s, cfg),
         }
         cur = best.get(comp["key"])
         if cur is None or comp["contribution"] >= cur["contribution"]:
@@ -228,10 +249,11 @@ def owner_components(owner: Optional[Owner], cfg: Mapping[str, Any], as_of: date
                 add("owner:years_owned", "last_sale_date", tier["weight"],
                     {"years_owned": yrs, "last_sale_date": str(owner.last_sale_date)})
                 break
-    if owner.absentee is True:
-        add("owner:absentee", "absentee", om["absentee"]["weight"], {"absentee": True})
+    # out_of_state and absentee are not additive: out_of_state when true, otherwise absentee.
     if owner.out_of_state is True:
         add("owner:out_of_state", "out_of_state", om["out_of_state"]["weight"], {"out_of_state": True})
+    elif owner.absentee is True:
+        add("owner:absentee", "absentee", om["absentee"]["weight"], {"absentee": True})
     if owner.mortgage_open is False:
         add("owner:mortgage_open_false", "mortgage_open", om["mortgage_open_false"]["weight"],
             {"mortgage_open": False})
@@ -241,6 +263,14 @@ def owner_components(owner: Optional[Owner], cfg: Mapping[str, Any], as_of: date
         add("owner:est_equity_top_quartile", "est_equity", eq["weight"],
             {"est_equity": float(owner.est_equity), "territory_cutoff": round(float(equity_cutoff), 2),
              "percentile": eq["percentile"]}, estimate=True)
+    # Total owner-modifier contribution is capped; over the cap every owner component is scaled
+    # by the same factor (recorded as cap_multiplier).
+    total = sum(c["contribution"] for c in out)
+    cap = float(om["cap"])
+    scale = cap / total if total > cap else 1.0
+    for c in out:
+        c["cap_multiplier"] = round(scale, 6)
+        c["contribution"] = round(c["raw_weight"] * scale, 4)
     return out
 
 
@@ -262,13 +292,19 @@ def _owner_value(owner: Optional[Owner], name: str, as_of: date):
 
 
 def eval_condition(cond: Mapping[str, Any], signals: Sequence[Sig], owner: Optional[Owner],
-                   as_of: date) -> bool:
+                   as_of: date, parcel: Optional[Mapping[str, Any]] = None) -> bool:
     if "all" in cond:
-        return all(eval_condition(c, signals, owner, as_of) for c in cond["all"])
+        return all(eval_condition(c, signals, owner, as_of, parcel) for c in cond["all"])
     if "any" in cond:
-        return any(eval_condition(c, signals, owner, as_of) for c in cond["any"])
+        return any(eval_condition(c, signals, owner, as_of, parcel) for c in cond["any"])
     if "not" in cond:
-        return not eval_condition(cond["not"], signals, owner, as_of)
+        return not eval_condition(cond["not"], signals, owner, as_of, parcel)
+    if "parcel" in cond:
+        # lot_vs_area_median: parcel lot_sqft divided by the median residential lot_sqft of its planning area
+        lot, med = (parcel or {}).get("lot_sqft"), (parcel or {}).get("area_median_lot_sqft")
+        if cond["parcel"] != "lot_vs_area_median" or not lot or not med:
+            return False
+        return float(lot) / float(med) >= cond["gte"]
     if "signal" in cond:
         for s in signals:
             if s.type != cond["signal"]:
@@ -298,14 +334,15 @@ def eval_condition(cond: Mapping[str, Any], signals: Sequence[Sig], owner: Optio
 
 
 def match_recipes(signals: Sequence[Sig], owner: Optional[Owner], cfg: Mapping[str, Any],
-                  as_of: date, loaded_data: Sequence[str] = ()) -> list[str]:
+                  as_of: date, loaded_data: Sequence[str] = (),
+                  parcel: Optional[Mapping[str, Any]] = None) -> list[str]:
     matches = []
     for name, rec in cfg["recipes"].items():
         if rec.get("active") is False:
             continue
         if any(req not in loaded_data for req in rec.get("requires_data", ())):
             continue
-        if eval_condition(rec["when"], signals, owner, as_of):
+        if eval_condition(rec["when"], signals, owner, as_of, parcel):
             matches.append(name)
     return sorted(matches)
 
@@ -331,15 +368,17 @@ def phrase(c: Mapping[str, Any]) -> str:
     elif key == "owner:est_equity_top_quartile":
         p = "equity in the top quarter of the territory"
     elif key.startswith("permit_approved"):
-        p = f"{f['approval_type'] or 'permit'} approved" + (
+        p = f"{f['permit_label']} approved" + (
             f" {fmt_date(f['issue_date'])}" if f.get("issue_date") else "")
     elif key == "permit_stalled":
-        p = f"{f['approval_type'] or 'permit'} expired" + (
+        p = f"{f['permit_label']} expired" + (
             f" {fmt_date(f['expire_date'])}" if f.get("expire_date") else "") + " with no close date"
     elif key == "tax_default":
-        when = f.get("tax_defaulted_on")
-        p = ("tax-defaulted" + (f" {fmt_date(when)}" if when else "")
-             + (f" (listed in {f['list']})" if f.get("list") else ""))
+        since = (f.get("tax_defaulted_on") or "")[:4]
+        m = re.search(r"([A-Za-z]+ \d{4})\s*$", f.get("notice") or "")
+        month = m.group(1) if m else (f"{date.fromisoformat(f['notice_date']):%B %Y}" if f.get("notice_date") else None)
+        p = ("tax-defaulted" + (f" since {since}" if since else "")
+             + f", on the {month + ' ' if month else ''}power-to-sell notice")
     elif key == "stro_license_removed":
         p = "short-term rental license removed" + (
             f" (as of {fmt_date(f['removed_as_of'])})" if f.get("removed_as_of") else "")
@@ -376,14 +415,15 @@ def reason_text(components: Sequence[Mapping[str, Any]], cfg: Mapping[str, Any])
 # ---------------------------------------------------------------------------------------
 def score_parcel(signals: Sequence[Sig], owner: Optional[Owner], cfg: Mapping[str, Any], as_of: date,
                  snapshot_dates: Mapping[str, date], equity_cutoff: Optional[float],
-                 loaded_data: Sequence[str] = ()) -> dict[str, Any]:
+                 loaded_data: Sequence[str] = (),
+                 parcel: Optional[Mapping[str, Any]] = None) -> dict[str, Any]:
     eff = effective_signals(signals, cfg, snapshot_dates)
     comps = signal_components(eff, cfg, as_of) + owner_components(owner, cfg, as_of, equity_cutoff)
     res = compute_score(comps, cfg)
     return {
         "score": res["score"], "weighted_sum": res["weighted_sum"], "multiplier": res["multiplier"],
         "families": res["families"], "components": comps,
-        "recipe_matches": match_recipes(eff, owner, cfg, as_of, loaded_data),
+        "recipe_matches": match_recipes(eff, owner, cfg, as_of, loaded_data, parcel),
         "uses_sample_data": any(c["is_sample"] for c in comps),
         "reason_text": reason_text(comps, cfg), "model_version": cfg["model_version"],
     }

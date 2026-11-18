@@ -49,3 +49,36 @@ Rules applied (Phase 3 prompt): pre_sale_prep = roofing, residential electrical/
 - `Electrical`, `Plumbing` and `Mechanical` permit types do not say residential or commercial; they stay in `pre_sale_prep` and only parcels with residential land use are scored.
 - `Certificate of Compliance/Correction`, `Zone History Letter`, `Lot Tie Agreement` and `Condominium Conversion` are not in the rules, so they are `other`.
 - No approval type names an ADU. The adu group is filled by the re-derivation step, which regroups any permit with `APPROVAL_ADU_TOTAL > 0` as `adu` (the count is kept in signal details).
+
+## Checkpoint: residential discretionary types (conditional move to remodel_addition)
+
+These types stay `other` in `approval_types`, and are listed under `residential_remodel_types` in the map. The record is
+grouped `remodel_addition` when it is residential (the parcel's land use is a residential code, or the record's own
+PROJECT_TYPE / APPROVAL_TYPE says residential); non-residential records stay `other`. Grading types are not moved.
+
+| APPROVAL_TYPE | Default group | Group when residential | Territory approvals |
+|---|---|---|---|
+| `Coastal Development Permit` | other | remodel_addition | 1789 |
+| `Coastal Development` | other | remodel_addition | 308 |
+| `Emergency Coastal Dev Permit` | other | remodel_addition | 15 |
+| `Sensitive Coastal Resource` | other | remodel_addition | 2 |
+| `Site Development Permit` | other | remodel_addition | 654 |
+| `Site  Development Permit` | other | remodel_addition | 48 |
+| `Substantial Conformance Review` | other | remodel_addition | 174 |
+| `Conditional Use Permit` | other | remodel_addition | 121 |
+| `Neighborhood Use Permit` | other | remodel_addition | 117 |
+| `Limited Use Permit` | other | remodel_addition | 16 |
+| `Special Permit` | other | remodel_addition | 11 |
+| `Variance` | other | remodel_addition | 117 |
+| `Variance permit` | other | remodel_addition | 4 |
+| `Neighborhood Developmnt Permit` | other | remodel_addition | 84 |
+| `Neighborhood Development Permit` | other | remodel_addition | 23 |
+| `Planned Development Permit` | other | remodel_addition | 63 |
+| `Individual Historical Resource Nomination` | other | remodel_addition | 37 |
+| `Mills Act Agreement` | other | remodel_addition | 25 |
+| `Emergency Authorization-ESL` | other | remodel_addition | 6 |
+| `Emergency Authorization-Hist` | other | remodel_addition | 2 |
+| `La Jolla Shores Planned Dist.` | other | remodel_addition | 6 |
+| `La Jolla Planned District` | other | remodel_addition | 2 |
+| `Hillside Review Overlay Zone` | other | remodel_addition | 1 |
+

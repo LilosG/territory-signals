@@ -13,13 +13,13 @@ Run date 2026-11-18; permit map status: reviewed.
 |---|---|---|---|
 | permit_approved | adu | 424 | 424 |
 | permit_approved | demolition_lot_split | 680 | 680 |
-| permit_approved | other | 18869 | 18869 |
+| permit_approved | other | 17320 | 17320 |
 | permit_approved | pre_sale_prep | 7220 | 7220 |
-| permit_approved | remodel_addition | 6408 | 6408 |
+| permit_approved | remodel_addition | 7957 | 7957 |
 | permit_approved | solar_energy | 2046 | 2046 |
 | permit_stalled | adu | 24 | 24 |
-| permit_stalled | demolition_lot_split | 545 | 545 |
-| permit_stalled | remodel_addition | 4531 | 4531 |
+| permit_stalled | demolition_lot_split | 13 | 13 |
+| permit_stalled | remodel_addition | 431 | 431 |
 
 ## Changes
 

@@ -1,6 +1,6 @@
 # Deterministic scoring model. No AI is used anywhere in scoring (CLAUDE.md AI rules).
 # Score = min(100, round_half_up(weighted_sum x stacking_multiplier)).
-model_version: "v0.1-handset"
+model_version: "v0.2-handset"
 
 # ---- Residential filter ------------------------------------------------------------
 # Only parcels whose parcels.land_use is one of these codes are scored.
@@ -28,14 +28,15 @@ stacking:
   families: [financial, rental, permits, upzoning, fire, owner]
 
 # ---- Signals ----------------------------------------------------------------------------
-# contribution = weight x 0.5 ** (age_days / half_life_days); static signals (half_life_days: null)
-# do not decay. age_days = days between signal_date and the as-of date (never negative).
+# contribution = weight x 0.5 ** (age_days / half_life_days) x confidence; static signals
+# (half_life_days: null) do not decay. confidence is the signal's match confidence (recorded in
+# the component as confidence_multiplier). age_days = days between signal_date and the as-of date (never negative).
 # One component per signal key: the strongest (most recent) live instance. A parcel with ten
 # re-roof permits scores the permit component once.
 # snapshot: true -> only the latest snapshot counts (parcel must have a row dated on the latest
 # signal_date seen for that signal type), so repeated daily rows never stack.
 signals:
-  tax_default:
+  tax_default:          # signal_date = date of the notice/list the parcel appears on (decay runs from it)
     family: financial
     weight: 30
     half_life_days: 365
@@ -88,7 +89,11 @@ signals:
       moderate: 3
 
 # ---- Owner modifiers (owners table, latest as_of per parcel; static) ---------------------
+# out_of_state and absentee are not additive: out_of_state (+12) when true, otherwise absentee (+10).
+# Total owner-modifier contribution is capped (over the cap, every owner component is scaled
+# by the same factor, recorded as cap_multiplier).
 owner_modifiers:
+  cap: 30
   years_owned:                  # from owners.last_sale_date; highest matching tier only
     - {min_years: 30, weight: 15}
     - {min_years: 20, weight: 10}
@@ -124,15 +129,14 @@ recipes:
             - {signal: stro_license_removed, within_days: 730}
             - {signal: permit_stalled}
   builder_bait:
-    description: Estimated upzoning potential and an owner likely to sell for land value.
+    description: Estimated upzoning potential on a large lot with a long-held owner.
     when:
       all:
         - any:
             - {signal: sb9_lot_split_estimate}
             - {signal: sb79_transit_estimate}
-        - any:
-            - {owner: years_owned, gte: 20}
-            - {owner: absentee, is: true}
+        - {parcel: lot_vs_area_median, gte: 1.5}   # lot_sqft >= 1.5 x median residential lot_sqft of the planning area
+        - {owner: years_owned, gte: 20}
   pre_list_prep:
     description: Pre-sale type permit approved in the last 6 months on a long-held home.
     when:

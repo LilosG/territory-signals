@@ -112,7 +112,7 @@ def test_scores_are_append_only_history_with_required_columns(db):
     rows = db.execute("select score, model_version, uses_sample_data, recipe_matches, components, "
                       "reason_text from scores where apn='3000000400' order by scored_at").fetchall()
     assert len(rows) == 2 and rows[0][:4] == rows[1][:4]
-    assert rows[0][1] == "v0.1-handset" and rows[0][2] is False
+    assert rows[0][1] == "v0.2-handset" and rows[0][2] is False
     assert rows[0][4][0]["signal_id"] and rows[0][5].startswith("Tax-defaulted")
     with pytest.raises(psycopg.errors.RestrictViolation):
         db.execute("update scores set score = 1")
@@ -167,7 +167,7 @@ def test_fire_recipe_only_when_fire_zones_are_loaded(db):
     add_signal(db, "3000000800", "fire_hazard_zone", "risk", on=AS_OF, details={"hazard_class": "Very High"})
     run_score(db, CFG, AS_OF, datetime(2026, 12, 1, tzinfo=timezone.utc))
     row = db.execute("select score, recipe_matches from scores order by scored_at desc limit 1").fetchone()
-    assert row[0] == 10 and "insurance_squeeze" in row[1]
+    assert row[0] == 9 and "insurance_squeeze" in row[1]      # 10 x confidence 0.9
 
 
 # ---- sample owner layer -----------------------------------------------------------------------------
@@ -203,7 +203,7 @@ def test_owner_fields_feed_components_and_reason(db):
     run_score(db, CFG, AS_OF)
     apn, score, recipes, reason, sample, comps = scores(db)["3000001000"]
     keys = {c["key"] for c in comps}
-    assert {"owner:years_owned", "owner:absentee", "owner:out_of_state", "owner:mortgage_open_false"} <= keys
+    assert {"owner:years_owned", "owner:out_of_state", "owner:mortgage_open_false"} <= keys and "owner:absentee" not in keys
     assert sample is True and "(sample data)" in reason and "Owned 36 years" in reason
 
 
@@ -220,6 +220,9 @@ def test_stalled_rule_90_days_groups_and_close_date():
         assert permit_rules.is_stalled(g, issue, exp(200), None, "Issued", run)
     for g in ("pre_sale_prep", "solar_energy", "other"):
         assert not permit_rules.is_stalled(g, issue, exp(200), None, "Issued", run)
+    # expired within the last 36 months only
+    assert permit_rules.is_stalled("adu", issue, date(2023, 11, 18), None, "Issued", run)        # exactly 36 months
+    assert not permit_rules.is_stalled("adu", issue, date(2023, 11, 17), None, "Issued", run)    # one day older
 
 
 def test_adu_total_regroups_a_permit_as_adu():
@@ -314,3 +317,111 @@ def test_signals_stay_append_only_except_superseded_by(db):
     with pytest.raises(psycopg.errors.RestrictViolation):                  # not combined with another change
         sid2 = add_signal(db, "3000001200", "tax_default", on=date(2020, 1, 1))
         db.execute("update signals set superseded_by=%s, confidence=0.1 where id=%s", (rid, sid2))
+
+
+# ---- checkpoint corrections ---------------------------------------------------------------------------
+def _map_file(tmp_path, types, residential=(), name="map.yaml"):
+    f = tmp_path / name
+    f.write_text(yaml.safe_dump({"status": "reviewed", "approval_types": types,
+                                 "residential_remodel_types": list(residential)}))
+    return f
+
+
+def _live(db):
+    return sorted(db.execute("select apn, signal_type, signal_group from signals where superseded_by is null"))
+
+
+def test_discretionary_types_become_remodel_only_when_the_record_is_residential(db, tmp_path):
+    add_territory(db)
+    parcel(db, "3000001300", "11", n=0)                  # residential parcel
+    parcel(db, "3000001301", "7", n=1)                   # commercial parcel
+    parcel(db, "3000001302", "7", n=2)                   # commercial parcel, record says residential
+    for apn, aid in (("3000001300", "C1"), ("3000001301", "C2"), ("3000001302", "C3")):
+        _seed_permit(db, apn, aid, "Coastal Development Permit", [("permit_approved", "other", date(2025, 1, 1))])
+    rid = db.execute("select id from source_runs limit 1").fetchone()[0]
+    db.execute("insert into raw_records (source_key, source_record_id, run_id, payload, fetched_at) values "
+               "('dev_permits','C3',%s,%s, now() + interval '1 second')",
+               (rid, Jsonb({"APPROVAL_TYPE": "Coastal Development Permit", "APPROVAL_ISSUE_DATE": "2025-01-01",
+                            "PROJECT_TYPE": "Project - Residential - Remodel"})))
+    f = _map_file(tmp_path, {"Coastal Development Permit": "other"}, ["Coastal Development Permit"])
+    rederive(db, run_id(db, "permit_rederive"), date(2026, 11, 18), f)
+    assert [r for r in _live(db) if r[1] == "permit_approved"] == [
+        ("3000001300", "permit_approved", "remodel_addition"),
+        ("3000001301", "permit_approved", "other"),
+        ("3000001302", "permit_approved", "remodel_addition")]
+    # a type that is not listed never moves, residential or not
+    g = permit_rules.group_for("Grading Permit", 0, {"Grading Permit": "other"}, True, {"Coastal Development Permit"})
+    assert g == "other"
+
+
+def test_stalled_older_than_36_months_is_retired_by_rederive(db, tmp_path):
+    add_territory(db)
+    parcel(db, "3000001400")
+    rid0 = run_id(db, "dev_permits")
+    payload = {"APPROVAL_TYPE": "Building Permit", "APPROVAL_ISSUE_DATE": "2021-01-01",
+               "APPROVAL_EXPIRE_DATE": "2022-01-01", "APPROVAL_STATUS": "Issued"}
+    db.execute("insert into raw_records (source_key, source_record_id, run_id, payload) values "
+               "('dev_permits','S1',%s,%s)", (rid0, Jsonb(payload)))
+    for t, d in (("permit_approved", date(2021, 1, 1)), ("permit_stalled", date(2022, 1, 1))):
+        db.execute("insert into signals (apn, signal_type, signal_group, signal_date, source_key, "
+                   "source_record_id, run_id, confidence, match_method) values "
+                   "('3000001400',%s,'remodel_addition',%s,'dev_permits','S1',%s,0.95,'apn')", (t, d, rid0))
+    f = _map_file(tmp_path, {"Building Permit": "remodel_addition"})
+    res = rederive(db, run_id(db, "permit_rederive"), date(2026, 11, 18), f)
+    assert _live(db) == [("3000001400", "permit_approved", "remodel_addition")]
+    assert res["superseded"] == 1 and res["inserted"] == 0
+    assert db.execute("select count(*) from signals where signal_type='permit_stalled'").fetchone()[0] == 1  # kept
+
+
+def test_a_type_mapped_back_to_a_former_group_gets_a_live_signal(db, tmp_path):
+    add_territory(db)
+    parcel(db, "3000001500")
+    _seed_permit(db, "3000001500", "R1", "Electrical Permit", [("permit_approved", "pre_sale_prep", date(2025, 1, 1))])
+    to_other = _map_file(tmp_path, {"Electrical Permit": "other"}, name="a.yaml")
+    back = _map_file(tmp_path, {"Electrical Permit": "pre_sale_prep"}, name="b.yaml")
+    rederive(db, run_id(db, "permit_rederive"), date(2026, 11, 18), to_other)
+    assert _live(db) == [("3000001500", "permit_approved", "other")]
+    res = rederive(db, run_id(db, "permit_rederive"), date(2026, 11, 18), back)
+    assert _live(db) == [("3000001500", "permit_approved", "pre_sale_prep")]       # live again
+    assert res["inserted"] == 1 and res["superseded"] == 1
+    rederive(db, run_id(db, "permit_rederive"), date(2026, 11, 18), to_other)       # and back again
+    assert _live(db) == [("3000001500", "permit_approved", "other")]
+    assert db.execute("select count(*) from signals").fetchone()[0] == 4          # history kept, nothing deleted
+
+
+# ---- latest_scores view ------------------------------------------------------------------------------
+def test_latest_scores_view_returns_one_latest_row_per_parcel(db):
+    add_territory(db)
+    for i in range(2):
+        parcel(db, f"300000160{i}", n=i)
+    add_signal(db, "3000001600", "tax_default", on=AS_OF)
+    run_score(db, CFG, AS_OF, datetime(2026, 11, 1, tzinfo=timezone.utc))
+    add_signal(db, "3000001601", "tax_default", on=AS_OF)
+    run_score(db, CFG, AS_OF, datetime(2026, 11, 2, tzinfo=timezone.utc))
+    assert db.execute("select count(*) from scores").fetchone()[0] == 4
+    rows = db.execute("select apn, score, scored_at from latest_scores order by apn").fetchall()
+    assert [r[0] for r in rows] == ["3000001600", "3000001601"]
+    assert all(r[2] == datetime(2026, 11, 2, tzinfo=timezone.utc) for r in rows)
+    assert rows[1][1] > 0
+    opts = db.execute("select reloptions from pg_class where relname='latest_scores'").fetchone()[0]
+    assert "security_invoker=true" in opts
+
+
+# ---- builder_bait lot-size medians ---------------------------------------------------------------------
+def test_builder_bait_needs_a_lot_1_5x_the_area_median_and_the_medians_are_reported(db, tmp_path):
+    add_territory(db)
+    lots = {"3000001700": 4000, "3000001701": 4000, "3000001702": 4000, "3000001703": 10000, "3000001704": 5900}
+    for i, (apn, lot) in enumerate(lots.items()):
+        parcel(db, apn, n=i)
+        db.execute("update parcels set lot_sqft=%s where apn=%s", (lot, apn))
+        add_signal(db, apn, "sb9_lot_split_estimate", "upzoning", on=AS_OF)
+        db.execute("insert into owners (apn, last_sale_date, provider, is_sample, as_of) values "
+                   "(%s,'1990-01-01','sample',true,%s)", (apn, AS_OF))
+    parcel(db, "3000001705", "7", n=9)                               # non-residential: not in the median
+    db.execute("update parcels set lot_sqft=900000 where apn='3000001705'")
+    s = run_score(db, CFG, AS_OF, report_dir=tmp_path)
+    assert s["area_median_lot_sqft"] == {"La Jolla": 4000.0}
+    hits = {r[0] for r in db.execute("select apn from scores where 'builder_bait' = any(recipe_matches)")}
+    assert hits == {"3000001703"}                                     # 10000 >= 6000; 5900 < 6000
+    report = (tmp_path / "scoring_report.md").read_text()
+    assert "| La Jolla | 4000.0 | 6000.0 |" in report and "1.5" in report

@@ -1,5 +1,6 @@
 """Pure scoring tests: decay, stacking, snapshot rule, recipes, reason text, determinism."""
 import json
+from pathlib import Path
 import random
 import re
 from datetime import date, timedelta
@@ -17,11 +18,14 @@ AS_OF = date(2026, 11, 18)
 _n = 0
 
 
-def sig(type_, days_ago=10, group="other", details=None, sample=False, estimate=False, on=None):
+def sig(type_, days_ago=10, group="other", details=None, sample=False, estimate=False, on=None, conf=1.0):
     global _n
     _n += 1
+    details = dict(details or {})
+    if type_.startswith("permit"):
+        details.setdefault("approval_type", "Electrical Permit")
     d = on if on is not None else AS_OF - timedelta(days=days_ago)
-    return Sig(f"sig-{_n}", type_, group, d, "test", f"rec-{_n}", 0.9, "apn", estimate, sample, details or {})
+    return Sig(f"sig-{_n}", type_, group, d, "test", f"rec-{_n}", conf, "apn", estimate, sample, details)
 
 
 def owner(**kw):
@@ -38,7 +42,7 @@ def score(signals=(), own=None, snap=None, cutoff=None, data=()):
 
 # ---- config ------------------------------------------------------------------------------
 def test_config_matches_the_spec():
-    assert CFG["model_version"] == "v0.1-handset"
+    assert CFG["model_version"] == "v0.2-handset"
     s = CFG["signals"]
     assert (s["tax_default"]["weight"], s["tax_default"]["half_life_days"]) == (30, 365)
     assert (s["stro_license_removed"]["weight"], s["stro_license_removed"]["half_life_days"]) == (25, 90)
@@ -123,6 +127,8 @@ def test_owner_modifiers():
     assert "owner:years_owned" not in total(last_sale_date=date(2006, 11, 19))      # 19 years
     assert total(absentee=True)["owner:absentee"] == 10
     assert total(out_of_state=True)["owner:out_of_state"] == 12
+    both = total(absentee=True, out_of_state=True)           # not additive: out_of_state wins
+    assert both["owner:out_of_state"] == 12 and "owner:absentee" not in both
     assert total(mortgage_open=False)["owner:mortgage_open_false"] == 10
     assert "owner:mortgage_open_false" not in total(mortgage_open=None)
     assert total(est_equity=100.0)["owner:est_equity_top_quartile"] == 5
@@ -229,11 +235,20 @@ def test_tired_landlord():
 
 def test_builder_bait():
     up = sig("sb9_lot_split_estimate", 0)
-    assert "builder_bait" in recipes([up], owner(last_sale_date=date(1999, 1, 1)))
-    assert "builder_bait" in recipes([sig("sb79_transit_estimate", details={"distance_band": "within_half_mile"})],
-                                     owner(absentee=True, last_sale_date=date(2024, 1, 1)))
-    assert "builder_bait" not in recipes([up], owner(last_sale_date=date(2020, 1, 1)))
-    assert "builder_bait" not in recipes([], owner(last_sale_date=date(1999, 1, 1)))
+    big = {"lot_sqft": 9000, "area_median_lot_sqft": 6000}          # exactly 1.5 x
+    old = owner(last_sale_date=date(1999, 1, 1))
+
+    def bb(signals, own, parcel):
+        snap = latest_snapshot_dates(signals, CFG)
+        return "builder_bait" in match_recipes(effective_signals(signals, CFG, snap), own, CFG, AS_OF, (), parcel)
+    assert bb([up], old, big)
+    assert bb([sig("sb79_transit_estimate", details={"distance_band": "within_half_mile"})], old, big)
+    assert not bb([up], old, {"lot_sqft": 8999, "area_median_lot_sqft": 6000})   # lot too small
+    assert not bb([up], old, {"lot_sqft": None, "area_median_lot_sqft": 6000})   # unknown lot
+    assert not bb([up], old, {"lot_sqft": 9000, "area_median_lot_sqft": None})
+    assert not bb([up], old, None)
+    assert not bb([up], owner(last_sale_date=date(2010, 1, 1), absentee=True), big)   # 16 years: absentee no longer enough
+    assert not bb([], old, big)                                               # no upzoning signal
 
 
 def test_pre_list_prep():
@@ -335,10 +350,10 @@ def test_sample_and_estimate_labels_always_present():
 
 
 def test_spec_example_wording():
-    r = score([sig("permit_approved", 14, "pre_sale_prep", {"approval_type": "Re-roof Permit"}),
+    r = score([sig("permit_approved", 14, "pre_sale_prep", {"approval_type": "Electrical Permit"}),
                sig("sb9_lot_split_estimate", 0, estimate=True, details={"zoning": "RS-1-7"})],
               owner(last_sale_date=date(1995, 3, 3), mortgage_open=False))
-    assert r["reason_text"] == ("Re-roof Permit approved Nov 4, 2026, owned 31 years (sample data), "
+    assert r["reason_text"] == ("Electrical work approved Nov 4, 2026, owned 31 years (sample data), "
                                 "no open mortgage (sample data), lot may qualify for an SB 9 split (estimated).")
 
 
@@ -360,3 +375,68 @@ def test_same_inputs_same_scores_in_any_order():
         random.Random(seed).shuffle(shuffled)
         again = score(shuffled, own, cutoff=0.5)
         assert json.dumps(again, sort_keys=True, default=str) == json.dumps(first, sort_keys=True, default=str)
+
+
+# ---- checkpoint corrections ---------------------------------------------------------------------
+def test_owner_modifiers_are_capped_at_30():
+    o = owner(last_sale_date=date(1990, 1, 1), out_of_state=True, absentee=True, mortgage_open=False)
+    comps = owner_components(o, CFG, AS_OF, 0.5)           # 15 + 12 + 10 + 5 = 42 before the cap
+    assert {c["key"] for c in comps} == {"owner:years_owned", "owner:out_of_state",
+                                         "owner:mortgage_open_false", "owner:est_equity_top_quartile"}
+    assert sum(c["contribution"] for c in comps) == pytest.approx(30, abs=0.001)
+    assert all(c["cap_multiplier"] == pytest.approx(30 / 42, abs=1e-5) for c in comps)
+    assert [c["raw_weight"] for c in comps] and all(c["raw_weight"] > c["contribution"] for c in comps)
+    # under the cap nothing is scaled
+    small = owner_components(owner(absentee=True, last_sale_date=date(2020, 1, 1)), CFG, AS_OF, None)
+    assert [c["cap_multiplier"] for c in small] == [1.0] and small[0]["contribution"] == 10
+
+
+def test_confidence_multiplies_the_contribution_and_is_recorded():
+    c = signal_components([sig("tax_default", 0, conf=0.5)], CFG, AS_OF)[0]
+    assert c["confidence_multiplier"] == 0.5 and c["contribution"] == pytest.approx(15.0)
+    c = signal_components([sig("permit_approved", 120, "pre_sale_prep", conf=0.8)], CFG, AS_OF)[0]
+    assert c["contribution"] == pytest.approx(20 * 0.5 * 0.8)
+    assert score([sig("tax_default", 0, conf=0.5)])["score"] == 15
+
+
+def test_every_permit_type_has_a_plain_english_label():
+    import csv
+    from territory import permit_rules
+    from territory.scoring_engine import LABELS_PATH, load_permit_labels
+    labels = load_permit_labels()
+    profile = Path(__file__).resolve().parents[1] / "pipelines/territory/sources/reports/permit_type_profile.csv"
+    types = {r["value"] for r in csv.DictReader(open(profile)) if r["field"] == "APPROVAL_TYPE"}
+    mapped = set(permit_rules.load_map()["approval_types"])
+    assert LABELS_PATH.exists()
+    assert (types | mapped) - set(labels) == set(), "permit types without a label"
+    assert set(labels) - (types | mapped) == set(), "labels for types that do not exist"
+    for raw, label in labels.items():
+        assert label.strip() and label != raw and len(label) <= 70
+
+
+def test_a_permit_type_without_a_label_fails_scoring():
+    from territory.scoring_engine import MissingPermitLabel
+    with pytest.raises(MissingPermitLabel):
+        score([sig("permit_approved", 5, "pre_sale_prep", {"approval_type": "Brand New Approval Type"})])
+
+
+def test_components_and_reason_use_the_label_never_the_raw_type():
+    raw = "No-Plan - Residential - Combination Mech/Elec/Plum"
+    r = score([sig("permit_approved", 5, "pre_sale_prep", {"approval_type": raw})])
+    assert r["reason_text"].startswith("Electrical, plumbing and mechanical work approved")
+    assert raw not in json.dumps(r["components"]) and raw not in r["reason_text"]
+    assert r["components"][0]["facts"]["permit_label"] == "Electrical, plumbing and mechanical work"
+    st = score([sig("permit_stalled", 500, "adu", {"approval_type": "Building Permit",
+                                                   "expire_date": "2025-07-01", "days_past_expiry": 500})])
+    assert "Building Permit" not in json.dumps(st["components"])
+    assert "Building permit (remodel, addition or new construction) expired Jul 1, 2025" in st["reason_text"]
+
+
+def test_tax_default_wording_and_decay_date():
+    s = sig("tax_default", on=date(2026, 7, 1),
+            details={"tax_defaulted_on": "2021-06-30", "list": "Notice of Impending Power to Sell, June 2026"})
+    r = score([s])
+    assert r["reason_text"] == "Tax-defaulted since 2021, on the June 2026 power-to-sell notice."
+    c = r["components"][0]
+    assert c["signal_date"] == "2026-07-01" and c["age_days"] == 140          # decay runs from the notice date
+    assert c["facts"]["tax_defaulted_on"] == "2021-06-30"                     # default date kept
