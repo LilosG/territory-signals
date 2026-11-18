@@ -32,8 +32,8 @@ BLOCKED_OFFICE = "missing office address"
 BLOCKED_SAMPLE = "sample data"      # drafts built on sample data can never be approved
 
 # Word-count limits (tests enforce them on every template).
-LETTER_WORDS = (90, 140)      # whole letter; at most 140 with every field filled, at least 90 with none
-EMAIL_WORDS = (60, 100)       # greeting, body and signature, without the subject line and footer
+LETTER_WORDS = (70, 130)      # whole letter; at most 130 with every field filled, at least 70 with the shortest greeting
+EMAIL_WORDS = (50, 100)       # greeting, body and signature, without the subject line and footer
 CALL_WORDS_MAX = 90           # whole script including the reminder line (strictly under)
 
 

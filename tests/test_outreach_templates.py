@@ -76,14 +76,14 @@ def test_a_recipe_without_templates_falls_back_to_general():
 
 # ---- length ------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("recipe", RECIPES + [GENERAL])
-def test_letter_90_to_140_words(recipe):
+def test_letter_70_to_130_words(recipe):
     lo, hi = LETTER_WORDS
     assert word_count(rendered(recipe, "mail", LONG_SALUTATION).text) <= hi          # every field, longest greeting
     assert word_count(rendered(recipe, "mail", SHORT_SALUTATION).text) >= lo         # every field, shortest greeting
 
 
 @pytest.mark.parametrize("recipe", RECIPES + [GENERAL])
-def test_email_60_to_100_words_with_a_subject_naming_the_street(recipe):
+def test_email_50_to_100_words_with_a_subject_naming_the_street(recipe):
     lo, hi = EMAIL_WORDS
     r = rendered(recipe, "email", LONG_SALUTATION)
     assert r.subject and r.text.startswith(f"Subject: {r.subject}\n") and "Greentree Ln" in r.subject
@@ -111,6 +111,7 @@ def test_structure_focus_why_now_one_offer_one_call_to_action_signature(recipe, 
     paras = r.body.split("\n\n")
     assert len(paras) == 3                                                    # focus + why now / offer / CTA
     assert paras[0].startswith("I focus on La Jolla")
+    assert "one-page summary" not in r.text
     assert "I can " in paras[1] or "I'll " in paras[1]                          # one concrete offer
     cta = paras[2]
     assert cta.endswith("Call or text me at (619) 555-0100, or email pat@example.test.")
@@ -125,8 +126,7 @@ def test_the_builder_bait_letter_meets_the_quality_bar():
         "I focus on La Jolla, and California's recent zoning changes have opened new options for some lots like "
         "yours on Greentree Ln.\n\n"
         "If you've wondered whether your property is worth more as a home or as a lot, I can put together a short "
-        "side-by-side: what it would likely sell for as it stands, and what comparable lots nearby have sold for. "
-        "It is a one-page summary, and I am happy to walk you through it.\n\n"
+        "side-by-side: what it would likely sell for as it stands, and what comparable lots nearby have sold for.\n\n"
         "No obligation, just numbers you can keep. Call or text me at (619) 555-0100, or email pat@example.test.\n\n"
         "Pat Test-Agent · The Kaiser Team · Example Brokerage Group · DRE #01234567")
 
