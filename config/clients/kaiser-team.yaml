@@ -1,0 +1,10 @@
+client_id: kaiser-team
+display_name: The Kaiser Team
+territory:
+  planning_areas: [La Jolla, Pacific Beach, Mission Beach]
+  zips: ["92037", "92109"]
+  neighborhoods: [La Jolla, Pacific Beach, Mission Beach]
+owner_data_provider: sample   # switches to attom in Phase 6
+outreach:
+  mode: preview               # nothing is sent until Phase 5 approval
+team_members: []              # added in Phase 5
