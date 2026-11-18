@@ -1,0 +1,66 @@
+# Plain-English labels for everything that is not a permit type (permit types are in
+# permit_labels.yaml). Sentence case, acronyms kept (ADU, SB 9, SB 79, STR).
+# territory.export_catalog publishes these in dashboard/src/data/catalog.generated.json; the dashboard
+# must not keep its own copy of any name.
+
+signal_types:
+  tax_default: Tax default (power-to-sell list)
+  stro_license_removed: STR license removed
+  stro_license_active: Active STR license
+  permit_approved: Permit approved
+  permit_stalled: Permit expired with no close date
+  sb79_transit_estimate: SB 79 transit eligibility (estimated)
+  sb9_lot_split_estimate: SB 9 lot-split eligibility (estimated)
+  fire_hazard_zone: Fire hazard severity zone
+
+# signal_group values written by the adapters.
+signal_groups:
+  distress: Tax distress
+  stro: Short-term rentals
+  upzoning: Upzoning
+  risk: Fire hazard
+  pre_sale_prep: Pre-sale prep work
+  demolition_lot_split: Demolition or lot split
+  adu: ADU
+  remodel_addition: Remodel or addition
+  solar_energy: Solar and energy
+  other: Other permits
+
+# Score component keys (components[].key in the scores table) and the families they belong to.
+components:
+  tax_default: Tax default
+  stro_license_removed: STR license removed
+  stro_license_active: Active STR license
+  "permit_approved:pre_sale_prep": Pre-sale prep permit approved
+  "permit_approved:demolition_lot_split": Demolition or lot-split permit approved
+  "permit_approved:adu": ADU permit approved
+  "permit_approved:remodel_addition": Remodel or addition permit approved
+  "permit_approved:solar_energy": Solar or energy permit approved
+  "permit_approved:other": Other permit approved
+  permit_stalled: Permit expired with no close date
+  sb79_transit_estimate: SB 79 transit eligibility (estimated)
+  sb9_lot_split_estimate: SB 9 lot-split eligibility (estimated)
+  fire_hazard_zone: Fire hazard severity zone
+  "owner:years_owned": Years owned
+  "owner:absentee": Absentee owner
+  "owner:out_of_state": Out-of-state owner
+  "owner:mortgage_open_false": No open mortgage
+  "owner:est_equity_top_quartile": Equity in the top quarter (estimated)
+  "owner:ownership_transfer": Ownership transfer (context only, no points)
+
+families:
+  financial: Financial
+  rental: Short-term rentals
+  permits: Permits
+  upzoning: Upzoning
+  fire: Fire hazard
+  owner: Owner
+
+stages:
+  signal: Signal
+  contacted: Contacted
+  conversation: Conversation
+  appointment: Appointment
+  listing: Listing
+  not_interested: Not interested
+  bad_data: Bad data

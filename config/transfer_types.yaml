@@ -1,0 +1,14 @@
+# Sale/recorder document types that are a transfer by death, trust or inheritance rather than an
+# arm's-length sale. When the latest owners or sales_history record is one of these, the current
+# owner's tenure starts at the transfer date and the previous tenure is stored separately as
+# prior_owner_years (never described as the current owner's tenure). Keys are matched after
+# lower-casing and collapsing whitespace. Real ATTOM doc types are confirmed in Phase 6 (BACKLOG.md).
+transfer_types:
+  "transfer on death deed":              {kind: inheritance, label: Transfer on death deed}
+  "deed of distribution":                {kind: inheritance, label: Deed of distribution}
+  "executor's deed":                     {kind: inheritance, label: Executor's deed}
+  "affidavit of death of joint tenant":  {kind: death,       label: Affidavit of death of joint tenant}
+  "certificate of death":                {kind: death,       label: Certificate of death}
+  "trust transfer deed":                 {kind: trust,       label: Trust transfer deed}
+  "trustee's deed":                      {kind: trust,       label: Trustee's deed}
+  "certification of trust":              {kind: trust,       label: Certification of trust}

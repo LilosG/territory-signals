@@ -33,7 +33,7 @@ class OwnerRecord:
 class SaleRecord:
     apn: str
     sale_date: date
-    sale_price: float
+    sale_price: Optional[float]      # None for a transfer with no price (death, trust, inheritance)
     doc_type: str
     provider: str
     is_sample: bool

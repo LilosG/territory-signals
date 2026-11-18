@@ -26,6 +26,10 @@ def provider_for(client):
     return SampleOwnerProvider() if client.owner_data_provider == "sample" else AttomOwnerProvider()
 
 
+def _num(v):
+    return None if v is None else float(v)
+
+
 def residential_apns(conn, codes) -> list[str]:
     return [r[0] for r in conn.execute(
         "select apn from parcels where land_use = any(%s) order by apn", (list(codes),))]
@@ -36,8 +40,11 @@ def load_owner_layer(conn, client, as_of: date, cfg=None) -> dict[str, int]:
     provider = provider_for(client)
     apns = residential_apns(conn, cfg["residential_codes"])
     name = provider.provider
-    have_owner = {r[0] for r in conn.execute(
-        "select apn from owners where provider=%s and as_of=%s", (name, as_of))}
+    # Append-only: an owner row identical to one already stored for this as_of is skipped; a row whose
+    # content changed (e.g. a corrected last_sale_date) is appended and wins by created_at in readers.
+    have_owner = {(r[0], r[1], r[2], _num(r[3])) for r in conn.execute(
+        "select apn, owner_name, last_sale_date, last_sale_price from owners where provider=%s and as_of=%s",
+        (name, as_of))}
     have_sale = {(r[0], r[1], r[2]) for r in conn.execute(
         "select apn, sale_date, doc_type from sales_history where provider=%s", (name,))}
     owners = sales = 0
@@ -45,8 +52,8 @@ def load_owner_layer(conn, client, as_of: date, cfg=None) -> dict[str, int]:
         chunk = apns[i:i + BATCH]
         o_rows, s_rows = [], []
         for apn in chunk:
-            if apn not in have_owner:
-                o = replace(provider.get_owner(apn), as_of=as_of)
+            o = replace(provider.get_owner(apn), as_of=as_of)
+            if (o.apn, o.owner_name, o.last_sale_date, _num(o.last_sale_price)) not in have_owner:
                 o_rows.append((o.apn, o.owner_name, o.mailing_address, o.owner_occupied, o.absentee,
                                o.out_of_state, o.last_sale_date, o.last_sale_price, o.mortgage_open,
                                o.est_value, o.est_equity, o.provider, o.is_sample, o.as_of))

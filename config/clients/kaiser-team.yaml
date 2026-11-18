@@ -5,6 +5,34 @@ territory:
   zips: ["92037", "92109"]
   neighborhoods: [La Jolla, Pacific Beach, Mission Beach]
 owner_data_provider: sample   # switches to attom in Phase 6
+
+# Agents and assistants. Empty until Mike supplies real names and DRE license numbers (D11):
+# drafts are still created but are flagged blocked and cannot be approved.
+# Each entry: {name, email, role: owner|agent|assistant, dre_license, phone}
+team_members: []
+
+# Used in sign-offs and the email footer. Empty strings are omitted from drafts.
+# An empty office_address blocks email drafts from approval.
+team_profile:
+  display_name: The Kaiser Team
+  brokerage: ""
+  office_address: ""
+
+# Which recipes this client works. Keys must match config/scoring.yaml.
+recipes:
+  str_exit:           {enabled: true}
+  tired_landlord:     {enabled: true}
+  builder_bait:       {enabled: true}
+  pre_list_prep:      {enabled: true}
+  stalled_project:    {enabled: true}
+  downsizer:          {enabled: true}
+  insurance_squeeze:  {enabled: true}    # enabled, but idle until fire zones load (D6)
+  financial_pressure: {enabled: true}
+  quiet_inheritance:  {enabled: false}   # needs ATTOM recorder data (Phase 6, D1)
+
 outreach:
-  mode: preview               # nothing is sent until Phase 5 approval
-team_members: []              # added in Phase 5
+  mode: preview               # nothing is ever sent in preview; there is no send mode yet
+  weekly_send_cap_per_agent: 25
+  drafts_per_run: 50
+  cooldown_days: 90
+  approval_required_recipes: [quiet_inheritance, financial_pressure, insurance_squeeze]

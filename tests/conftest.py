@@ -90,7 +90,7 @@ def conn(migrated_db):
 
 TRUNCATE_ALL = (
     "truncate signals, raw_records, source_runs, owners, sales_history, scores, suppressions, "
-    "outreach, outcomes, parcels, neighborhoods restart identity cascade"
+    "outreach, outcomes, stage_events, parcels, neighborhoods restart identity cascade"
 )
 
 

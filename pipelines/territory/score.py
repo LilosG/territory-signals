@@ -24,7 +24,7 @@ from territory.config import load_client
 from territory.db import connect
 from territory.reports import REPORT_DIR
 from territory.scoring_engine import (
-    Owner, Sig, latest_snapshot_dates, load_scoring_config, percentile, score_parcel,
+    Owner, Sig, latest_snapshot_dates, load_scoring_config, percentile, resolve_tenure, score_parcel,
 )
 
 BATCH = 2000
@@ -60,6 +60,15 @@ def load_owners(conn, apns: list[str]) -> dict[str, Owner]:
     for r in rows:
         out[r[0]] = Owner(r[1], r[2], r[3], r[4], r[5], float(r[6]) if r[6] is not None else None,
                           r[7], r[8], r[9])
+    return out
+
+
+def load_sales(conn, apns: list[str]) -> dict[str, list[tuple[date | None, str | None]]]:
+    """apn -> [(sale_date, doc_type)] from sales_history (input to the ownership rule)."""
+    out: dict[str, list] = defaultdict(list)
+    for apn, d, t in conn.execute(
+            "select apn, sale_date, doc_type from sales_history where apn = any(%s)", (apns,)):
+        out[apn].append((d, t))
     return out
 
 
@@ -111,6 +120,9 @@ def run_score(conn, cfg: Mapping[str, Any], as_of: date, scored_at: datetime | N
     parcels = load_residential(conn, cfg)
     apns = [p[0] for p in parcels]
     owners = load_owners(conn, apns)
+    # Ownership rule: a transfer by death, trust or inheritance restarts the current owner's tenure.
+    sales = load_sales(conn, apns)
+    owners = {a: resolve_tenure(o, sales.get(a, []), cfg["transfer_types"]) for a, o in owners.items()}
     suppressed = load_suppressed(conn, apns, as_of, cfg["suppression"]["recent_sale_months"])
     sigs = load_signals(conn, apns, list(cfg["signals"]))
     snap = load_snapshot_dates(conn, cfg)

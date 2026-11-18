@@ -1,0 +1,937 @@
+{
+  "catalog_version": 1,
+  "client_id": "kaiser-team",
+  "model_version": "v0.3-handset",
+  "signal_types": [
+    {
+      "key": "fire_hazard_zone",
+      "label": "Fire hazard severity zone"
+    },
+    {
+      "key": "permit_approved",
+      "label": "Permit approved"
+    },
+    {
+      "key": "permit_stalled",
+      "label": "Permit expired with no close date"
+    },
+    {
+      "key": "sb79_transit_estimate",
+      "label": "SB 79 transit eligibility (estimated)"
+    },
+    {
+      "key": "sb9_lot_split_estimate",
+      "label": "SB 9 lot-split eligibility (estimated)"
+    },
+    {
+      "key": "stro_license_active",
+      "label": "Active STR license"
+    },
+    {
+      "key": "stro_license_removed",
+      "label": "STR license removed"
+    },
+    {
+      "key": "tax_default",
+      "label": "Tax default (power-to-sell list)"
+    }
+  ],
+  "signal_groups": [
+    {
+      "key": "adu",
+      "label": "ADU"
+    },
+    {
+      "key": "demolition_lot_split",
+      "label": "Demolition or lot split"
+    },
+    {
+      "key": "distress",
+      "label": "Tax distress"
+    },
+    {
+      "key": "other",
+      "label": "Other permits"
+    },
+    {
+      "key": "pre_sale_prep",
+      "label": "Pre-sale prep work"
+    },
+    {
+      "key": "remodel_addition",
+      "label": "Remodel or addition"
+    },
+    {
+      "key": "risk",
+      "label": "Fire hazard"
+    },
+    {
+      "key": "solar_energy",
+      "label": "Solar and energy"
+    },
+    {
+      "key": "stro",
+      "label": "Short-term rentals"
+    },
+    {
+      "key": "upzoning",
+      "label": "Upzoning"
+    }
+  ],
+  "permit_types": [
+    {
+      "key": "Agreement",
+      "label": "City agreement"
+    },
+    {
+      "key": "Alternate Methods & Materials",
+      "label": "Alternate building methods request"
+    },
+    {
+      "key": "Alternate Methods and Materials",
+      "label": "Alternate building methods request"
+    },
+    {
+      "key": "Approval - Construction - Demolition Pmt",
+      "label": "Demolition"
+    },
+    {
+      "key": "Approval - Construction - Electrical Pmt - PV Combo",
+      "label": "Solar panels with electrical work"
+    },
+    {
+      "key": "Approval - Construction - Electrical Pmt-PV Combo",
+      "label": "Solar panels with electrical work"
+    },
+    {
+      "key": "Approval - Construction - Fire Pmt - Alarm",
+      "label": "Fire alarm permit"
+    },
+    {
+      "key": "Approval - Construction - Fire Pmt - Kitchen Hood",
+      "label": "Kitchen hood fire permit"
+    },
+    {
+      "key": "Approval - Construction - Fire Pmt - Suppression",
+      "label": "Fire sprinkler permit"
+    },
+    {
+      "key": "Approval - Construction - Fire Pmt - Underground",
+      "label": "Underground fire line permit"
+    },
+    {
+      "key": "Approval - Construction - Grading Pmt",
+      "label": "Grading (earthwork) permit"
+    },
+    {
+      "key": "Approval - Construction - Grading Pmt-Private",
+      "label": "Grading (earthwork) permit"
+    },
+    {
+      "key": "Approval - Construction - Grading-Right of Way Pmt",
+      "label": "Grading and street-work permit"
+    },
+    {
+      "key": "Approval - Construction - Master Plan Establish",
+      "label": "Master plan establishment"
+    },
+    {
+      "key": "Approval - Construction - Right Of Way Pmt",
+      "label": "Street (right-of-way) work"
+    },
+    {
+      "key": "Approval - Construction - Right Of Way Pmt-Const Plan",
+      "label": "Street (right-of-way) work"
+    },
+    {
+      "key": "Approval - Construction - Sign Pmt",
+      "label": "Sign"
+    },
+    {
+      "key": "Approval - Process - Agreement",
+      "label": "City agreement"
+    },
+    {
+      "key": "Building Permit",
+      "label": "Building permit (remodel, addition or new construction)"
+    },
+    {
+      "key": "Certificate of Compliance",
+      "label": "Lot legality certificate"
+    },
+    {
+      "key": "Certificate of Correction",
+      "label": "Lot record correction"
+    },
+    {
+      "key": "City Council Approval",
+      "label": "City Council approval"
+    },
+    {
+      "key": "City Manager Approval",
+      "label": "City Manager approval"
+    },
+    {
+      "key": "Coastal Development",
+      "label": "Coastal development approval"
+    },
+    {
+      "key": "Coastal Development Permit",
+      "label": "Coastal development approval"
+    },
+    {
+      "key": "Combination Building Permit",
+      "label": "Building permit (remodel, addition or new construction)"
+    },
+    {
+      "key": "Conditional Use Permit",
+      "label": "Conditional use approval"
+    },
+    {
+      "key": "Condominium Conversion",
+      "label": "Condominium conversion"
+    },
+    {
+      "key": "Construction Change - Building",
+      "label": "Change to a building permit"
+    },
+    {
+      "key": "Construction Change - Eng.",
+      "label": "Change to an engineering permit"
+    },
+    {
+      "key": "Construction Change - Fire",
+      "label": "Change to a fire permit"
+    },
+    {
+      "key": "Construction Noise Permit",
+      "label": "Construction noise permit"
+    },
+    {
+      "key": "DSD/Record Type/Process/Affordable Housing Verif Req",
+      "label": "Affordable housing verification"
+    },
+    {
+      "key": "Deferred Document Review",
+      "label": "Deferred document review"
+    },
+    {
+      "key": "Deferred Fire Approval",
+      "label": "Fire department deferred approval"
+    },
+    {
+      "key": "Demolition Permit",
+      "label": "Demolition"
+    },
+    {
+      "key": "Discretionary Map - Waiver",
+      "label": "Parcel map waiver (lot split)"
+    },
+    {
+      "key": "Easement - Vacation",
+      "label": "Easement removal"
+    },
+    {
+      "key": "Easement Dedication",
+      "label": "Easement"
+    },
+    {
+      "key": "Easement Vacation",
+      "label": "Easement removal"
+    },
+    {
+      "key": "Elec. Utility Undergrnd. Prgm",
+      "label": "Utility undergrounding program work"
+    },
+    {
+      "key": "Elec.-UG Program-City only    ",
+      "label": "Utility undergrounding program work"
+    },
+    {
+      "key": "Elec.-UG Program-Cust Upgrades",
+      "label": "Utility undergrounding program work"
+    },
+    {
+      "key": "Electrical Permit",
+      "label": "Electrical work"
+    },
+    {
+      "key": "Electrical Pmt",
+      "label": "Electrical work"
+    },
+    {
+      "key": "Electrical-Photovoltaic",
+      "label": "Solar panels"
+    },
+    {
+      "key": "Emergency Authorization-ESL",
+      "label": "Emergency authorization (sensitive land)"
+    },
+    {
+      "key": "Emergency Authorization-Hist",
+      "label": "Emergency authorization (historic)"
+    },
+    {
+      "key": "Emergency Coastal Dev Permit",
+      "label": "Emergency coastal development approval"
+    },
+    {
+      "key": "Encroachment Agreement",
+      "label": "Encroachment agreement (private use of public land)"
+    },
+    {
+      "key": "Extension of Time - Dev. Pmt",
+      "label": "Permit time extension"
+    },
+    {
+      "key": "Extension of Time - TM",
+      "label": "Tentative map time extension"
+    },
+    {
+      "key": "Final Map",
+      "label": "Final subdivision map"
+    },
+    {
+      "key": "Fire Permit",
+      "label": "Fire system permit"
+    },
+    {
+      "key": "Fire Permit - Alarm",
+      "label": "Fire alarm permit"
+    },
+    {
+      "key": "Fire Permit - Kitchen Hood",
+      "label": "Kitchen hood fire permit"
+    },
+    {
+      "key": "Fire Permit - Suppression",
+      "label": "Fire sprinkler permit"
+    },
+    {
+      "key": "Fire Permit - Underground",
+      "label": "Underground fire line permit"
+    },
+    {
+      "key": "Grading + Right of Way Permit",
+      "label": "Grading and street-work permit"
+    },
+    {
+      "key": "Grading Permit",
+      "label": "Grading (earthwork) permit"
+    },
+    {
+      "key": "Grading Permit - Private",
+      "label": "Grading (earthwork) permit"
+    },
+    {
+      "key": "Hillside Review Overlay Zone",
+      "label": "Hillside review"
+    },
+    {
+      "key": "Home Occupation Permit",
+      "label": "Home occupation"
+    },
+    {
+      "key": "Hydrant Flow",
+      "label": "Fire hydrant flow test"
+    },
+    {
+      "key": "Individual Historical Resource Nomination",
+      "label": "Historic resource nomination"
+    },
+    {
+      "key": "Inspect-Mitigation Monitoring",
+      "label": "Environmental mitigation monitoring"
+    },
+    {
+      "key": "La Jolla Planned District",
+      "label": "La Jolla planned district approval"
+    },
+    {
+      "key": "La Jolla Shores Planned Dist.",
+      "label": "La Jolla Shores planned district approval"
+    },
+    {
+      "key": "Land Use Plan",
+      "label": "Land use plan"
+    },
+    {
+      "key": "Limited Use Permit",
+      "label": "Limited use approval"
+    },
+    {
+      "key": "Lot Tie Agreement",
+      "label": "Lot tie agreement"
+    },
+    {
+      "key": "Lot-Line Adjustment",
+      "label": "Lot line adjustment"
+    },
+    {
+      "key": "Map - Certificate of Compliance",
+      "label": "Lot legality certificate"
+    },
+    {
+      "key": "Map - Certificate of Correction",
+      "label": "Lot record correction"
+    },
+    {
+      "key": "Map - Covenant of Easement",
+      "label": "Easement"
+    },
+    {
+      "key": "Map - Easement Dedication",
+      "label": "Easement"
+    },
+    {
+      "key": "Map - Final Map",
+      "label": "Final subdivision map"
+    },
+    {
+      "key": "Map - Irrevocable Offer of Dedication",
+      "label": "Street dedication to the City"
+    },
+    {
+      "key": "Map - Irrevocable Offer of Dedication Acceptance",
+      "label": "Street dedication to the City"
+    },
+    {
+      "key": "Map - Lot-Line Adjustment",
+      "label": "Lot line adjustment"
+    },
+    {
+      "key": "Map - Parcel Map",
+      "label": "Parcel map (lot split)"
+    },
+    {
+      "key": "Map - Public Right of Way Dedication",
+      "label": "Street dedication to the City"
+    },
+    {
+      "key": "Map Waiver",
+      "label": "Parcel map waiver (lot split)"
+    },
+    {
+      "key": "Mechanical Permit",
+      "label": "Heating, cooling or mechanical work"
+    },
+    {
+      "key": "Mechanical Pmt",
+      "label": "Heating, cooling or mechanical work"
+    },
+    {
+      "key": "Mills Act Agreement",
+      "label": "Historic property tax agreement (Mills Act)"
+    },
+    {
+      "key": "Mobile Food Truck Permit",
+      "label": "Mobile food truck"
+    },
+    {
+      "key": "Mobile Food Truck Pmt",
+      "label": "Mobile food truck"
+    },
+    {
+      "key": "Neighborhood Development Permit",
+      "label": "Neighborhood development approval"
+    },
+    {
+      "key": "Neighborhood Developmnt Permit",
+      "label": "Neighborhood development approval"
+    },
+    {
+      "key": "Neighborhood Use Permit",
+      "label": "Neighborhood use approval"
+    },
+    {
+      "key": "Newsrack Permit",
+      "label": "Newsrack"
+    },
+    {
+      "key": "No-Plan - Nonresidential/Multifamily - Electrical",
+      "label": "Electrical work (commercial or multifamily)"
+    },
+    {
+      "key": "No-Plan - Nonresidential/Multifamily - Mechanical",
+      "label": "Mechanical work (commercial or multifamily)"
+    },
+    {
+      "key": "No-Plan - Nonresidential/Multifamily - Plumbing",
+      "label": "Plumbing work (commercial or multifamily)"
+    },
+    {
+      "key": "No-Plan - Residential - Combination Mech/Elec/Plum",
+      "label": "Electrical, plumbing and mechanical work"
+    },
+    {
+      "key": "Notice of Termination",
+      "label": "Notice of termination"
+    },
+    {
+      "key": "Parcel Map",
+      "label": "Parcel map (lot split)"
+    },
+    {
+      "key": "Photovoltaic - SB 379",
+      "label": "Solar panels"
+    },
+    {
+      "key": "Planned Development Permit",
+      "label": "Planned development approval"
+    },
+    {
+      "key": "Plumbing Permit ",
+      "label": "Plumbing work"
+    },
+    {
+      "key": "Plumbing Pmt",
+      "label": "Plumbing work"
+    },
+    {
+      "key": "Public Improvement Maint. Agmt",
+      "label": "Public improvement maintenance agreement"
+    },
+    {
+      "key": "Public Project Assessment Permit",
+      "label": "Public project assessment"
+    },
+    {
+      "key": "Public R.O.W. Use Permit",
+      "label": "Street (right-of-way) use"
+    },
+    {
+      "key": "Public ROW Vacation",
+      "label": "Street vacation"
+    },
+    {
+      "key": "Public Right of Way Dedication",
+      "label": "Street dedication to the City"
+    },
+    {
+      "key": "Public Right of Way Vacation",
+      "label": "Street vacation"
+    },
+    {
+      "key": "ROW Permit-Std Public Improvmt",
+      "label": "Street improvement work"
+    },
+    {
+      "key": "ROW Permit-Traffic Control",
+      "label": "Traffic control for street work"
+    },
+    {
+      "key": "Re-zone",
+      "label": "Rezoning"
+    },
+    {
+      "key": "Reclaimed Water Permit",
+      "label": "Reclaimed water"
+    },
+    {
+      "key": "Res. High Occupancy Permit",
+      "label": "High-occupancy residence permit"
+    },
+    {
+      "key": "Rezone",
+      "label": "Rezoning"
+    },
+    {
+      "key": "Right Of Way Permit",
+      "label": "Street (right-of-way) work"
+    },
+    {
+      "key": "Right Of Way Permit-Combo",
+      "label": "Street (right-of-way) work"
+    },
+    {
+      "key": "Right Of Way Permit-Const Plan",
+      "label": "Street (right-of-way) work"
+    },
+    {
+      "key": "Sensitive Coastal Resource",
+      "label": "Coastal resource review"
+    },
+    {
+      "key": "Shared Mobility Device Permit ",
+      "label": "Shared scooter/bike permit"
+    },
+    {
+      "key": "Sidewalk Cafe Agreement",
+      "label": "Sidewalk cafe agreement"
+    },
+    {
+      "key": "Sign Permit",
+      "label": "Sign"
+    },
+    {
+      "key": "Sign Permit (No Inspection)",
+      "label": "Sign"
+    },
+    {
+      "key": "Site  Development Permit",
+      "label": "Site development approval"
+    },
+    {
+      "key": "Site Development Permit",
+      "label": "Site development approval"
+    },
+    {
+      "key": "Special Permit",
+      "label": "Special permit"
+    },
+    {
+      "key": "Spectrum Act Permit",
+      "label": "Cell equipment modification"
+    },
+    {
+      "key": "Storm Water Maintenance Agrmnt",
+      "label": "Storm water maintenance agreement"
+    },
+    {
+      "key": "Street -Tree Permit",
+      "label": "Street tree"
+    },
+    {
+      "key": "Street Address Change",
+      "label": "Street address change"
+    },
+    {
+      "key": "Street Name Change",
+      "label": "Street name change"
+    },
+    {
+      "key": "Street Tree Permit",
+      "label": "Street tree"
+    },
+    {
+      "key": "Substantial Conformance Review",
+      "label": "Review of changes to an approved project"
+    },
+    {
+      "key": "Temporary Use Permit",
+      "label": "Temporary use"
+    },
+    {
+      "key": "Temporary Use Pmt",
+      "label": "Temporary use"
+    },
+    {
+      "key": "Tentative - Map",
+      "label": "Tentative subdivision map"
+    },
+    {
+      "key": "Tentative Map",
+      "label": "Tentative subdivision map"
+    },
+    {
+      "key": "Tentative Map Exemption",
+      "label": "Tentative map exemption"
+    },
+    {
+      "key": "Traffic Control Permit",
+      "label": "Traffic control for street work"
+    },
+    {
+      "key": "Traffic Control Plan-Permit",
+      "label": "Traffic control for street work"
+    },
+    {
+      "key": "Transportation Permit",
+      "label": "Transportation permit"
+    },
+    {
+      "key": "Uncontrolled Embankment Agrmnt",
+      "label": "Embankment agreement"
+    },
+    {
+      "key": "Variance",
+      "label": "Zoning variance"
+    },
+    {
+      "key": "Variance permit",
+      "label": "Zoning variance"
+    },
+    {
+      "key": "Vesting Tentative - Map",
+      "label": "Tentative subdivision map"
+    },
+    {
+      "key": "Vesting Tentative Map",
+      "label": "Tentative subdivision map"
+    },
+    {
+      "key": "Zone History Letter",
+      "label": "Zoning history letter"
+    },
+    {
+      "key": "Zoning Use Certificate",
+      "label": "Zoning use certificate"
+    }
+  ],
+  "recipes": [
+    {
+      "key": "str_exit",
+      "label": "Short-term rental exit",
+      "short_description": "STR license removed in the last year",
+      "enabled": true,
+      "requires_data": []
+    },
+    {
+      "key": "tired_landlord",
+      "label": "Tired landlord",
+      "short_description": "Long-held absentee owner with a distress signal",
+      "enabled": true,
+      "requires_data": []
+    },
+    {
+      "key": "builder_bait",
+      "label": "Builder bait",
+      "short_description": "Estimated upzoning potential on a large lot",
+      "enabled": true,
+      "requires_data": []
+    },
+    {
+      "key": "pre_list_prep",
+      "label": "Pre-list prep",
+      "short_description": "Pre-sale permit on a long-held home",
+      "enabled": true,
+      "requires_data": []
+    },
+    {
+      "key": "stalled_project",
+      "label": "Stalled project",
+      "short_description": "Permit expired with no close date",
+      "enabled": true,
+      "requires_data": []
+    },
+    {
+      "key": "downsizer",
+      "label": "Downsizer",
+      "short_description": "Long-held owner-occupant with no mortgage",
+      "enabled": true,
+      "requires_data": []
+    },
+    {
+      "key": "insurance_squeeze",
+      "label": "Insurance squeeze",
+      "short_description": "High or very high fire hazard zone",
+      "enabled": true,
+      "requires_data": [
+        "fire_zones"
+      ]
+    },
+    {
+      "key": "financial_pressure",
+      "label": "Financial pressure",
+      "short_description": "Tax default, or lost rental income with a mortgage",
+      "enabled": true,
+      "requires_data": []
+    },
+    {
+      "key": "quiet_inheritance",
+      "label": "Quiet inheritance",
+      "short_description": "Recent transfer by death, trust or inheritance",
+      "enabled": false,
+      "requires_data": []
+    }
+  ],
+  "components": [
+    {
+      "key": "tax_default",
+      "kind": "signal",
+      "family": "financial",
+      "max_points": 30.0,
+      "label": "Tax default",
+      "family_label": "Financial"
+    },
+    {
+      "key": "stro_license_removed",
+      "kind": "signal",
+      "family": "rental",
+      "max_points": 25.0,
+      "label": "STR license removed",
+      "family_label": "Short-term rentals"
+    },
+    {
+      "key": "stro_license_active",
+      "kind": "signal",
+      "family": "rental",
+      "max_points": 5.0,
+      "label": "Active STR license",
+      "family_label": "Short-term rentals"
+    },
+    {
+      "key": "permit_approved:pre_sale_prep",
+      "kind": "signal",
+      "family": "permits",
+      "max_points": 20.0,
+      "label": "Pre-sale prep permit approved",
+      "family_label": "Permits"
+    },
+    {
+      "key": "permit_approved:demolition_lot_split",
+      "kind": "signal",
+      "family": "permits",
+      "max_points": 15.0,
+      "label": "Demolition or lot-split permit approved",
+      "family_label": "Permits"
+    },
+    {
+      "key": "permit_approved:adu",
+      "kind": "signal",
+      "family": "permits",
+      "max_points": 10.0,
+      "label": "ADU permit approved",
+      "family_label": "Permits"
+    },
+    {
+      "key": "permit_approved:remodel_addition",
+      "kind": "signal",
+      "family": "permits",
+      "max_points": 8.0,
+      "label": "Remodel or addition permit approved",
+      "family_label": "Permits"
+    },
+    {
+      "key": "permit_approved:solar_energy",
+      "kind": "signal",
+      "family": "permits",
+      "max_points": 3.0,
+      "label": "Solar or energy permit approved",
+      "family_label": "Permits"
+    },
+    {
+      "key": "permit_stalled",
+      "kind": "signal",
+      "family": "permits",
+      "max_points": 15.0,
+      "label": "Permit expired with no close date",
+      "family_label": "Permits"
+    },
+    {
+      "key": "sb79_transit_estimate",
+      "kind": "signal",
+      "family": "upzoning",
+      "max_points": 14.0,
+      "label": "SB 79 transit eligibility (estimated)",
+      "family_label": "Upzoning"
+    },
+    {
+      "key": "sb9_lot_split_estimate",
+      "kind": "signal",
+      "family": "upzoning",
+      "max_points": 8.0,
+      "label": "SB 9 lot-split eligibility (estimated)",
+      "family_label": "Upzoning"
+    },
+    {
+      "key": "fire_hazard_zone",
+      "kind": "signal",
+      "family": "fire",
+      "max_points": 10.0,
+      "label": "Fire hazard severity zone",
+      "family_label": "Fire hazard"
+    },
+    {
+      "key": "owner:years_owned",
+      "kind": "owner",
+      "family": "owner",
+      "max_points": 15.0,
+      "label": "Years owned",
+      "family_label": "Owner"
+    },
+    {
+      "key": "owner:absentee",
+      "kind": "owner",
+      "family": "owner",
+      "max_points": 10.0,
+      "label": "Absentee owner",
+      "family_label": "Owner"
+    },
+    {
+      "key": "owner:out_of_state",
+      "kind": "owner",
+      "family": "owner",
+      "max_points": 12.0,
+      "label": "Out-of-state owner",
+      "family_label": "Owner"
+    },
+    {
+      "key": "owner:mortgage_open_false",
+      "kind": "owner",
+      "family": "owner",
+      "max_points": 10.0,
+      "label": "No open mortgage",
+      "family_label": "Owner"
+    },
+    {
+      "key": "owner:est_equity_top_quartile",
+      "kind": "owner",
+      "family": "owner",
+      "max_points": 5.0,
+      "label": "Equity in the top quarter (estimated)",
+      "family_label": "Owner"
+    },
+    {
+      "key": "owner:ownership_transfer",
+      "kind": "owner",
+      "family": "owner",
+      "max_points": 0.0,
+      "label": "Ownership transfer (context only, no points)",
+      "family_label": "Owner"
+    }
+  ],
+  "owner_modifier_cap": 30.0,
+  "score_bands": [
+    {
+      "key": "hot",
+      "label": "Hot",
+      "min": 80
+    },
+    {
+      "key": "warm",
+      "label": "Warm",
+      "min": 60
+    },
+    {
+      "key": "watch",
+      "label": "Watch",
+      "min": 40
+    },
+    {
+      "key": "low",
+      "label": "Low",
+      "min": 0
+    }
+  ],
+  "stages": [
+    {
+      "key": "signal",
+      "label": "Signal"
+    },
+    {
+      "key": "contacted",
+      "label": "Contacted"
+    },
+    {
+      "key": "conversation",
+      "label": "Conversation"
+    },
+    {
+      "key": "appointment",
+      "label": "Appointment"
+    },
+    {
+      "key": "listing",
+      "label": "Listing"
+    },
+    {
+      "key": "not_interested",
+      "label": "Not interested"
+    },
+    {
+      "key": "bad_data",
+      "label": "Bad data"
+    }
+  ]
+}

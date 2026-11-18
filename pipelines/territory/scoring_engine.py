@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
@@ -17,8 +17,10 @@ from dateutil.relativedelta import relativedelta
 
 SCORING_PATH = Path(__file__).resolve().parents[2] / "config" / "scoring.yaml"
 LABELS_PATH = Path(__file__).resolve().parents[2] / "config" / "permit_labels.yaml"
+TRANSFER_TYPES_PATH = Path(__file__).resolve().parents[2] / "config" / "transfer_types.yaml"
 SAMPLE_LABEL = "(sample data)"
 ESTIMATE_LABEL = "(estimated)"
+SAMPLE_ESTIMATE_LABEL = "(sample data, estimated)"
 
 
 # ---------------------------------------------------------------------------------------
@@ -50,6 +52,11 @@ class Owner:
     is_sample: bool = False
     provider: str = "sample"
     as_of: Optional[date] = None
+    # Set by resolve_tenure() when the latest record is a transfer by death, trust or inheritance.
+    # last_sale_date is then the transfer date: the CURRENT owner's tenure starts there.
+    transfer_date: Optional[date] = None
+    transfer_kind: Optional[str] = None
+    prior_owner_years: Optional[int] = None
 
 
 def load_scoring_config(path: str | Path | None = None) -> dict[str, Any]:
@@ -60,6 +67,7 @@ def load_scoring_config(path: str | Path | None = None) -> dict[str, Any]:
             raise ValueError(f"scoring config is missing '{key}'")
     cfg["residential_codes"] = [str(c) for c in cfg["residential_land_use"]]
     cfg["permit_labels"] = load_permit_labels()
+    cfg["transfer_types"] = load_transfer_types()
     return cfg
 
 
@@ -69,6 +77,41 @@ class MissingPermitLabel(KeyError):
 
 def load_permit_labels(path: str | Path | None = None) -> dict[str, str]:
     return yaml.safe_load(Path(path or LABELS_PATH).read_text(encoding="utf-8"))["labels"]
+
+
+def norm_doc_type(v: Any) -> str:
+    return " ".join(str(v or "").lower().split())
+
+
+def load_transfer_types(path: str | Path | None = None) -> dict[str, dict[str, str]]:
+    """doc_type (normalized) -> {kind, label} for transfers by death, trust or inheritance."""
+    raw = yaml.safe_load(Path(path or TRANSFER_TYPES_PATH).read_text(encoding="utf-8"))["transfer_types"]
+    return {norm_doc_type(k): dict(v) for k, v in raw.items()}
+
+
+def resolve_tenure(owner: Optional[Owner], sales: Sequence[tuple[Optional[date], Optional[str]]],
+                   transfer_types: Mapping[str, Mapping[str, str]]) -> Optional[Owner]:
+    """Ownership rule. `sales` is the parcel's sales_history as (sale_date, doc_type).
+
+    If the latest dated record is a transfer by death, trust or inheritance (doc_type in
+    transfer_types.yaml) and no later arm's-length sale is on the owners row, the current owner's
+    tenure starts at that transfer date. The tenure before it is kept as prior_owner_years (whole
+    years between the previous recorded sale and the transfer), never as the current owner's tenure."""
+    if owner is None:
+        return None
+    dated = [(d, t) for d, t in sales if d is not None]
+    if not dated:
+        return owner
+    last_date, last_type = max(dated, key=lambda x: (x[0], norm_doc_type(x[1]) in transfer_types))
+    kind = transfer_types.get(norm_doc_type(last_type), {}).get("kind")
+    if kind is None or (owner.last_sale_date is not None and owner.last_sale_date > last_date):
+        return owner
+    earlier = [d for d, _t in dated if d < last_date]
+    if owner.last_sale_date is not None and owner.last_sale_date < last_date:
+        earlier.append(owner.last_sale_date)
+    prior = relativedelta(last_date, max(earlier)).years if earlier else None
+    return replace(owner, last_sale_date=last_date, transfer_date=last_date, transfer_kind=kind,
+                   prior_owner_years=prior)
 
 
 def permit_label(approval_type: Optional[str], cfg: Mapping[str, Any]) -> str:
@@ -201,6 +244,13 @@ def signal_components(signals: Sequence[Sig], cfg: Mapping[str, Any], as_of: dat
     """One component per signal key (type, plus group for permits): the strongest instance,
     which is the most recent one. `signals` must already be effective."""
     best: dict[str, dict[str, Any]] = {}
+    same_day: dict[tuple, set] = {}
+    for s in signals:
+        if s.type in ("permit_approved", "permit_stalled"):
+            d = s.details or {}
+            when = str(s.date) if s.type == "permit_approved" else d.get("expire_date")
+            same_day.setdefault((s.type, s.group, when, permit_label(d.get("approval_type"), cfg)),
+                                set()).add(d.get("approval_id") or s.id)
     for s in sorted(signals, key=lambda x: (x.date or date.min, x.id)):
         sc = cfg["signals"][s.type]
         weight, half_life = _weight_and_halflife(s, sc)
@@ -222,6 +272,11 @@ def signal_components(signals: Sequence[Sig], cfg: Mapping[str, Any], as_of: dat
             "is_sample": bool(s.is_sample), "is_estimate": bool(s.is_estimate),
             "facts": _signal_facts(s, cfg),
         }
+        if s.type in ("permit_approved", "permit_stalled"):
+            f = comp["facts"]
+            when = f.get("issue_date") if s.type == "permit_approved" else f.get("expire_date")
+            # Several permits of one kind approved/expired the same day read as one phrase.
+            f["permit_count"] = len(same_day[(s.type, s.group, when, f["permit_label"])])
         cur = best.get(comp["key"])
         if cur is None or comp["contribution"] >= cur["contribution"]:
             best[comp["key"]] = comp
@@ -248,7 +303,14 @@ def owner_components(owner: Optional[Owner], cfg: Mapping[str, Any], as_of: date
             if yrs >= tier["min_years"]:
                 add("owner:years_owned", "last_sale_date", tier["weight"],
                     {"years_owned": yrs, "last_sale_date": str(owner.last_sale_date)})
+                out[-1]["tenure_basis"] = "transfer" if owner.transfer_date else "sale"
                 break
+    if owner.transfer_date is not None:
+        # Context only (zero points, never in reason_text): the prior owner's tenure is stored here and
+        # is never described as the current owner's tenure.
+        add("owner:ownership_transfer", "last_sale_date", 0,
+            {"transfer_kind": owner.transfer_kind, "transfer_date": str(owner.transfer_date)})
+        out[-1]["prior_owner_years"] = owner.prior_owner_years
     # out_of_state and absentee are not additive: out_of_state when true, otherwise absentee.
     if owner.out_of_state is True:
         add("owner:out_of_state", "out_of_state", om["out_of_state"]["weight"], {"out_of_state": True})
@@ -355,10 +417,69 @@ _BAND_TEXT = {"within_200ft": "within 200 ft", "within_quarter_mile": "within 1/
 _MODE_TEXT = {"rail_station": "a rail station", "brt_stop_proxy": "a bus rapid transit stop"}
 
 
-def phrase(c: Mapping[str, Any]) -> str:
+_COUNTABLE_ENDINGS = {
+    "permit", "map", "approval", "agreement", "request", "certificate", "extension", "authorization",
+    "modification", "nomination", "change", "adjustment", "correction", "waiver", "assessment",
+    "review", "letter", "variance",
+}
+_KEEP_CAPITAL_FIRST = {"City", "La"}
+
+
+def _flags(c: Mapping[str, Any]) -> str:
+    """Sample/estimate label: one combined parenthesis, never two."""
+    if c.get("is_sample") and c.get("is_estimate"):
+        return f" {SAMPLE_ESTIMATE_LABEL}"
+    if c.get("is_sample"):
+        return f" {SAMPLE_LABEL}"
+    if c.get("is_estimate"):
+        return f" {ESTIMATE_LABEL}"
+    return ""
+
+
+def _lower_first(text: str) -> str:
+    first = text.split(" ", 1)[0]
+    if first in _KEEP_CAPITAL_FIRST or first.isupper() or any(ch.isdigit() for ch in first):
+        return text
+    return text[0].lower() + text[1:]
+
+
+_PLURAL_BLOCKERS = {"to", "of", "for", "with", "and", "or", "from", "in", "by"}
+
+
+def counted_permit_label(label: str, count: int) -> str:
+    """'Building permit (x)' x2 -> '2 building permits (x)'. A label that cannot be pluralized safely
+    (mass nouns like 'Electrical work', or phrases like 'Change to a building permit') reads
+    '2 permits for electrical work'."""
+    if count <= 1:
+        return label
+    m = re.match(r"^(.*?)(\s*\([^()]*\))?$", label)
+    head, tail = m.group(1), m.group(2) or ""
+    words = head.split(" ")
+    if (len(words) <= 4 and "(" not in head and words[-1].lower() in _COUNTABLE_ENDINGS
+            and not _PLURAL_BLOCKERS & {w.lower() for w in words}):
+        words[-1] += "s"
+        return f"{count} {_lower_first(' '.join(words))}{tail}"
+    return f"{count} permits for {_lower_first(label)}"
+
+
+def tier_text(tier: Any) -> Optional[str]:
+    """'Tier 3', 'tier 3' and '3' all print as 'Tier 3' (the word Tier appears once)."""
+    t = str(tier or "").strip()
+    if not t:
+        return None
+    m = re.match(r"(?i)^tier\s*(.+)$", t)
+    return f"Tier {m.group(1).strip()}"if m else f"Tier {t}"
+
+
+def _whole_years(v: Any) -> int:
+    return int(float(v))
+
+
+def phrase(c: Mapping[str, Any], permit_count: Optional[int] = None) -> str:
     f, key = c["facts"], c["key"]
     if key == "owner:years_owned":
-        p = f"owned {f['years_owned']} year{'s' if f['years_owned'] != 1 else ''}"
+        n = _whole_years(f["years_owned"])
+        p = f"owned {n} year{'s' if n != 1 else ''}"
     elif key == "owner:absentee":
         p = "owner is absentee"
     elif key == "owner:out_of_state":
@@ -368,10 +489,12 @@ def phrase(c: Mapping[str, Any]) -> str:
     elif key == "owner:est_equity_top_quartile":
         p = "equity in the top quarter of the territory"
     elif key.startswith("permit_approved"):
-        p = f"{f['permit_label']} approved" + (
+        n = permit_count or f.get("permit_count") or 1
+        p = f"{counted_permit_label(f['permit_label'], n)} approved" + (
             f" {fmt_date(f['issue_date'])}" if f.get("issue_date") else "")
     elif key == "permit_stalled":
-        p = f"{f['permit_label']} expired" + (
+        n = permit_count or f.get("permit_count") or 1
+        p = f"{counted_permit_label(f['permit_label'], n)} expired" + (
             f" {fmt_date(f['expire_date'])}" if f.get("expire_date") else "") + " with no close date"
     elif key == "tax_default":
         since = (f.get("tax_defaulted_on") or "")[:4]
@@ -383,7 +506,8 @@ def phrase(c: Mapping[str, Any]) -> str:
         p = "short-term rental license removed" + (
             f" (as of {fmt_date(f['removed_as_of'])})" if f.get("removed_as_of") else "")
     elif key == "stro_license_active":
-        p = "holds an active short-term rental license" + (f" (tier {f['tier']})" if f.get("tier") else "")
+        tier = tier_text(f.get("tier"))
+        p = f"holds an active {tier + ' ' if tier else ''}short-term rental license"
     elif key == "sb79_transit_estimate":
         p = (f"{_BAND_TEXT.get(f.get('distance_band'), 'near')} of "
              f"{_MODE_TEXT.get(f.get('nearest_mode'), 'a transit stop')}, "
@@ -394,19 +518,41 @@ def phrase(c: Mapping[str, Any]) -> str:
         p = f"in a {norm_class(f.get('hazard_class'))} fire hazard severity zone"
     else:  # pragma: no cover - every configured key has a phrase
         raise ValueError(f"no reason phrase for component {key}")
-    if c.get("is_sample"):
-        p += f" {SAMPLE_LABEL}"
-    if c.get("is_estimate"):
-        p += f" {ESTIMATE_LABEL}"
-    return p
+    return p + _flags(c)
+
+
+def reason_phrases(components: Sequence[Mapping[str, Any]], cfg: Mapping[str, Any]) -> list[str]:
+    """The phrases of the top components. Same-day permits of one kind merge into one counted phrase
+    (the count is summed across components that print identically), and a phrase is never repeated."""
+    ranked = sorted((c for c in components if c["contribution"] > 0), key=lambda c: (-c["contribution"], c["key"]))
+    order: list[tuple] = []
+    counts: dict[tuple, int] = {}
+    comp_of: dict[tuple, Mapping[str, Any]] = {}
+    for c in ranked:
+        f = c["facts"]
+        if c["key"].startswith("permit_"):
+            ident = (c["key"].split(":")[0], f["permit_label"], f.get("issue_date") or f.get("expire_date"),
+                     bool(c.get("is_sample")), bool(c.get("is_estimate")))
+            counts[ident] = counts.get(ident, 0) + (f.get("permit_count") or 1)
+        else:
+            ident = ("phrase", phrase(c))
+            counts.setdefault(ident, 1)
+        if ident not in comp_of:
+            comp_of[ident] = c
+            order.append(ident)
+    out: list[str] = []
+    for ident in order:
+        text = phrase(comp_of[ident], counts[ident]) if ident[0].startswith("permit_") else ident[1]
+        if text not in out:
+            out.append(text)
+    return out[: cfg["reason_text"]["max_components"]]
 
 
 def reason_text(components: Sequence[Mapping[str, Any]], cfg: Mapping[str, Any]) -> str:
-    top = sorted((c for c in components if c["contribution"] > 0),
-                 key=lambda c: (-c["contribution"], c["key"]))[: cfg["reason_text"]["max_components"]]
-    if not top:
+    phrases = reason_phrases(components, cfg)
+    if not phrases:
         return "No scoring signals on file."
-    text = ", ".join(phrase(c) for c in top)
+    text = ", ".join(phrases)
     return text[0].upper() + text[1:] + "."
 
 

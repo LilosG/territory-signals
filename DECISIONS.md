@@ -11,3 +11,5 @@ Approved decisions, recorded 2026-11-18.
 - **D7** SB 79 and SB 9 eligibility is an in-house screen, stored with `is_estimate = true` and labeled "estimated eligibility". Official data is requested from the City or SANDAG.
 - **D8** Parcel `DOCDATE` is shown only as "last recorded document date", never as a purchase date. Tenure and sales come from ATTOM.
 - **D9** ATTOM is a required core source. Until the API key is added, the `SampleOwnerProvider` supplies labeled sample owner and sales records.
+- **D10** Phase 5 outreach drafts are generated deterministically from recipe templates in `config/outreach_templates/`, using only scored component facts. AI-polished drafts may be added later on top of the same facts.
+- **D11** California first-point-of-contact solicitation materials must show the agent's name and DRE license number; outreach cannot be approved for sending unless both are present in the client config.

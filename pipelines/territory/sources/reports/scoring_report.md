@@ -1,9 +1,9 @@
 # Scoring report
 
-Model v0.2-handset, as of 2026-11-18.
+Model v0.3-handset, as of 2026-11-18.
 
-- residential parcels: 26591; scored: 26266; non-residential (not scored): 4275
-- suppressed: {'sale within 24 months': 325}
+- residential parcels: 26591; scored: 26192; non-residential (not scored): 4275
+- suppressed: {'sale within 24 months': 399}
 - fire-zone data loaded: False
 - est_equity top-quartile cutoff (territory 75th percentile): 3022784.06
 
