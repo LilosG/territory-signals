@@ -8,9 +8,6 @@ import { data } from '../../../lib/data';
 import { brand } from '../../../config/brand';
 import { fmtApn, fmtNum, fmtDate } from '../../../lib/format';
 
-export async function getStaticPaths() {
-  return (await data.getLeads()).map((l) => ({ params: { apn: l.parcel.apn } }));
-}
 const lead = (await data.getLead(Astro.params.apn!))!;
 const p = lead.parcel;
 const trends = await data.getTrends(p.neighborhood ?? 'All');

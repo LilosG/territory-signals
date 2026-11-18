@@ -21,11 +21,11 @@ const top = [...fx.scores].sort((a, b) => b.score - a.score)[0]!.apn;
 
 const pages: [string, string][] = [
   ['today', '/'], ['map', '/map'], ['lead-brief', `/leads/${top}`], ['lead-presentation', `/leads/${top}/presentation`],
-  ['trends', '/trends'], ['trends-newsletter', '/trends/newsletter'], ['pipeline', '/pipeline'], ['settings', '/settings'], ['system', '/_system'],
+  ['trends', '/trends'], ['trends-newsletter', '/trends/newsletter'], ['pipeline', '/pipeline'], ['settings', '/settings'], ['system', '/design-system'],
 ];
 const viewports = { desktop: { width: 1440, height: 900 }, mobile: { width: 390, height: 844 } } as const;
 
-const server = spawn('npx', ['astro', 'preview', '--port', String(PORT)], { cwd: root, stdio: 'ignore' });
+const server = spawn('npx', ['astro', 'dev', '--port', String(PORT)], { cwd: root, stdio: 'ignore' });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function waitUp() {
   for (let i = 0; i < 60; i++) { try { if ((await fetch(base)).ok) return; } catch { /* retry */ } await sleep(500); }

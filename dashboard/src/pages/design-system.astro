@@ -1,8 +1,4 @@
 ---
-// Astro ignores files prefixed with "_" in src/pages, so the gallery is served at /_system via a static param.
-export function getStaticPaths() {
-  return [{ params: { system: '_system' } }];
-}
 import AppShell from '../components/ui/AppShell.astro';
 import PageHeader from '../components/ui/PageHeader.astro';
 import Section from '../components/ui/Section.astro';

@@ -21,10 +21,6 @@ import SampleDataBadge from '../../../components/ui/SampleDataBadge.astro';
 import { data, OUTCOME_LABELS } from '../../../lib/data';
 import { fmtApn, fmtDate, fmtNum, fmtPct, fmtUsd, sentenceCase } from '../../../lib/format';
 
-export async function getStaticPaths() {
-  const leads = await data.getLeads();
-  return leads.map((l) => ({ params: { apn: l.parcel.apn } }));
-}
 const { apn } = Astro.params;
 const lead = (await data.getLead(apn!))!;
 const config = await data.getConfig();
