@@ -42,7 +42,7 @@ def score(signals=(), own=None, snap=None, cutoff=None, data=()):
 
 # ---- config ------------------------------------------------------------------------------
 def test_config_matches_the_spec():
-    assert CFG["model_version"] == "v0.2-handset"
+    assert CFG["model_version"] == "v0.3-handset"
     s = CFG["signals"]
     assert (s["tax_default"]["weight"], s["tax_default"]["half_life_days"]) == (30, 365)
     assert (s["stro_license_removed"]["weight"], s["stro_license_removed"]["half_life_days"]) == (25, 90)
@@ -342,8 +342,11 @@ def test_sample_and_estimate_labels_always_present():
     from territory.scoring_engine import phrase
     for c in r["components"]:
         p = phrase(c)
-        assert ("(sample data)" in p) == c["is_sample"]
-        assert ("(estimated)" in p) == c["is_estimate"]
+        assert ("sample data" in p) == c["is_sample"]
+        assert ("estimated" in p) == c["is_estimate"]
+        import re
+        assert len(re.findall(r"\((?:sample data|estimated|sample data, estimated)\)", p)) == (
+            1 if c["is_sample"] or c["is_estimate"] else 0)                      # one label, never two
     assert r["uses_sample_data"] is True
     assert "lot may qualify for an SB 9 split (estimated)" in phrase(
         next(c for c in r["components"] if c["key"] == "sb9_lot_split_estimate"))

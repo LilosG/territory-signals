@@ -24,7 +24,7 @@ from territory.config import load_client
 from territory.db import connect
 from territory.reports import REPORT_DIR
 from territory.scoring_engine import (
-    Owner, Sig, latest_snapshot_dates, load_scoring_config, percentile, score_parcel,
+    Owner, Sig, norm_doc_type, latest_snapshot_dates, load_scoring_config, percentile, resolve_tenure, score_parcel,
 )
 
 BATCH = 2000
@@ -63,13 +63,28 @@ def load_owners(conn, apns: list[str]) -> dict[str, Owner]:
     return out
 
 
-def load_suppressed(conn, apns: list[str], as_of: date, months: int) -> dict[str, str]:
-    """apn -> reason. Recent sale (sales_history) or an active suppressions row."""
+def load_sales(conn, apns: list[str]) -> dict[str, list[tuple[date | None, str | None]]]:
+    """apn -> [(sale_date, doc_type)] from sales_history (input to the ownership rule)."""
+    out: dict[str, list] = defaultdict(list)
+    for apn, d, t in conn.execute(
+            "select apn, sale_date, doc_type from sales_history where apn = any(%s)", (apns,)):
+        out[apn].append((d, t))
+    return out
+
+
+NORM_DOC_TYPE_SQL = "lower(regexp_replace(btrim(coalesce(doc_type, '')), '\\s+', ' ', 'g'))"
+
+
+def load_suppressed(conn, apns: list[str], as_of: date, months: int,
+                    transfer_types=()) -> dict[str, str]:
+    """apn -> reason. Recent arm's-length sale (sales_history) or an active suppressions row.
+    Transfers by death, trust or inheritance (config/transfer_types.yaml) are not sales and never suppress."""
     cutoff = as_of - relativedelta(months=months)
     out: dict[str, str] = {}
     for (apn,) in conn.execute(
             "select distinct apn from sales_history where apn = any(%s) and sale_date >= %s "
-            "and sale_date <= %s", (apns, cutoff, as_of)):
+            f"and sale_date <= %s and not ({NORM_DOC_TYPE_SQL} = any(%s))",
+            (apns, cutoff, as_of, [norm_doc_type(t) for t in transfer_types])):
         out[apn] = f"sale within {months} months"
     for apn, reason in conn.execute(
             "select apn, reason from suppressions where apn = any(%s) "
@@ -111,7 +126,11 @@ def run_score(conn, cfg: Mapping[str, Any], as_of: date, scored_at: datetime | N
     parcels = load_residential(conn, cfg)
     apns = [p[0] for p in parcels]
     owners = load_owners(conn, apns)
-    suppressed = load_suppressed(conn, apns, as_of, cfg["suppression"]["recent_sale_months"])
+    # Ownership rule: a transfer by death, trust or inheritance restarts the current owner's tenure.
+    sales = load_sales(conn, apns)
+    owners = {a: resolve_tenure(o, sales.get(a, []), cfg["transfer_types"]) for a, o in owners.items()}
+    suppressed = load_suppressed(conn, apns, as_of, cfg["suppression"]["recent_sale_months"],
+                                 cfg["transfer_types"])
     sigs = load_signals(conn, apns, list(cfg["signals"]))
     snap = load_snapshot_dates(conn, cfg)
     data = loaded_data(conn)
@@ -131,12 +150,12 @@ def run_score(conn, cfg: Mapping[str, Any], as_of: date, scored_at: datetime | N
                         {"lot_sqft": lot, "area_median_lot_sqft": medians.get(area)})
         area_of[apn] = area
         rows.append((apn, r["score"], Jsonb(r["components"]), r["reason_text"], r["recipe_matches"],
-                     r["model_version"], scored_at, r["uses_sample_data"]))
+                     r["model_version"], scored_at, r["uses_sample_data"], r["primary_recipe"]))
     with conn.cursor() as cur:
         for i in range(0, len(rows), BATCH):
             cur.executemany(
                 "insert into scores (apn, score, components, reason_text, recipe_matches, model_version, "
-                "scored_at, uses_sample_data) values (%s,%s,%s,%s,%s,%s,%s,%s)", rows[i:i + BATCH])
+                "scored_at, uses_sample_data, primary_recipe) values (%s,%s,%s,%s,%s,%s,%s,%s,%s)", rows[i:i + BATCH])
     conn.commit()
     summary["scored"] = len(rows)
     summary["scored_at"] = scored_at

@@ -33,10 +33,11 @@ class OwnerRecord:
 class SaleRecord:
     apn: str
     sale_date: date
-    sale_price: float
+    sale_price: Optional[float]      # None for a transfer with no price (death, trust, inheritance)
     doc_type: str
     provider: str
     is_sample: bool
+    confidence: float = 1.0          # how sure the source is that the record belongs to this APN
 
 
 class OwnerDataProvider(ABC):

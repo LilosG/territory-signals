@@ -1,6 +1,6 @@
 # Deterministic scoring model. No AI is used anywhere in scoring (CLAUDE.md AI rules).
 # Score = min(100, round_half_up(weighted_sum x stacking_multiplier)).
-model_version: "v0.2-handset"
+model_version: "v0.3-handset"
 
 # ---- Residential filter ------------------------------------------------------------
 # Only parcels whose parcels.land_use is one of these codes are scored.
@@ -102,6 +102,15 @@ owner_modifiers:
   mortgage_open_false: {weight: 10}
   est_equity_top_quartile: {weight: 5, percentile: 75}   # est_equity >= territory 75th percentile
 
+# ---- Score bands --------------------------------------------------------------------------------
+# Display bands (a score at or above `min` is in the band; first match from the top). The dashboard reads
+# these through dashboard/src/data/catalog.generated.json (territory.export_catalog), never its own copy.
+score_bands:
+  - {key: hot,   label: Hot,   min: 80}
+  - {key: warm,  label: Warm,  min: 60}
+  - {key: watch, label: Watch, min: 40}
+  - {key: low,   label: Low,   min: 0}
+
 # ---- reason_text --------------------------------------------------------------------------
 reason_text:
   max_components: 4
@@ -114,11 +123,15 @@ reason_text:
 # requires_data: [fire_zones] -> recipe is active only when that data is loaded.
 recipes:
   str_exit:
+    label: Short-term rental exit
+    short_description: STR license removed in the last year
     description: Short-term rental license removed in the last year.
     when:
       signal: stro_license_removed
       within_days: 365
   tired_landlord:
+    label: Tired landlord
+    short_description: Long-held absentee owner with a distress signal
     description: Long-held absentee owner with a distress or friction signal.
     when:
       all:
@@ -129,6 +142,8 @@ recipes:
             - {signal: stro_license_removed, within_days: 730}
             - {signal: permit_stalled}
   builder_bait:
+    label: Builder bait
+    short_description: Estimated upzoning potential on a large lot
     description: Estimated upzoning potential on a large lot with a long-held owner.
     when:
       all:
@@ -138,16 +153,22 @@ recipes:
         - {parcel: lot_vs_area_median, gte: 1.5}   # lot_sqft >= 1.5 x median residential lot_sqft of the planning area
         - {owner: years_owned, gte: 20}
   pre_list_prep:
+    label: Pre-list prep
+    short_description: Pre-sale permit on a long-held home
     description: Pre-sale type permit approved in the last 6 months on a long-held home.
     when:
       all:
         - {signal: permit_approved, group: pre_sale_prep, within_days: 180}
         - {owner: years_owned, gte: 10}
   stalled_project:
+    label: Stalled project
+    short_description: Permit expired with no close date
     description: Permit expired more than 90 days ago with no close date.
     when:
       signal: permit_stalled
   downsizer:
+    label: Downsizer
+    short_description: Long-held owner-occupant with no mortgage
     description: Owner-occupied, long-held, no open mortgage.
     when:
       all:
@@ -155,12 +176,16 @@ recipes:
         - {owner: years_owned, gte: 20}
         - {owner: mortgage_open, is: false}
   insurance_squeeze:
+    label: Insurance squeeze
+    short_description: High or very high fire hazard zone
     description: High or very high fire hazard zone.
     requires_data: [fire_zones]
     when:
       signal: fire_hazard_zone
       detail: {hazard_class: [high, very high]}
   financial_pressure:
+    label: Financial pressure
+    short_description: Tax default, or lost rental income with a mortgage
     description: Tax default, or lost rental income with an open mortgage.
     when:
       any:
@@ -169,7 +194,9 @@ recipes:
             - {signal: stro_license_removed, within_days: 365}
             - {owner: mortgage_open, is: true}
   quiet_inheritance:
+    label: Quiet inheritance
+    short_description: Recent transfer by death, trust or inheritance
     active: false
     note: requires ATTOM recorder data (Phase 6)
     when:
-      signal: attom_recorder_transfer
+      signal: ownership_transfer

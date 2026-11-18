@@ -7,11 +7,14 @@ import re
 from datetime import date, timedelta
 from typing import Iterable
 
+from territory.scoring_engine import load_transfer_types
+
 from .base import OwnerDataProvider, OwnerRecord, SaleRecord
 
 SAMPLE_AS_OF = date(2026, 1, 1)
 _OUT_OF_STATE = ["Austin, TX 78701", "Phoenix, AZ 85004", "Seattle, WA 98101", "Denver, CO 80202"]
 _IN_STATE = ["Los Angeles, CA 90012", "San Francisco, CA 94103", "Irvine, CA 92618"]
+TRANSFER_SHARE = 0.10      # about one parcel in ten ends with a death/trust/inheritance-type transfer
 _STREETS = ["Prospect St", "Garnet Ave", "Mission Blvd", "Girard Ave", "Ocean Front Walk", "Turquoise St"]
 
 
@@ -40,15 +43,32 @@ class SampleOwnerProvider(OwnerDataProvider):
             price = int(price * r.uniform(1.4, 2.2) // 5_000 * 5_000)
             if sale_date >= SAMPLE_AS_OF:
                 break
+        transfer = self._transfer(apn, sales[-1])
+        if transfer is not None:
+            sales.append(transfer)
         return sales
+
+    def _transfer(self, apn: str, last: SaleRecord) -> SaleRecord | None:
+        """Some sample parcels end with a transfer by death, trust or inheritance. It is always the
+        latest record, so get_owner() sets last_sale_date to the transfer date (internally consistent).
+        Drawn from its own random stream so every other sample field is unchanged."""
+        r = _rng(apn + ":transfer")
+        if r.random() >= TRANSFER_SHARE:
+            return None
+        when = last.sale_date + timedelta(days=r.randint(365 * 2, 365 * 8))
+        doc_type = r.choice(sorted(load_transfer_types()))
+        if when >= SAMPLE_AS_OF:
+            return None
+        return SaleRecord(apn, when, None, doc_type, "sample", True)
 
     def get_owner(self, apn: str) -> OwnerRecord:
         r = _rng(apn)
         sales = self._sales(apn)
-        last = sales[-1]
+        last = max(sales, key=lambda x: x.sale_date)          # latest record, a transfer or a sale
+        priced = [x for x in sales if x.sale_price is not None][-1]
         est_value = float(r.randrange(1_100_000, 4_200_000, 10_000))
         mortgage_open = r.random() < 0.55
-        balance = last.sale_price * r.uniform(0.3, 0.7) if mortgage_open else 0.0
+        balance = priced.sale_price * r.uniform(0.3, 0.7) if mortgage_open else 0.0
         absentee = r.random() < 0.3
         out_of_state = absentee and r.random() < 0.5
         if absentee:

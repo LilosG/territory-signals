@@ -12,7 +12,7 @@ Added during Phase 1:
 - [x] **Dependencies not in requirements.txt** (done in Phase 2, every package pinned): Phase 1 installed `pytest`, `pydantic`, `psycopg[binary]` and `pyyaml` into `.venv`; `requirements.txt` was outside the allowed paths, so it was not updated. Pin them there next phase.
 - [x] **Append-only enforcement** (done in Phase 2: triggers on raw_records, signals, owners, sales_history; unique key on signals): `raw_records`, `signals` and `owners` are append-only by convention only; no DB trigger blocks UPDATE/DELETE yet. Decide whether to add one.
 - [ ] **Outreach modes:** `config.py` accepts only `outreach.mode: preview`; extend in Phase 5.
-- [ ] **`team_members` config shape:** typed as free-form dicts until Phase 5 defines it.
+- [x] **`team_members` config shape** (done in Phase 5A: name, email, role, dre_license, phone; list may be empty).
 
 Added during Phase 2:
 
@@ -55,3 +55,30 @@ Added during the Phase 3 checkpoint:
 - [ ] **Stalled window:** stalled permits are now only those that expired in the last 36 months, so the count depends on the run date and falls as the data ages. Re-run `territory.permit_rederive` before each scoring run.
 - [ ] **Owner modifier cap scales proportionally:** over 30 points, every owner component is scaled by the same factor, so the reason text shows the highest raw components first. Change to drop the smallest modifiers instead if preferred.
 
+
+Added during Phase 5A:
+
+- [ ] **Mike must supply real agent data before any draft can be approved (D11):** `team_members` (name, email, role, DRE license, phone), `team_profile.brokerage` and `team_profile.office_address` are empty in `kaiser-team.yaml`. Until then all 50 working-database drafts carry `blocked_reason` "missing agent name or DRE license" and have no `assigned_to`; emails also need the office address. Confirm with the broker whether solicitation material must also show the brokerage name or license (the templates print the brokerage when configured).
+- [ ] **Dashboard `catalog.ts` is stale (Phase 5B):** `dashboard/src/lib/data/catalog.ts` still has its own signal names (`upzoning_sb9`, `long_tenure`, ...), recipe keys that do not exist in scoring.yaml (`long-tenure-equity`, ...) and hard-coded score bands (80/60/40). Phase 5B must replace it with `catalog.generated.json`. The band thresholds now live in `config/scoring.yaml` (`score_bands`) and are copied into the catalog; nothing in `dashboard/` outside the generated file was touched.
+- [x] **Sample-data drafts are labeled, not blocked** (done in the 5A corrections: they now carry blocked_reason "sample data" and no label in the text; original note:) a draft built on sample owner data starts with "[SAMPLE DATA ... Do not send.]" and sets `uses_sample_data`, but the only things that block approval are the D11 and office-address rules. Its mailing address is a fake sample address. Decide whether sample drafts should also be unapprovable (a one-line `blocked_reason`).
+- [ ] **Transfer doc types are placeholders:** `config/transfer_types.yaml` lists generic names ("trust transfer deed", "affidavit of death of joint tenant", ...). Replace with the real ATTOM/recorder document codes in Phase 6. `quiet_inheritance` stays off until then (D1).
+- [x] **Transfers now trigger the 24-month sale suppression** (done in the 5A corrections: only arm's-length sales suppress; transfers are recorded as `ownership_transfer` signals for Phase 6; original note:) suppression reads every `sales_history` row, so a recent death/trust/inheritance transfer suppresses the parcel (399 suppressed instead of 325 after the sample change). Decide whether a transfer should suppress, or whether it should become a quiet_inheritance lead instead.
+- [ ] **Channel policy:** the generator defaults to `mail` (the only channel with contact data: a mailing address). Email and call-task drafts have no recipient address or phone because no source supplies them; they are produced only with `--channels`. Decide the real channel rule once owner contact data exists.
+- [ ] **Mailing address fallback assumes San Diego:** when no owner mailing address differs from the situs, the mailing line is `<situs>, San Diego, CA <zip>`. Make the city/state a client config field when a client outside San Diego is added.
+- [ ] **Salutation coverage:** names that are not all upper case, have a first+middle name ("SMITH MARY ANN"), co-owners with different surnames, "ET AL"/"ET UX" or any organization fall back to "To the owners of <situs>,". Check the real ATTOM name formats in Phase 6 and extend the formatter from real examples. A trustee with no trust name prints "Dear Trustee John Smith," (no trust name is invented).
+- [ ] **Neighbor wording has no config switch:** the brief allows "neighbor" only if config says so; no such key exists, so no template uses it. Add a team_profile flag if a client wants it.
+- [ ] **`weekly_send_cap_per_agent` and `due_date` are unused:** nothing sends in preview, so the cap has no effect yet and the generator leaves `due_date` empty. They are for Phase 5B/6.
+- [ ] **Funnel is empty until something writes `stage_events`:** neither the generator nor the dashboard writes them yet. `funnel_by_recipe` now counts each parcel once under its primary recipe (stored in `scores.primary_recipe`) and only uses the latest score row; parcels scored before the correction have no primary recipe until re-scored.
+- [ ] **Recipe choice is a rule of thumb:** the primary recipe is the one whose referenced components add the most points; ties go to the order in scoring.yaml (for example a parcel with a removed STR license and an open mortgage ties str_exit and financial_pressure and gets str_exit). Revisit after the Phase 6 backtest.
+- [ ] **source_facts leave out parcel fields:** the situs address and neighborhood used in the text come from `parcels` and are not listed in `source_facts` (the brief asks for component facts and owner fields only).
+- [ ] **Awkward plural fallback:** a same-day count on a label that cannot be pluralized reads "2 permits for change to a building permit". Add plural forms to `permit_labels.yaml` if it shows up in real reason text.
+- [ ] **Owner rows can now repeat per `as_of`:** the loader appends a corrected owner row for the same `as_of` when content changed (needed after the sample-data change). Readers already take the newest row; if this grows, add a `superseded` marker or a unique key.
+- [x] **`.gitignore` hid the generated catalog** (fixed in the 5A corrections: the pattern is now `/data/`).
+
+Added in the Phase 5A corrections:
+
+- [ ] **Comparable-sale numbers (Phase 6):** the templates promise "what comparable homes nearby have sold for" and a value summary but carry no figures, and make no market claims, until sourced numbers exist in `source_facts`.
+- [ ] **Tax wording needs the broker's or an adviser's sign-off:** the tired_landlord (1031 exchange) and downsizer (Prop 19, owners 55 and over) letters mention these only as things to confirm with a tax advisor. Have a licensee review the exact wording.
+- [ ] **Templates assume the offer is deliverable:** every letter offers a value summary; nothing generates it yet.
+- [ ] **`ownership_transfer` signals have no run id:** the owner loader writes them without a `source_runs` row (source_key `<provider>_sales_history`). Add a run record when ATTOM recorder data arrives.
+- [ ] **Old drafts were deleted and regenerated:** the 50 working-database drafts from the first 5A pass were removed (they were unsent previews) so the new templates could replace them under the cooldown rule.

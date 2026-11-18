@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
@@ -21,8 +21,31 @@ class Territory(_Strict):
 
 
 class Outreach(_Strict):
-    # Only "preview" exists until Phase 5 approval work defines more modes.
+    # Only "preview" exists: drafts are written to the database and nothing is ever sent.
     mode: Literal["preview"]
+    weekly_send_cap_per_agent: int = Field(ge=0)
+    drafts_per_run: int = Field(ge=1)
+    cooldown_days: int = Field(ge=0)
+    approval_required_recipes: list[str] = Field(default_factory=list)
+
+
+class TeamMember(_Strict):
+    name: str = Field(min_length=1)
+    email: str = Field(min_length=3)
+    role: Literal["owner", "agent", "assistant"]
+    # D11: required before outreach can be approved. May be blank in config; the draft is then blocked.
+    dre_license: str = ""
+    phone: str = ""
+
+
+class TeamProfile(_Strict):
+    display_name: str = Field(min_length=1)
+    brokerage: str = ""
+    office_address: str = ""
+
+
+class RecipeToggle(_Strict):
+    enabled: bool
 
 
 class ClientConfig(_Strict):
@@ -31,7 +54,12 @@ class ClientConfig(_Strict):
     territory: Territory
     owner_data_provider: Literal["sample", "attom"]
     outreach: Outreach
-    team_members: list[dict[str, Any]] = Field(default_factory=list)
+    team_members: list[TeamMember] = Field(default_factory=list)
+    team_profile: TeamProfile
+    recipes: dict[str, RecipeToggle]
+
+    def enabled_recipes(self) -> list[str]:
+        return [k for k, v in self.recipes.items() if v.enabled]
 
 
 def load_config(path: str | Path) -> ClientConfig:
