@@ -8,6 +8,10 @@
       "label": "Fire hazard severity zone"
     },
     {
+      "key": "ownership_transfer",
+      "label": "Ownership transfer (death, trust or inheritance)"
+    },
+    {
       "key": "permit_approved",
       "label": "Permit approved"
     },
@@ -48,6 +52,10 @@
     {
       "key": "distress",
       "label": "Tax distress"
+    },
+    {
+      "key": "life_event",
+      "label": "Life events"
     },
     {
       "key": "other",

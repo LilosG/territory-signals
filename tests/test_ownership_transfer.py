@@ -160,3 +160,41 @@ def test_owner_load_appends_a_corrected_row_and_skips_identical_ones(db):
     fixed = load_owner_layer(db, client, AS_OF)
     assert fixed["owners_inserted"] == 1
     assert db.execute("select count(*) from owners").fetchone()[0] == 2
+
+
+# ---- transfers are not sales: no suppression, and they are recorded as signals -------------------------
+def test_transfers_never_suppress_but_arms_length_sales_do(db):
+    from territory.score import load_suppressed
+    add_territory(db)
+    for i, apn in enumerate(("3200000001", "3200000002", "3200000003")):
+        parcel(db, apn, n=i)
+    db.execute("insert into sales_history (apn, sale_date, sale_price, doc_type, provider, is_sample) values "
+               "('3200000001','2026-06-01',null,'Trust Transfer Deed','sample',true),"        # transfer (case differs)
+               "('3200000002','2026-06-01',900000,'grant deed','sample',true),"               # real sale
+               "('3200000003','2026-06-01',null,'  transfer   on death deed ','sample',true),"
+               "('3200000003','2026-07-01',800000,'grant deed','sample',true)")               # transfer then a sale
+    got = load_suppressed(db, ["3200000001", "3200000002", "3200000003"], AS_OF, 24, CFG["transfer_types"])
+    assert set(got) == {"3200000002", "3200000003"} and "3200000001" not in got
+    run_score(db, CFG, AS_OF)
+    assert {r[0] for r in db.execute("select apn from scores")} == {"3200000001"}
+
+
+def test_loader_records_each_transfer_as_an_ownership_transfer_signal(db):
+    add_territory(db)
+    for i in range(1, 400):
+        parcel(db, f"33{i:08d}", n=i % 50)
+    client = load_client("kaiser-team")
+    res = load_owner_layer(db, client, AS_OF)
+    n = db.execute("select count(*) from sales_history where doc_type <> 'grant deed'").fetchone()[0]
+    assert n > 10 and res["transfer_signals"] == n
+    sig = db.execute("select signal_type, signal_group, source_key, source_record_id, confidence, match_method, "
+                     "is_sample, signal_date, details from signals").fetchall()
+    assert len(sig) == n and {r[0] for r in sig} == {"ownership_transfer"} and {r[1] for r in sig} == {"life_event"}
+    assert {r[2] for r in sig} == {"sample_sales_history"} and {r[4] for r in sig} == {1} and {r[5] for r in sig} == {"apn"}
+    assert all(r[6] and r[7] and r[8]["transfer_kind"] in ("death", "trust", "inheritance") for r in sig)
+    again = load_owner_layer(db, client, AS_OF)                              # reruns add nothing
+    assert db.execute("select count(*) from signals").fetchone()[0] == n and again["owners_inserted"] == 0
+    # they never score: the scorer only reads configured signal types
+    run_score(db, CFG, AS_OF)
+    assert db.execute("select count(*) from scores where components::text like '%ownership_transfer\"%' "
+                      "and components::text like '%\"signal_type\": \"ownership_transfer\"%'").fetchone()[0] == 0

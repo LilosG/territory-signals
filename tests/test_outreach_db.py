@@ -162,7 +162,7 @@ def test_blocked_reasons_and_round_robin_assignment(db):
         expected = "missing agent name or DRE license" if r["assigned_to"] == "agent1@example.test" else None
         assert r["blocked_reason"] == expected
     ok = next(r for r in got if r["assigned_to"] == "agent2@example.test")
-    assert "Agent 2\nDRE #01234567\n(619) 555-0102\nThe Kaiser Team" in ok["content"]
+    assert "Agent 2 · The Kaiser Team · DRE #01234567" in ok["content"]
     # only agents are assigned (not owners/assistants)
     assert [m.email for m in pick_agents(client(team=[agent(1), {**agent(2), "role": "assistant"}]))] == ["agent1@example.test"]
 
@@ -234,19 +234,22 @@ def test_source_facts_list_exactly_what_the_text_uses(db):
     got = {r["apn"]: r for r in rows(db)}
     for r in got.values():
         for f in r["source_facts"]:
-            assert f.get("signal_id") or f.get("owner_field")                  # each fact is traceable
+            assert f.get("signal_id") or f.get("owner_field") or f.get("parcel_field")   # each fact is traceable
     # builder bait: the zoning estimate (and the owner name used in the greeting), nothing else
     bb = got["4000000003"]["source_facts"]
     comp = [f for f in bb if f["kind"] == "component"]
     assert [(f["key"], f["signal_id"], f["is_estimate"]) for f in comp] == [
         ("sb9_lot_split_estimate", str(ids["p3"]), True)]
     assert comp[0]["source_key"] == "test" and comp[0]["match_method"] == "apn" and comp[0]["confidence"] == 0.9
-    assert "(estimated)" in got["4000000003"]["content"]
+    assert "estimated" not in got["4000000003"]["content"] and "SB 9" not in got["4000000003"]["content"]
+    assert {(f["parcel_field"], f["value"]) for f in bb if f["kind"] == "parcel_field"} == {
+        ("neighborhood", "La Jolla"), ("situs_address", "103 PROSPECT ST")}      # neighborhood and street are used
     # str_exit: the removed-license component, never the tax default or owner details
     assert [f["key"] for f in got["4000000001"]["source_facts"] if f["kind"] == "component"] == ["stro_license_removed"]
     # financial_pressure never mentions (or cites) the tax default
     fp = got["4000000002"]
     assert [f for f in fp["source_facts"] if f["kind"] == "component"] == []
+    assert {f["parcel_field"] for f in fp["source_facts"] if f["kind"] == "parcel_field"} == {"neighborhood", "situs_address"}
     assert "tax" not in fp["content"].lower() and "default" not in fp["content"].lower()
     owner_facts = [f for f in got["4000000001"]["source_facts"] if f["kind"] == "owner_field"]
     assert [(f["owner_field"], f["value"]) for f in owner_facts] == [("owner_name", "SMITH JOHN & MARY")]
@@ -256,13 +259,20 @@ def test_source_facts_list_exactly_what_the_text_uses(db):
     assert all(f["kind"] != "owner_field" for r in rows(db) for f in r["source_facts"])
 
 
-def test_sample_data_drafts_are_labeled(db):
+def test_sample_data_drafts_are_blocked_with_a_reason_not_a_banner(db):
     seed(db, owners={"4000000003": {"name": "Sample Owner 0003", "sample": True}})
-    run_outreach(db, client(), CFG, now=NOW)
+    run_outreach(db, client(team=[agent(1)]), CFG, now=NOW)                    # a complete agent: only sample blocks
     got = {r["apn"]: r for r in rows(db)}
     s = got["4000000003"]
-    assert s["uses_sample_data"] is True and s["content"].startswith("[SAMPLE DATA")
-    assert got["4000000001"]["uses_sample_data"] is False and not got["4000000001"]["content"].startswith("[SAMPLE")
+    assert s["uses_sample_data"] is True and s["blocked_reason"] == "sample data"
+    assert "SAMPLE" not in s["content"].upper() and not s["content"].startswith("[")      # no label in the text
+    assert got["4000000001"]["uses_sample_data"] is False and got["4000000001"]["blocked_reason"] is None
+    with pytest.raises(psycopg.errors.CheckViolation):
+        db.execute("update outreach set status='approved' where apn='4000000003' and content <> 'old'")
+    db.execute("delete from outreach")
+    run_outreach(db, client(), CFG, now=NOW)                                   # reasons are combined
+    assert {r["apn"]: r["blocked_reason"] for r in rows(db)}["4000000003"] == (
+        "missing agent name or DRE license; sample data")
 
 
 def test_a_blocked_draft_cannot_be_approved_or_sent(db):
@@ -275,6 +285,14 @@ def test_a_blocked_draft_cannot_be_approved_or_sent(db):
     run_outreach(db, client(team=[agent(1)]), CFG, now=NOW)
     db.execute("update outreach set status='approved', approved_by='m@example.test' where content <> 'old'")
     assert {r["status"] for r in rows(db)} == {"approved"}
+
+
+def test_recent_transfers_do_not_suppress_but_recent_sales_do(db):
+    seed(db)
+    db.execute("insert into sales_history (apn, sale_date, sale_price, doc_type, provider, is_sample) values "
+               "('4000000001','2026-06-01',null,'Trust Transfer Deed','sample',true)")   # a transfer, case differs
+    run_outreach(db, client(), CFG, now=NOW)
+    assert "4000000001" in {r["apn"] for r in rows(db)}
 
 
 def test_recipe_choice_uses_the_highest_contributing_recipe():
@@ -314,3 +332,20 @@ def test_preview_mode_never_calls_external_services():
             for m in mods:
                 assert m.split(".")[0] not in banned and m not in banned, f"{name} imports {m}"
     assert client().outreach.mode == "preview"
+
+
+def test_scorer_stores_each_parcels_primary_recipe(db):
+    seed(db)
+    got = dict(db.execute("select apn, primary_recipe from latest_scores").fetchall())
+    assert got["4000000003"] == "builder_bait" and got["4000000001"] == "str_exit"
+    assert got["4000000004"] is None                                            # no recipe matched
+    matches = {a: m for a, m in db.execute("select apn, recipe_matches from latest_scores")}
+    assert all(p is None or p in matches[a] for a, p in got.items())
+
+
+def test_the_generated_catalog_is_not_git_ignored():
+    import subprocess
+    root = Path(__file__).resolve().parents[1]
+    r = subprocess.run(["git", "check-ignore", "dashboard/src/data/catalog.generated.json"], cwd=root,
+                       capture_output=True, text=True)
+    assert r.returncode == 1, r.stdout                                          # 1 = not ignored

@@ -1,10 +1,8 @@
 ---
-facts: []
+facts: ['owner:absentee', 'owner:out_of_state']
 ---
-I work with homeowners in {neighborhood}, and I am writing because many owners here are deciding whether to hold, rent out, or sell their property, and the right answer is different for everyone.
+I focus on {neighborhood}, and whether a rental still fits your plans is a question worth revisiting from time to time.
 
-If it would be useful, I would be glad to put together a short summary of what similar homes near yours have recently sold for, along with how holding, renting and selling compare. It would take you no time at all, and it comes with no obligation.
+For {street}, I can put together a short comparison of what the property would likely net if sold today versus continuing to rent it. A 1031 exchange is something to review with your tax advisor. It is a one-page summary, and I am happy to walk you through it.
 
-There is nothing you need to do, and I will never pressure you. If you are curious, simply reach out using the details below and we can find a time for a relaxed, no-obligation conversation about what makes sense for you.
-
-Thank you for taking a moment to read this note.
+No obligation, just numbers you can keep. {cta}

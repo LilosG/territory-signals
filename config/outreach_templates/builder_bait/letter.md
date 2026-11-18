@@ -1,10 +1,8 @@
 ---
 facts: ['sb9_lot_split_estimate', 'sb79_transit_estimate']
 ---
-I work with homeowners in {neighborhood}, and I am writing because your lot may have more value under current zoning rules (estimated). Recent state and city changes have opened new options for some properties, and I would be glad to explain.
+I focus on {neighborhood}, and California's recent zoning changes have opened new options for some lots like yours on {street}.
 
-If it would be useful, I would be glad to put together a short summary of what similar homes and lots nearby have recently sold for, along with a few thoughts on timing and the choices available to you. It would take you no time at all, and it comes with no obligation.
+If you've wondered whether your property is worth more as a home or as a lot, I can put together a short side-by-side: what it would likely sell for as it stands, and what comparable lots nearby have sold for. It is a one-page summary, and I am happy to walk you through it.
 
-There is nothing you need to do, and I will never pressure you. If you are curious, simply reach out using the details below and we can find a time for a relaxed, no-obligation conversation about what makes sense for you.
-
-Thank you for taking a moment to read this note.
+No obligation, just numbers you can keep. {cta}

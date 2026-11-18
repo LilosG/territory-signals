@@ -153,8 +153,8 @@ def format_salutation(owner_name: str | None, situs_address: str | None, is_samp
             core.pop()
         firsts, surname, suffix = _people(core)
         who = f"{_join(firsts)} {surname}" + (f" {suffix}" if suffix and len(firsts) == 1 else "")
-        if trustee:
-            return Salutation(f"Dear {'Trustees' if len(firsts) > 1 else 'Trustee'} {who},", True, "trustee")
+        if trustee:                              # individual trustees are greeted as people
+            return Salutation(f"Dear {who},", True, "trustee")
         return Salutation(f"Dear {who},", True, "couple" if len(firsts) > 1 else "person")
     except _Unreadable:
         return fallback(situs_address)

@@ -1,10 +1,8 @@
 ---
 facts: []
 ---
-I work with homeowners in {neighborhood}, and I am writing because many homeowners here are curious what a move to something that better fits their lives could look like.
+I focus on {neighborhood}, and many homeowners think about their next move well before they plan it.
 
-If it would be useful, I would be glad to put together a short summary of what similar homes near yours have recently sold for, along with what comparable options nearby look like today. It would take you no time at all, and it comes with no obligation.
+I can put together what your home would likely sell for, and explain how California's Prop 19 lets owners 55 and over move their property tax base. That part is worth confirming with your tax advisor. It is a one-page summary, and I am happy to walk you through it.
 
-There is nothing you need to do, and I will never pressure you. If you are curious, simply reach out using the details below and we can find a time for a relaxed, no-obligation conversation about what makes sense for you.
-
-Thank you for taking a moment to read this note.
+No obligation, just numbers you can keep. {cta}

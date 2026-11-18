@@ -7,9 +7,11 @@ from helpers import add_territory
 from test_scoring_db import parcel
 
 
-def score_row(db, apn, score, recipes, scored_at="2026-11-18 10:00+00"):
-    db.execute("insert into scores (apn, score, components, reason_text, recipe_matches, model_version, scored_at) "
-               "values (%s,%s,%s,'x',%s,'v0.3-handset',%s)", (apn, score, Jsonb([]), recipes, scored_at))
+def score_row(db, apn, score, recipes, scored_at="2026-11-18 10:00+00", primary="first"):
+    primary = (recipes[0] if recipes else None) if primary == "first" else primary
+    db.execute("insert into scores (apn, score, components, reason_text, recipe_matches, model_version, scored_at, "
+               "primary_recipe) values (%s,%s,%s,'x',%s,'v0.3-handset',%s,%s)",
+               (apn, score, Jsonb([]), recipes, scored_at, primary))
 
 
 def event(db, apn, stage, email=None, source="dashboard"):
@@ -61,7 +63,7 @@ def test_rls_and_security_invoker(db):
         assert "security_invoker=true" in opts
 
 
-def test_funnel_by_recipe_counts_distinct_parcels_per_stage(db):
+def test_funnel_by_recipe_counts_each_parcel_once_under_its_primary_recipe(db):
     seed(db)
     event(db, "5000000001", "signal", source="system")
     event(db, "5000000002", "signal", source="system")
@@ -76,10 +78,10 @@ def test_funnel_by_recipe_counts_distinct_parcels_per_stage(db):
     got = {r[0]: dict(zip(cols, r[1:])) for r in db.execute(
         "select recipe, signal, contacted, conversation, appointment, listing, not_interested, bad_data "
         "from funnel_by_recipe")}
-    assert set(got) == {"str_exit", "tired_landlord", "builder_bait"}
+    assert set(got) == {"str_exit", "builder_bait"}              # tired_landlord is matched but never primary
     assert got["str_exit"] == {"signal": 2, "contacted": 1, "conversation": 1, "appointment": 0, "listing": 0,
                                "not_interested": 1, "bad_data": 0}
-    assert got["tired_landlord"]["contacted"] == 1 and got["tired_landlord"]["signal"] == 1
+    assert sum(g["signal"] for g in got.values()) == 3             # 3 parcels with a recipe, each counted once
     assert got["builder_bait"]["appointment"] == 1
 
 
@@ -98,7 +100,7 @@ def test_funnel_by_agent(db):
 
 def test_funnel_uses_only_the_latest_score(db):
     seed(db)
-    score_row(db, "5000000001", 20, ["downsizer"], scored_at="2026-11-19 10:00+00")     # newer run: new recipe only
+    score_row(db, "5000000001", 20, ["downsizer"], scored_at="2026-11-19 10:00+00")     # newer run: new primary
     event(db, "5000000001", "contacted", "a@example.test")
     recipes = {r[0] for r in db.execute("select recipe from funnel_by_recipe where contacted > 0")}
     assert recipes == {"downsizer"}

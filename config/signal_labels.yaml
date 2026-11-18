@@ -12,6 +12,7 @@ signal_types:
   sb79_transit_estimate: SB 79 transit eligibility (estimated)
   sb9_lot_split_estimate: SB 9 lot-split eligibility (estimated)
   fire_hazard_zone: Fire hazard severity zone
+  ownership_transfer: Ownership transfer (death, trust or inheritance)
 
 # signal_group values written by the adapters.
 signal_groups:
@@ -19,6 +20,7 @@ signal_groups:
   stro: Short-term rentals
   upzoning: Upzoning
   risk: Fire hazard
+  life_event: Life events
   pre_sale_prep: Pre-sale prep work
   demolition_lot_split: Demolition or lot split
   adu: ADU

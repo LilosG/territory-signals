@@ -37,6 +37,7 @@ class SaleRecord:
     doc_type: str
     provider: str
     is_sample: bool
+    confidence: float = 1.0          # how sure the source is that the record belongs to this APN
 
 
 class OwnerDataProvider(ABC):

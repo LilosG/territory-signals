@@ -1,10 +1,8 @@
 ---
 facts: []
 ---
-Hi, this is {agent_intro}. I work with homeowners in {neighborhood}. Is now an okay time for a quick question?
+Hi, this is {agent_intro}. I focus on {neighborhood}. Is now an okay time for a quick question?
 
-If yes: Many owners in {neighborhood} are weighing their options and their timing. Would you be open to a short, no-obligation conversation about your options?
+If yes: I can send a neutral summary of what your home on {street} would likely sell for today. Would that be useful to you?
 
-If no: No problem at all. Is there a better time to reach you?
-
-Close: Thank you for your time. Have a great day.
+If no: No problem. When would be a better time?

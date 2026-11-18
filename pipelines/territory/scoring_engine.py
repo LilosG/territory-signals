@@ -409,6 +409,48 @@ def match_recipes(signals: Sequence[Sig], owner: Optional[Owner], cfg: Mapping[s
     return sorted(matches)
 
 
+# Owner fields in scoring conditions -> owner_field values of the components they produce.
+_OWNER_FIELDS = {"years_owned": {"last_sale_date"}, "absentee": {"absentee", "out_of_state"}}
+
+
+def _refs(cond: Mapping[str, Any], sig: list, own: set) -> None:
+    for k in ("all", "any"):
+        for c in cond.get(k, ()):
+            _refs(c, sig, own)
+    if "not" in cond:
+        _refs(cond["not"], sig, own)
+    if "signal" in cond:
+        sig.append((cond["signal"], cond.get("group")))
+    if "owner" in cond:
+        own.update(_OWNER_FIELDS.get(cond["owner"], {cond["owner"]}))
+
+
+def recipe_contribution(recipe_cfg: Mapping[str, Any], components: Sequence[Mapping[str, Any]]) -> float:
+    """Points of the components a recipe's conditions refer to (its signals and owner fields)."""
+    sig: list = []
+    own: set = set()
+    _refs(recipe_cfg["when"], sig, own)
+    total = 0.0
+    for c in components:
+        if c.get("kind") == "signal" and any(
+                c.get("signal_type") == t and (g is None or c.get("group") == g) for t, g in sig):
+            total += c["contribution"]
+        elif c.get("kind") == "owner" and c.get("owner_field") in own:
+            total += c["contribution"]
+    return total
+
+
+def primary_recipe(matches: Sequence[str], enabled: Sequence[str], cfg: Mapping[str, Any],
+                   components: Sequence[Mapping[str, Any]]) -> Optional[str]:
+    """The enabled matched recipe whose referenced components contribute the most points; ties go to the
+    order in scoring.yaml. Each parcel has one primary recipe (funnel counts and outreach templates use it)."""
+    order = list(cfg["recipes"])
+    cands = [r for r in matches if r in enabled and r in cfg["recipes"]]
+    if not cands:
+        return None
+    return max(cands, key=lambda r: (recipe_contribution(cfg["recipes"][r], components), -order.index(r)))
+
+
 # ---------------------------------------------------------------------------------------
 # reason text (only facts present in the components)
 # ---------------------------------------------------------------------------------------
@@ -566,10 +608,11 @@ def score_parcel(signals: Sequence[Sig], owner: Optional[Owner], cfg: Mapping[st
     eff = effective_signals(signals, cfg, snapshot_dates)
     comps = signal_components(eff, cfg, as_of) + owner_components(owner, cfg, as_of, equity_cutoff)
     res = compute_score(comps, cfg)
+    matches = match_recipes(eff, owner, cfg, as_of, loaded_data, parcel)
     return {
         "score": res["score"], "weighted_sum": res["weighted_sum"], "multiplier": res["multiplier"],
         "families": res["families"], "components": comps,
-        "recipe_matches": match_recipes(eff, owner, cfg, as_of, loaded_data, parcel),
+        "recipe_matches": matches, "primary_recipe": primary_recipe(matches, matches, cfg, comps),
         "uses_sample_data": any(c["is_sample"] for c in comps),
         "reason_text": reason_text(comps, cfg), "model_version": cfg["model_version"],
     }

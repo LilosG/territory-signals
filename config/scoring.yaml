@@ -199,4 +199,4 @@ recipes:
     active: false
     note: requires ATTOM recorder data (Phase 6)
     when:
-      signal: attom_recorder_transfer
+      signal: ownership_transfer

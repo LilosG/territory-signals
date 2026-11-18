@@ -24,53 +24,12 @@ from psycopg.types.json import Jsonb
 
 from territory.config import ClientConfig, TeamMember, load_client
 from territory.db import connect
-from territory.outreach_render import CHANNEL_FILE, SAMPLE_BANNER, load_template, render
+from territory.outreach_render import BLOCKED_SAMPLE, CHANNEL_FILE, load_template, render
 from territory.salutation import format_salutation, pretty_address
-from territory.scoring_engine import load_scoring_config
+from territory.scoring_engine import load_scoring_config, norm_doc_type, primary_recipe, recipe_contribution  # noqa: F401
 
 DEFAULT_CHANNELS = ("mail",)
-# Owner fields in scoring conditions -> owner_field values of the components they produce.
-_OWNER_FIELDS = {"years_owned": {"last_sale_date"}, "absentee": {"absentee", "out_of_state"}}
-
-
-# ---------------------------------------------------------------------------------------
-# recipe choice
-# ---------------------------------------------------------------------------------------
-def _refs(cond: Mapping[str, Any], sig: list, own: set) -> None:
-    for k in ("all", "any"):
-        for c in cond.get(k, ()):
-            _refs(c, sig, own)
-    if "not" in cond:
-        _refs(cond["not"], sig, own)
-    if "signal" in cond:
-        sig.append((cond["signal"], cond.get("group")))
-    if "owner" in cond:
-        own.update(_OWNER_FIELDS.get(cond["owner"], {cond["owner"]}))
-
-
-def recipe_contribution(recipe_cfg: Mapping[str, Any], components: list[Mapping[str, Any]]) -> float:
-    """Points of the components a recipe's conditions refer to (its signals and owner fields)."""
-    sig: list = []
-    own: set = set()
-    _refs(recipe_cfg["when"], sig, own)
-    total = 0.0
-    for c in components:
-        if c.get("kind") == "signal" and any(
-                c.get("signal_type") == t and (g is None or c.get("group") == g) for t, g in sig):
-            total += c["contribution"]
-        elif c.get("kind") == "owner" and c.get("owner_field") in own:
-            total += c["contribution"]
-    return total
-
-
-def primary_recipe(matches: list[str], enabled: list[str], scoring_cfg: Mapping[str, Any],
-                   components: list[Mapping[str, Any]]) -> Optional[str]:
-    """The enabled matched recipe with the highest contributing components; ties go to config order."""
-    order = list(scoring_cfg["recipes"])
-    cands = [r for r in matches if r in enabled and r in scoring_cfg["recipes"]]
-    if not cands:
-        return None
-    return max(cands, key=lambda r: (recipe_contribution(scoring_cfg["recipes"][r], components), -order.index(r)))
+# recipe_contribution / primary_recipe live in scoring_engine (the scorer stores each parcel's primary recipe).
 
 
 # ---------------------------------------------------------------------------------------
@@ -132,11 +91,14 @@ def select_candidates(conn, client: ClientConfig, scoring_cfg: Mapping[str, Any]
           and not exists (select 1 from suppressions x where x.apn = s.apn
                           and (x.until_date is null or x.until_date >= %(today)s))
           and not exists (select 1 from sales_history h where h.apn = s.apn
-                          and h.sale_date >= %(sale_cutoff)s and h.sale_date <= %(today)s)
+                          and h.sale_date >= %(sale_cutoff)s and h.sale_date <= %(today)s
+                          and not (lower(regexp_replace(btrim(coalesce(h.doc_type, '')), '\\s+', ' ', 'g'))
+                                   = any(%(transfers)s)))
         order by s.score desc, s.apn
         limit %(limit)s
         """, {"enabled": enabled, "cooldown": cooldown_start, "today": today, "sale_cutoff": sale_cutoff,
-              "limit": limit}).fetchall()
+              "limit": limit,
+              "transfers": [norm_doc_type(t) for t in scoring_cfg["transfer_types"]]}).fetchall()
     return [Candidate(*r) for r in rows]
 
 
@@ -181,7 +143,14 @@ def build_draft(cand: Candidate, owner: Optional[Mapping[str, Any]], recipe: str
     # source_facts: exactly the facts the rendered text uses. A template lists the component keys it relies
     # on; the owner name counts only when the text opens with it (mail and email, not the address fallback).
     facts = [component_fact(c) for c in cand.components
-             if c["contribution"] > 0 and c["key"].split(":")[0] in template.facts]
+             if c["contribution"] > 0 and (c["key"] in template.facts or c["key"].split(":")[0] in template.facts)]
+    values = {"neighborhood": cand.neighborhood, "situs_address": cand.situs_address}
+    used = set(rendered.used_fields)
+    if sal.kind == "fallback" and channel in ("mail", "email"):
+        used.add("situs_address")                       # the greeting is built from the address
+    for field in ("neighborhood", "situs_address"):
+        if field in used:
+            facts.append({"kind": "parcel_field", "parcel_field": field, "apn": cand.apn, "value": values[field]})
     if sal.uses_owner_name and channel in ("mail", "email"):
         facts.append({"kind": "owner_field", "owner_field": "owner_name", "owner_id": owner.get("owner_id"),
                       "value": owner.get("owner_name"), "provider": owner.get("provider"),
@@ -190,12 +159,13 @@ def build_draft(cand: Candidate, owner: Optional[Mapping[str, Any]], recipe: str
     status = "awaiting_approval" if recipe in client.outreach.approval_required_recipes else "draft"
     return {
         "apn": cand.apn, "channel": channel, "status": status, "recipe": recipe,
-        "content": (SAMPLE_BANNER + "\n\n" if sample else "") + rendered.text,
+        "content": rendered.text,
         "text": rendered.text, "subject": rendered.subject, "source_facts": facts,
         "template_key": rendered.template_key, "model_version": cand.model_version,
         "mailing_address": mailing_for(owner.get("mailing_address"), cand.situs_address, cand.zip),
         "salutation": sal.text, "assigned_to": agent.email if agent else None,
-        "blocked_reason": rendered.blocked_reason, "uses_sample_data": sample, "score": cand.score,
+        "blocked_reason": "; ".join(x for x in (rendered.blocked_reason, BLOCKED_SAMPLE if sample else None) if x) or None,
+        "uses_sample_data": sample, "score": cand.score,
         "reason_text": cand.reason_text,
     }
 

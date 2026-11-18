@@ -1,10 +1,8 @@
 ---
-facts: []
+facts: ['owner:absentee', 'owner:out_of_state']
 ---
-Hi, this is {agent_intro}. I work with homeowners in {neighborhood}. Is now an okay time for a quick question?
+Hi, this is {agent_intro}. I focus on {neighborhood}. Is now an okay time for a quick question?
 
-If yes: Many owners in {neighborhood} are deciding whether to hold, rent out, or sell their property. Would you be open to a short, no-obligation conversation about your options?
+If yes: I can put together what {street} would likely net if sold today versus continuing to rent it. A 1031 exchange is something to review with your tax advisor. Would that be useful to you?
 
-If no: No problem at all. Is there a better time to reach you?
-
-Close: Thank you for your time. Have a great day.
+If no: No problem. When would be a better time?

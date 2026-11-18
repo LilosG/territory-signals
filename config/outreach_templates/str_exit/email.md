@@ -1,9 +1,9 @@
 ---
 facts: ['stro_license_removed']
-subject: "Options for your {neighborhood} property"
+subject: "Your options for {street}"
 ---
-I work with homeowners in {neighborhood}, and I am reaching out because changes in local short-term rental rules have many owners here rethinking their options.
+I focus on {neighborhood}, and the City's short-term rental rules have changed how some owners think about their property.
 
-If it would help, I can send a short, no-obligation summary of what similar homes near yours have recently sold for, along with how the different options compare. There is nothing you need to do, and no pressure at all.
+For {street}, I can lay out your options under those rules (sell, rent it long term, or hold) along with what it would likely sell for.
 
-If you would like the summary, just reply to this email and I will put it together for you. Thank you for taking a moment to read this.
+No obligation, just numbers you can keep. {cta}

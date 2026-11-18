@@ -1,9 +1,9 @@
 ---
 facts: []
-subject: "What similar homes nearby are selling for"
+subject: "{street}: which updates pay off"
 ---
-I work with homeowners in {neighborhood}, and I am reaching out because many owners here are thinking about which updates are worth making before a sale.
+I focus on {neighborhood}, and updates before a sale can be expensive, so it helps to know what pays off first.
 
-If it would help, I can send a short, no-obligation summary of what similar homes near yours are selling for, and which improvements buyers in {neighborhood} are paying for. There is nothing you need to do, and no pressure at all.
+I can send a short guide to which updates actually pay off before selling in {neighborhood}, and which don't.
 
-If you would like the summary, just reply to this email and I will put it together for you. Thank you for taking a moment to read this.
+No obligation, just a guide you can keep. {cta}

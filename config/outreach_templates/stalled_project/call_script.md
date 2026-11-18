@@ -1,10 +1,8 @@
 ---
-facts: []
+facts: ['permit_stalled']
 ---
-Hi, this is {agent_intro}. I work with homeowners in {neighborhood}. Is now an okay time for a quick question?
+Hi, this is {agent_intro}. I focus on {neighborhood}. Is now an okay time for a quick question?
 
-If yes: Many owners in {neighborhood} are weighing whether to invest more in their home or consider other options. Would you be open to a short, no-obligation conversation about your options?
+If yes: Decisions about a home project are easier with real numbers. I can show what {street} would likely sell for as it stands versus finished. Would that be useful to you?
 
-If no: No problem at all. Is there a better time to reach you?
-
-Close: Thank you for your time. Have a great day.
+If no: No problem. When would be a better time?

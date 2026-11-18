@@ -29,12 +29,12 @@ CALL_REMINDER = "Manual dial only. Check Do Not Call status before calling."
 EMAIL_OPT_OUT = 'If you would rather not receive emails from us, reply "unsubscribe" and we will take you off our list right away.'
 BLOCKED_AGENT = "missing agent name or DRE license"
 BLOCKED_OFFICE = "missing office address"
-SAMPLE_BANNER = "[SAMPLE DATA: owner details come from sample records. Do not send.]"
+BLOCKED_SAMPLE = "sample data"      # drafts built on sample data can never be approved
 
 # Word-count limits (tests enforce them on every template).
-LETTER_WORDS = (120, 180)     # whole letter with a complete sign-off; the body alone is at least 120
-EMAIL_WORDS = (80, 130)       # body and sign-off, without the subject line and footer
-CALL_WORDS_MAX = 120          # whole script including the reminder line
+LETTER_WORDS = (90, 140)      # whole letter; at most 140 with every field filled, at least 90 with none
+EMAIL_WORDS = (60, 100)       # greeting, body and signature, without the subject line and footer
+CALL_WORDS_MAX = 90           # whole script including the reminder line (strictly under)
 
 
 @dataclass(frozen=True)
@@ -53,6 +53,7 @@ class Rendered:
     template_key: str
     blocked_reason: Optional[str]
     fact_keys: tuple[str, ...]
+    used_fields: tuple[str, ...] = ()      # parcel fields the text uses: neighborhood, situs_address
 
 
 def word_count(text: str) -> int:
@@ -81,12 +82,35 @@ def dre_text(dre_license: str) -> str:
 
 
 def signoff_lines(agent: Optional[TeamMember], team: TeamProfile) -> list[str]:
-    """Agent name, DRE license, phone, team display name, brokerage; empty values are omitted."""
+    """Agent name, team display name, brokerage, DRE license; empty values are omitted."""
     lines = []
     if agent is not None:
-        lines += [agent.name, dre_text(agent.dre_license), agent.phone.strip()]
+        lines.append(agent.name)
     lines += [team.display_name, team.brokerage]
+    if agent is not None:
+        lines.append(dre_text(agent.dre_license))
     return [x.strip() for x in lines if x and x.strip()]
+
+
+def signature(agent: Optional[TeamMember], team: TeamProfile) -> str:
+    return " · ".join(signoff_lines(agent, team))
+
+
+def call_to_action(agent: Optional[TeamMember], team: TeamProfile) -> str:
+    phone = agent.phone.strip() if agent else ""
+    email = agent.email.strip() if agent else ""
+    if phone and email:
+        return f"Call or text me at {phone}, or email {email}."
+    if phone:
+        return f"Call or text me at {phone}."
+    if email:
+        return f"Email me at {email}."
+    return f"Reach out to {team.display_name} to get started."
+
+
+def street_of(situs_address: str) -> str:
+    """'2651 Greentree Ln' -> 'Greentree Ln' (the house number is left off)."""
+    return re.sub(r"^\S*\d\S*\s+", "", situs_address.strip()) or "your street"
 
 
 def agent_intro(agent: Optional[TeamMember], team: TeamProfile) -> str:
@@ -111,21 +135,29 @@ def blocked_reason(channel: str, agent: Optional[TeamMember], team: TeamProfile)
 
 def render(channel: str, template: Template, salutation: str, neighborhood: str, situs_address: str,
            agent: Optional[TeamMember], team: TeamProfile) -> Rendered:
-    values = {"neighborhood": neighborhood, "situs_address": situs_address, "team_name": team.display_name,
-              "agent_name": agent.name if agent else "", "agent_intro": agent_intro(agent, team)}
+    values = {
+        "neighborhood": neighborhood, "street": street_of(situs_address), "situs_address": situs_address,
+        "team_name": team.display_name, "brokerage": team.brokerage,
+        "agent_name": agent.name if agent else "", "agent_phone": agent.phone if agent else "",
+        "agent_email": agent.email if agent else "", "dre_license": dre_text(agent.dre_license) if agent else "",
+        "agent_intro": agent_intro(agent, team), "cta": call_to_action(agent, team),
+    }
     body = template.body.format_map(values)            # an unknown placeholder raises KeyError
     subject = template.subject.format_map(values) if template.subject else None
-    sign = "\n".join(signoff_lines(agent, team))
+    sign = signature(agent, team)
     if channel == "mail":
-        text = f"{salutation}\n\n{body}\n\nSincerely,\n{sign}"
+        text = f"{salutation}\n\n{body}\n\n{sign}"
     elif channel == "email":
         footer = "\n".join(x for x in (team.office_address.strip(), EMAIL_OPT_OUT) if x)
-        text = f"Subject: {subject}\n\n{salutation}\n\n{body}\n\nBest regards,\n{sign}\n\n--\n{footer}"
+        text = f"Subject: {subject}\n\n{salutation}\n\n{body}\n\n{sign}\n\n--\n{footer}"
     elif channel == "call_task":
         text = f"{body}\n\n{CALL_REMINDER}"
     else:
         raise ValueError(f"unknown channel {channel!r}")
-    return Rendered(text, subject, body, template.key, blocked_reason(channel, agent, team), template.facts)
+    source = template.body + " " + (template.subject or "")
+    used = tuple(f for f, ph in (("neighborhood", "{neighborhood}"), ("situs_address", "{street}"))
+                 if ph in source)
+    return Rendered(text, subject, body, template.key, blocked_reason(channel, agent, team), template.facts, used)
 
 
 def counted_text(channel: str, r: Rendered) -> str:

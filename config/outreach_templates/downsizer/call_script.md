@@ -1,10 +1,8 @@
 ---
 facts: []
 ---
-Hi, this is {agent_intro}. I work with homeowners in {neighborhood}. Is now an okay time for a quick question?
+Hi, this is {agent_intro}. I focus on {neighborhood}. Is now an okay time for a quick question?
 
-If yes: Many homeowners in {neighborhood} are curious what a move to something that better fits their lives could look like. Would you be open to a short, no-obligation conversation about your options?
+If yes: I can put together what your home would likely sell for, and explain how Prop 19 lets owners 55 and over move their property tax base. That is worth confirming with your tax advisor. Would that be useful to you?
 
-If no: No problem at all. Is there a better time to reach you?
-
-Close: Thank you for your time. Have a great day.
+If no: No problem. When would be a better time?
