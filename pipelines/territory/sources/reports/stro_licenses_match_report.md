@@ -1,13 +1,13 @@
 # Match report: stro_licenses
 
-Generated 2026-11-18T01:04:37
+Generated 2026-11-18T06:25:41
 
 | Measure | Count |
 |---|---|
 | Rows fetched (in territory scope, stored in raw_records) | 3366 |
 | Matched to a parcel | 3365 |
 | Unmatched | 1 |
-| Signals written (new rows) | 3365 |
+| Signals written (new rows) | 0 |
 
 ## Match method breakdown
 
@@ -19,7 +19,8 @@ Generated 2026-11-18T01:04:37
 
 - rows in City file: 8432
 - excluded: outside territory: 5066
-- baseline: first run: baseline only, no stro_license_removed signals
+- previous run: d65a07d5-0641-4bba-a7e6-e1872bcdb0ef (2026-11-18)
+- licenses removed since previous run: 0
 
 ## Example unmatched rows (max 10, no personal data)
 

@@ -1,16 +1,17 @@
-# Permit APPROVAL_TYPE -> signal_group map (Phase 2, D4).
-status: proposed   # for Mike's review; nothing downstream treats this as final
+# Permit APPROVAL_TYPE -> signal_group map (Phase 3 final, D4).
+status: reviewed   # finalized in Phase 3 from the rules in the Phase 3 prompt; Mike may still adjust
 
 # Exact APPROVAL_TYPE strings from pipelines/territory/sources/reports/permit_type_profile.csv
 # (territory counts; some strings carry trailing spaces on purpose: they are the City's own values).
 # Types not listed here are written as 'other' and reported in the match report.
-# NOTE: there is no ADU approval type in the data. ADU work arrives as Building/Combination Building
-# permits with APPROVAL_ADU_TOTAL > 0; adu_total is kept in signal details so Phase 3 can split it out.
+# No approval TYPE names an ADU, so the adu group is filled by the Phase 3 re-derivation step
+# (territory.permit_rederive): a permit with APPROVAL_ADU_TOTAL > 0 is grouped as adu.
+# Changes from the proposed map: pipelines/territory/sources/reports/permit_map_changes.md
 
 signal_groups: [pre_sale_prep, remodel_addition, adu, demolition_lot_split, solar_energy, other]
 
 approval_types:
-  # ---- pre_sale_prep (12 types, 10621 approvals in territory)
+  # ---- pre_sale_prep (7 types, 10405 approvals in territory)
   "No-Plan - Residential - Combination Mech/Elec/Plum": pre_sale_prep   # 4463
   "Electrical Pmt": pre_sale_prep   # 2160
   "Electrical Permit": pre_sale_prep   # 964
@@ -18,46 +19,12 @@ approval_types:
   "Plumbing Permit ": pre_sale_prep   # 801
   "Plumbing Pmt": pre_sale_prep   # 561
   "Mechanical Pmt": pre_sale_prep   # 541
-  "Certificate of Compliance": pre_sale_prep   # 128
-  "Zone History Letter": pre_sale_prep   # 67
-  "Certificate of Correction": pre_sale_prep   # 11
-  "Map - Certificate of Compliance": pre_sale_prep   # 8
-  "Map - Certificate of Correction": pre_sale_prep   # 2
-  # ---- remodel_addition (32 types, 14323 approvals in territory)
+  # ---- remodel_addition (3 types, 10361 approvals in territory)
   "Construction Change - Building": remodel_addition   # 4611
   "Combination Building Permit": remodel_addition   # 4065
-  "Coastal Development Permit": remodel_addition   # 1789
   "Building Permit": remodel_addition   # 1685
-  "Site Development Permit": remodel_addition   # 654
-  "Coastal Development": remodel_addition   # 308
-  "Substantial Conformance Review": remodel_addition   # 174
-  "Grading Permit": remodel_addition   # 164
-  "Conditional Use Permit": remodel_addition   # 121
-  "Neighborhood Use Permit": remodel_addition   # 117
-  "Variance": remodel_addition   # 117
-  "Neighborhood Developmnt Permit": remodel_addition   # 84
-  "Planned Development Permit": remodel_addition   # 63
-  "Grading + Right of Way Permit": remodel_addition   # 59
-  "Site  Development Permit": remodel_addition   # 48
-  "Approval - Construction - Grading-Right of Way Pmt": remodel_addition   # 47
-  "Individual Historical Resource Nomination": remodel_addition   # 37
-  "Approval - Construction - Grading Pmt": remodel_addition   # 32
-  "Approval - Construction - Grading Pmt-Private": remodel_addition   # 31
-  "Mills Act Agreement": remodel_addition   # 25
-  "Neighborhood Development Permit": remodel_addition   # 23
-  "Limited Use Permit": remodel_addition   # 16
-  "Emergency Coastal Dev Permit": remodel_addition   # 15
-  "Special Permit": remodel_addition   # 11
-  "Emergency Authorization-ESL": remodel_addition   # 6
-  "La Jolla Shores Planned Dist.": remodel_addition   # 6
-  "Grading Permit - Private": remodel_addition   # 4
-  "Variance permit": remodel_addition   # 4
-  "Emergency Authorization-Hist": remodel_addition   # 2
-  "La Jolla Planned District": remodel_addition   # 2
-  "Sensitive Coastal Resource": remodel_addition   # 2
-  "Hillside Review Overlay Zone": remodel_addition   # 1
   # ---- adu (0 types, 0 approvals in territory)
-  # ---- demolition_lot_split (18 types, 1263 approvals in territory)
+  # ---- demolition_lot_split (16 types, 1254 approvals in territory)
   "Map Waiver": demolition_lot_split   # 285
   "Approval - Construction - Demolition Pmt": demolition_lot_split   # 245
   "Parcel Map": demolition_lot_split   # 240
@@ -69,89 +36,123 @@ approval_types:
   "Tentative - Map": demolition_lot_split   # 17
   "Map - Parcel Map": demolition_lot_split   # 14
   "Map - Lot-Line Adjustment": demolition_lot_split   # 11
-  "Lot Tie Agreement": demolition_lot_split   # 8
   "Map - Final Map": demolition_lot_split   # 8
   "Discretionary Map - Waiver": demolition_lot_split   # 7
   "Extension of Time - TM": demolition_lot_split   # 5
   "Vesting Tentative - Map": demolition_lot_split   # 3
-  "Condominium Conversion": demolition_lot_split   # 1
   "Tentative Map Exemption": demolition_lot_split   # 1
   # ---- solar_energy (4 types, 2300 approvals in territory)
   "Photovoltaic - SB 379": solar_energy   # 894
   "Approval - Construction - Electrical Pmt - PV Combo": solar_energy   # 768
   "Electrical-Photovoltaic": solar_energy   # 386
   "Approval - Construction - Electrical Pmt-PV Combo": solar_energy   # 252
-  # ---- other (81 types, 25417 approvals in territory)
+  # ---- other (117 types, 29604 approvals in territory)
   "Traffic Control Permit": other   # 5503
   "Right Of Way Permit-Const Plan": other   # 2066
   "ROW Permit-Traffic Control": other   # 2018
+  "Coastal Development Permit": other   # 1789
   "Encroachment Agreement": other   # 1746
   "Approval - Construction - Right Of Way Pmt-Const Plan": other   # 1473
-  "Elec.-UG Program-City only\u00a0\u00a0\u00a0\u00a0": other   # 1270
+  "Elec.-UG Program-City only\_\_\_\_": other   # 1270
   "Traffic Control Plan-Permit": other   # 1075
   "Right Of Way Permit": other   # 1056
   "Approval - Process - Agreement": other   # 985
   "Deferred Fire Approval": other   # 926
   "No-Plan - Nonresidential/Multifamily - Electrical": other   # 743
   "No-Plan - Nonresidential/Multifamily - Plumbing": other   # 658
+  "Site Development Permit": other   # 654
   "Construction Noise Permit": other   # 622
   "Construction Change - Eng.": other   # 571
   "Agreement": other   # 542
   "No-Plan - Nonresidential/Multifamily - Mechanical": other   # 531
   "Sign Permit": other   # 528
   "Zoning Use Certificate": other   # 407
+  "Coastal Development": other   # 308
   "Construction Change - Fire": other   # 266
   "Deferred Document Review": other   # 224
   "Easement Dedication": other   # 202
   "Approval - Construction - Sign Pmt": other   # 199
   "Approval - Construction - Fire Pmt - Alarm": other   # 185
+  "Substantial Conformance Review": other   # 174
   "Storm Water Maintenance Agrmnt": other   # 174
+  "Grading Permit": other   # 164
   "Fire Permit": other   # 149
+  "Certificate of Compliance": other   # 128
+  "Conditional Use Permit": other   # 121
   "Public Right of Way Dedication": other   # 120
+  "Neighborhood Use Permit": other   # 117
+  "Variance": other   # 117
   "Approval - Construction - Fire Pmt - Suppression": other   # 105
+  "Neighborhood Developmnt Permit": other   # 84
   "Notice of Termination": other   # 82
   "Sign Permit (No Inspection)": other   # 68
+  "Zone History Letter": other   # 67
+  "Planned Development Permit": other   # 63
   "Fire Permit - Suppression": other   # 61
+  "Grading + Right of Way Permit": other   # 59
   "Easement Vacation": other   # 58
   "Hydrant Flow": other   # 53
   "Spectrum Act Permit": other   # 51
+  "Site  Development Permit": other   # 48
   "Map - Public Right of Way Dedication": other   # 48
+  "Approval - Construction - Grading-Right of Way Pmt": other   # 47
   "Approval - Construction - Right Of Way Pmt": other   # 44
   "Alternate Methods and Materials": other   # 41
   "Public Right of Way Vacation": other   # 40
   "Extension of Time - Dev. Pmt": other   # 39
+  "Individual Historical Resource Nomination": other   # 37
   "Temporary Use Permit": other   # 35
+  "Approval - Construction - Grading Pmt": other   # 32
+  "Approval - Construction - Grading Pmt-Private": other   # 31
   "Fire Permit - Alarm": other   # 30
   "ROW Permit-Std Public Improvmt": other   # 30
   "Map - Easement Dedication": other   # 28
   "Newsrack Permit": other   # 27
   "Approval - Construction - Fire Pmt - Kitchen Hood": other   # 26
+  "Mills Act Agreement": other   # 25
   "Alternate Methods & Materials": other   # 25
   "Fire Permit - Kitchen Hood": other   # 24
   "Sidewalk Cafe Agreement": other   # 24
+  "Neighborhood Development Permit": other   # 23
   "Street Address Change": other   # 23
   "Approval - Construction - Fire Pmt - Underground": other   # 22
   "Uncontrolled Embankment Agrmnt": other   # 22
   "Temporary Use Pmt": other   # 21
+  "Limited Use Permit": other   # 16
+  "Emergency Coastal Dev Permit": other   # 15
   "Map - Irrevocable Offer of Dedication": other   # 15
   "Easement - Vacation": other   # 14
   "Right Of Way Permit-Combo": other   # 12
   "Transportation Permit": other   # 12
+  "Certificate of Correction": other   # 11
+  "Special Permit": other   # 11
   "Fire Permit - Underground": other   # 10
   "Street Tree Permit": other   # 9
+  "Map - Certificate of Compliance": other   # 8
+  "Lot Tie Agreement": other   # 8
   "Inspect-Mitigation Monitoring": other   # 8
   "Land Use Plan": other   # 8
   "Map - Covenant of Easement": other   # 8
   "Public R.O.W. Use Permit": other   # 8
   "Public ROW Vacation": other   # 8
+  "Emergency Authorization-ESL": other   # 6
+  "La Jolla Shores Planned Dist.": other   # 6
   "Mobile Food Truck Pmt": other   # 6
   "Street -Tree Permit": other   # 6
+  "Grading Permit - Private": other   # 4
+  "Variance permit": other   # 4
   "Rezone": other   # 4
   "Mobile Food Truck Permit": other   # 3
   "Re-zone": other   # 3
+  "Map - Certificate of Correction": other   # 2
+  "Emergency Authorization-Hist": other   # 2
+  "La Jolla Planned District": other   # 2
+  "Sensitive Coastal Resource": other   # 2
   "City Council Approval": other   # 2
   "City Manager Approval": other   # 2
   "Street Name Change": other   # 2
+  "Hillside Review Overlay Zone": other   # 1
+  "Condominium Conversion": other   # 1
   "Approval - Construction - Master Plan Establish": other   # 1
   "DSD/Record Type/Process/Affordable Housing Verif Req": other   # 1
   "Elec. Utility Undergrnd. Prgm": other   # 1

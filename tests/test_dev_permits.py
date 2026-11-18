@@ -62,20 +62,28 @@ def test_signal_groups_come_from_the_map_and_unknown_types_are_other(db, tmp_pat
     df = _setup(db)
     _run(tmp_path)
     mapping = yaml.safe_load(MAP.read_text())["approval_types"]
-    rows = db.execute("select details->>'approval_type', signal_group from signals "
+    rows = db.execute("select details->>'approval_type', signal_group, details->>'adu_total' from signals "
                       "where signal_type='permit_approved'").fetchall()
-    for atype, group in rows:
-        assert group == mapping.get(atype, "other")
-    assert ("Brand New Approval Type", "other") in rows
+    for atype, group, adu in rows:
+        # the map decides the group; APPROVAL_ADU_TOTAL > 0 regroups a permit as adu (Phase 3)
+        assert group == ("adu" if adu and float(adu) > 0 else mapping.get(atype, "other"))
+    assert ("Brand New Approval Type", "other") in [(r[0], r[1]) for r in rows]
 
 
 def test_stalled_only_when_expired_and_not_closed(db, tmp_path):
     df = _setup(db)
+    # Row 3 (Mechanical Pmt) expired 2025-01-10, never closed. In the shipped map it is
+    # pre_sale_prep, and stalled only counts for remodel_addition / adu / demolition_lot_split.
     _run(tmp_path)
-    stalled = db.execute("select source_record_id, signal_date from signals "
+    assert db.execute("select count(*) from signals where signal_type='permit_stalled'").fetchone()[0] == 0
+    remap = tmp_path / "map.yaml"
+    remap.write_text(yaml.safe_dump({"status": "reviewed", "approval_types": {"Mechanical Pmt": "remodel_addition"}}))
+    db.execute("truncate signals, raw_records, source_runs cascade")
+    run("dev_permits", local_files={"dev_permits": [FIXTURE], "permit_signal_map": remap}, report_dir=tmp_path)
+    stalled = db.execute("select source_record_id, signal_date, signal_group from signals "
                          "where signal_type='permit_stalled'").fetchall()
     assert [s[0] for s in stalled] == [df.APPROVAL_ID.iloc[3]]
-    assert str(stalled[0][1]) == "2025-01-10"
+    assert str(stalled[0][1]) == "2025-01-10" and stalled[0][2] == "remodel_addition"
 
 
 def test_rerun_does_not_duplicate(db, tmp_path):
@@ -94,9 +102,9 @@ def test_missing_map_fails_the_run_cleanly(db, tmp_path):
     assert db.execute("select count(*) from raw_records").fetchone()[0] == 0
 
 
-def test_shipped_map_is_proposed_and_uses_known_groups():
+def test_shipped_map_is_reviewed_and_uses_known_groups():
     text = MAP.read_text()
     first = next(l for l in text.splitlines() if l.strip() and not l.startswith("#"))
-    assert first.startswith("status: proposed")
+    assert first.startswith("status: reviewed")
     data = yaml.safe_load(text)
     assert set(data["approval_types"].values()) <= GROUPS

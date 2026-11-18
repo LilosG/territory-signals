@@ -1,0 +1,171 @@
+# Deterministic scoring model. No AI is used anywhere in scoring (CLAUDE.md AI rules).
+# Score = min(100, round_half_up(weighted_sum x stacking_multiplier)).
+model_version: "v0.1-handset"
+
+# ---- Residential filter ------------------------------------------------------------
+# Only parcels whose parcels.land_use is one of these codes are scored.
+# Code MEANINGS ARE UNCONFIRMED (SOURCES.md #7, BACKLOG.md). They were chosen from the unit
+# counts the assessor file reports for each code (see land_use_profile.csv, units_* columns).
+# Not scored: 10 (0 units, likely vacant), 15 (median 21 units), 86/88 (unclear), and all
+# commercial / industrial / institutional / other codes.
+residential_land_use:
+  "11": single-family residence        # median 1 unit
+  "17": condominium                    # stacked single-unit footprints
+  "12": duplex to fourplex             # median 2 units
+  "13": triplex to fourplex            # median 3 units
+  "14": small multifamily              # 3-15 units, median 8
+
+# ---- Suppression ----------------------------------------------------------------------
+suppression:
+  recent_sale_months: 24   # a sale in sales_history within this many months -> no score
+  # also: any row in suppressions that is active (until_date null or >= as-of date)
+
+# ---- Stacking ---------------------------------------------------------------------------
+# +10% for each independent signal family beyond the first, capped at +30%.
+stacking:
+  bonus_per_extra_family: 0.10
+  cap: 0.30
+  families: [financial, rental, permits, upzoning, fire, owner]
+
+# ---- Signals ----------------------------------------------------------------------------
+# contribution = weight x 0.5 ** (age_days / half_life_days); static signals (half_life_days: null)
+# do not decay. age_days = days between signal_date and the as-of date (never negative).
+# One component per signal key: the strongest (most recent) live instance. A parcel with ten
+# re-roof permits scores the permit component once.
+# snapshot: true -> only the latest snapshot counts (parcel must have a row dated on the latest
+# signal_date seen for that signal type), so repeated daily rows never stack.
+signals:
+  tax_default:
+    family: financial
+    weight: 30
+    half_life_days: 365
+  stro_license_removed:
+    family: rental
+    weight: 25
+    half_life_days: 90
+  stro_license_active:
+    family: rental
+    weight: 5
+    half_life_days: null    # static, context only
+    snapshot: true
+  permit_approved:
+    family: permits
+    by_group:
+      pre_sale_prep:        {weight: 20, half_life_days: 120}
+      demolition_lot_split: {weight: 15, half_life_days: 180}
+      adu:                  {weight: 10, half_life_days: 180}
+      remodel_addition:     {weight: 8,  half_life_days: 180}
+      solar_energy:         {weight: 3,  half_life_days: 180}
+      other:                {weight: 0,  half_life_days: 180}
+  permit_stalled:
+    family: permits
+    weight: 15
+    half_life_days: 365
+    groups: [remodel_addition, adu, demolition_lot_split]   # derivation also enforces expired > 90 days
+  sb79_transit_estimate:
+    family: upzoning
+    half_life_days: null
+    snapshot: true
+    by_detail: distance_band
+    values:
+      within_200ft: 14          # inside 1/4 mile
+      within_quarter_mile: 14
+      within_half_mile: 10
+  sb9_lot_split_estimate:
+    family: upzoning
+    weight: 8
+    half_life_days: null
+    snapshot: true
+  fire_hazard_zone:
+    family: fire
+    half_life_days: null
+    snapshot: true
+    by_detail: hazard_class
+    # Values are matched after lower-casing and turning spaces/underscores into one space.
+    values:
+      very high: 10
+      high: 6
+      moderate: 3
+
+# ---- Owner modifiers (owners table, latest as_of per parcel; static) ---------------------
+owner_modifiers:
+  years_owned:                  # from owners.last_sale_date; highest matching tier only
+    - {min_years: 30, weight: 15}
+    - {min_years: 20, weight: 10}
+  absentee:         {weight: 10}
+  out_of_state:     {weight: 12}
+  mortgage_open_false: {weight: 10}
+  est_equity_top_quartile: {weight: 5, percentile: 75}   # est_equity >= territory 75th percentile
+
+# ---- reason_text --------------------------------------------------------------------------
+reason_text:
+  max_components: 4
+
+# ---- Recipes --------------------------------------------------------------------------------
+# Explicit conditions over the parcel's effective signals and owner fields.
+#   {signal: <type>, group: <g>, within_days: N, detail: {key: [values]}}  signal present
+#   {owner: <field>, is: true|false}   {owner: years_owned, gte: N}
+#   {all: [...]}  {any: [...]}  {not: <cond>}
+# requires_data: [fire_zones] -> recipe is active only when that data is loaded.
+recipes:
+  str_exit:
+    description: Short-term rental license removed in the last year.
+    when:
+      signal: stro_license_removed
+      within_days: 365
+  tired_landlord:
+    description: Long-held absentee owner with a distress or friction signal.
+    when:
+      all:
+        - {owner: absentee, is: true}
+        - {owner: years_owned, gte: 15}
+        - any:
+            - {signal: tax_default}
+            - {signal: stro_license_removed, within_days: 730}
+            - {signal: permit_stalled}
+  builder_bait:
+    description: Estimated upzoning potential and an owner likely to sell for land value.
+    when:
+      all:
+        - any:
+            - {signal: sb9_lot_split_estimate}
+            - {signal: sb79_transit_estimate}
+        - any:
+            - {owner: years_owned, gte: 20}
+            - {owner: absentee, is: true}
+  pre_list_prep:
+    description: Pre-sale type permit approved in the last 6 months on a long-held home.
+    when:
+      all:
+        - {signal: permit_approved, group: pre_sale_prep, within_days: 180}
+        - {owner: years_owned, gte: 10}
+  stalled_project:
+    description: Permit expired more than 90 days ago with no close date.
+    when:
+      signal: permit_stalled
+  downsizer:
+    description: Owner-occupied, long-held, no open mortgage.
+    when:
+      all:
+        - {owner: absentee, is: false}
+        - {owner: years_owned, gte: 20}
+        - {owner: mortgage_open, is: false}
+  insurance_squeeze:
+    description: High or very high fire hazard zone.
+    requires_data: [fire_zones]
+    when:
+      signal: fire_hazard_zone
+      detail: {hazard_class: [high, very high]}
+  financial_pressure:
+    description: Tax default, or lost rental income with an open mortgage.
+    when:
+      any:
+        - {signal: tax_default, within_days: 730}
+        - all:
+            - {signal: stro_license_removed, within_days: 365}
+            - {owner: mortgage_open, is: true}
+  quiet_inheritance:
+    active: false
+    note: requires ATTOM recorder data (Phase 6)
+    when:
+      signal: attom_recorder_transfer

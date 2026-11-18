@@ -14,8 +14,9 @@ Rows with a blank/unknown APN and no usable location cannot be placed; they are
 counted in the match report, not stored.
 
 Signals: permit_approved (signal_group from config/permit_signal_map.yaml, by
-exact APPROVAL_TYPE) and permit_stalled (issued, APPROVAL_EXPIRE_DATE passed, no
-APPROVAL_CLOSE_DATE and not in a terminal status).
+exact APPROVAL_TYPE; APPROVAL_ADU_TOTAL > 0 regroups as adu) and permit_stalled
+(rules in territory/permit_rules.py: only remodel_addition, adu and
+demolition_lot_split, expired more than 90 days ago, no close date).
 
 Privacy: APPROVAL_PERMIT_HOLDER (a person/business name) is dropped on read.
 """
@@ -30,8 +31,8 @@ from typing import Iterable
 
 import pandas as pd
 import shapely
-import yaml
 
+from territory import permit_rules as rules
 from territory.net import download
 from territory.reports import REPORT_DIR
 from territory.sources.base import (
@@ -47,12 +48,7 @@ FILES = [
     "approvals_created_2025_datasd.csv", "approvals_created_2026_datasd.csv",
 ]
 SET_RANK = {"created": 1, "active": 2, "issued": 3, "closed": 4}
-MAP_PATH = Path(__file__).resolve().parents[3] / "config" / "permit_signal_map.yaml"
-SIGNAL_GROUPS = ["pre_sale_prep", "remodel_addition", "adu", "demolition_lot_split",
-                 "solar_energy", "other"]
 DROP_COLUMNS = {"APPROVAL_PERMIT_HOLDER"}
-TERMINAL_STATUS = {"closed", "final closed", "finaled", "completed", "cancelled",
-                   "cancelled utilization not met", "void", "withdrawn"}
 CHUNK = 200_000
 
 
@@ -61,11 +57,6 @@ def set_name(filename: str) -> str:
         if f"approvals_{s}_" in filename:
             return s
     raise ValueError(f"cannot tell which permit set {filename} belongs to")
-
-
-def _date(v) -> date | None:
-    d = pd.to_datetime(v, errors="coerce")
-    return None if pd.isna(d) else d.date()
 
 
 def clean_apn(v) -> str | None:
@@ -190,16 +181,9 @@ class DevPermitsAdapter(SourceAdapter):
         return path
 
     def _load_map(self) -> None:
-        path = Path(self.ctx.local_files.get("permit_signal_map") or MAP_PATH)
-        if not path.exists():
-            raise FileNotFoundError(f"{path} not found; review permit_type_profile.csv and create it")
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
-        mapping = data.get("approval_types") or {}
-        bad = {k: v for k, v in mapping.items() if v not in SIGNAL_GROUPS}
-        if bad:
-            raise ValueError(f"permit_signal_map.yaml has unknown signal groups: {bad}")
-        self._map = mapping
-        self.notes["permit_signal_map status"] = data.get("status")
+        data = rules.load_map(self.ctx.local_files.get("permit_signal_map"))
+        self._map = data["approval_types"]
+        self.notes["permit_signal_map status"] = data["status"]
 
     # ---- fetch / match / normalize ---------------------------------------------
     def fetch(self, run_id: str) -> Iterable[RawRecord]:
@@ -223,37 +207,14 @@ class DevPermitsAdapter(SourceAdapter):
         m = self.match(raw)
         if not m.apn:
             return
-        p = raw.payload
-        atype = p.get("APPROVAL_TYPE", "")
-        group = self._map.get(atype)
-        if group is None:
-            group = "other"
+        atype = raw.payload.get("APPROVAL_TYPE", "")
+        if atype not in self._map:
             self.unmapped[atype or "(blank)"] += 1
             self.notes["APPROVAL_TYPE values not in the map (-> other)"] = dict(self.unmapped)
-        issue, expire, close = (_date(p.get("APPROVAL_ISSUE_DATE")), _date(p.get("APPROVAL_EXPIRE_DATE")),
-                                _date(p.get("APPROVAL_CLOSE_DATE")))
-        base = {
-            "approval_id": raw.source_record_id, "approval_type": atype or None,
-            "approval_status": p.get("APPROVAL_STATUS"), "project_type": p.get("PROJECT_TYPE"),
-            "project_id": p.get("PROJECT_ID"), "job_description": p.get("JOB_BC_CODE_DESCRIPTION"),
-            "scope": (p.get("APPROVAL_SCOPE") or "")[:500] or None,
-            "valuation": p.get("APPROVAL_VALUATION"), "adu_total": p.get("APPROVAL_ADU_TOTAL"),
-            "du_net_change": p.get("APPROVAL_DU_NET_CHANGE"),
-            "floor_area": p.get("APPROVAL_FLOOR_AREA"),
-            "issue_date": str(issue) if issue else None, "expire_date": str(expire) if expire else None,
-            "close_date": str(close) if close else None, "sets": p.get("_sets"),
-            "match_note": m.note or None,
-        }
-        if issue:
-            yield SignalCandidate("permit_approved", group, self.source_key, raw.source_record_id,
-                                  m.confidence, m.method, m.apn, issue, details=base)
-        status = (p.get("APPROVAL_STATUS") or "").strip().lower()
-        if issue and expire and expire < self.ctx.run_date and close is None \
-                and status not in TERMINAL_STATUS:
-            yield SignalCandidate(
-                "permit_stalled", group, self.source_key, raw.source_record_id, m.confidence,
-                m.method, m.apn, expire,
-                details={**base, "days_past_expiry": (self.ctx.run_date - expire).days})
+        for s in rules.derive(raw.payload, raw.source_record_id, self._map, self.ctx.run_date):
+            details = {**s["details"], "match_note": m.note or None}
+            yield SignalCandidate(s["signal_type"], s["group"], self.source_key, raw.source_record_id,
+                                  m.confidence, m.method, m.apn, s["signal_date"], details=details)
 
 
 def _profile_main() -> None:  # python -m territory.sources.dev_permits --profile
