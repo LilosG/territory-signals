@@ -1,6 +1,6 @@
 # Match report: dev_permits
 
-Generated 2026-11-18T01:06:59
+Generated 2026-11-18T06:28:50
 
 | Measure | Count |
 |---|---|
