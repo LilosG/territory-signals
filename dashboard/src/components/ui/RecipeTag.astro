@@ -1,4 +1,5 @@
 ---
+import { sentenceCase } from '../../lib/format';
 export interface Props { name: string; class?: string }
 ---
-<span class:list={['inline-flex items-center rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent whitespace-nowrap', Astro.props.class]}>{Astro.props.name}</span>
+<span class:list={['inline-flex items-center whitespace-nowrap rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-fg', Astro.props.class]}>{sentenceCase(Astro.props.name)}</span>

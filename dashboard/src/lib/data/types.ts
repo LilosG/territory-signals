@@ -201,6 +201,9 @@ export interface ClientConfig {
   is_sample: boolean;
 }
 
+/** Where outreach stands for a lead, from the outreach table. Derived, never typed in by hand. */
+export type LeadStatus = 'new' | 'draft_ready' | 'awaiting_approval' | 'approved' | 'sent';
+
 export interface LeadSummary {
   parcel: Parcel;
   score: Score;
@@ -208,6 +211,7 @@ export interface LeadSummary {
   signal_count: number;
   top_signal_types: string[];
   latest_signal_date: IsoDate | null;
+  status: LeadStatus;
   /** True if any signal feeding this lead is sample data. */
   is_sample: boolean;
 }
@@ -261,15 +265,17 @@ export interface TodayFeed {
   top_leads: LeadSummary[];
   new_signals: (Signal & { situs_address: string | null; neighborhood: string | null })[];
   approvals_waiting: (Outreach & { situs_address: string | null })[];
-  call_tasks_due: (Outreach & { situs_address: string | null; score: number | null })[];
+  call_tasks_due: (Outreach & { situs_address: string | null; score: number | null; reason_text: string | null; assigned_agent: string | null })[];
 }
 
 export interface TrendPoint { month: string; value: number }
 export interface TrendSeries { key: string; label: string; points: TrendPoint[] }
 export interface TrendMetric {
-  key: 'turnover' | 'permits' | 'str_lost' | 'tax_default' | 'upzoning';
+  key: 'turnover' | 'permits' | 'str_lost' | 'tax_default' | 'upzoning' | 'recipes';
   title: string;
   unit: string;
+  /** Set for grouped-bar metrics: one group per category (neighborhood). Each series point's `month` then holds its category label. */
+  categories?: string[];
   series: TrendSeries[]; // permits has one series per signal group
   is_estimate: boolean;
   takeaway: string; // computed deterministically

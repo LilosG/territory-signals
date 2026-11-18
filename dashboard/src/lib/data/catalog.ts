@@ -55,3 +55,22 @@ export const OUTCOME_LABELS: Record<string, string> = {
 export const bandOf = (score: number): 'low' | 'watch' | 'warm' | 'hot' =>
   score >= 80 ? 'hot' : score >= 60 ? 'warm' : score >= 40 ? 'watch' : 'low';
 export const BAND_LABEL = { low: 'Low', watch: 'Watch', warm: 'Warm', hot: 'Hot' } as const;
+
+/** Signal types already implied by a recipe name. The card omits these chips so a concept is never shown twice. */
+export const RECIPE_IMPLIES: Record<string, string[]> = {
+  'long-tenure-equity': ['long_tenure', 'high_equity'],
+  'absentee-owner': ['absentee_owner'],
+  redevelopment: ['upzoning_sb9', 'upzoning_sb79', 'permit_demolition'],
+  'str-exit': ['stro_license_active', 'stro_license_lapsed'],
+  'life-event': ['inheritance_transfer', 'trust_transfer'],
+  'financial-stress': ['tax_default', 'notice_of_default'],
+  'permit-momentum': ['permit_demolition', 'permit_new_construction', 'permit_addition_remodel', 'permit_adu'],
+};
+
+export const LEAD_STATUS: Record<'new' | 'draft_ready' | 'awaiting_approval' | 'approved' | 'sent', { label: string; tone: 'good' | 'warning' | 'neutral' }> = {
+  new: { label: 'New', tone: 'neutral' },
+  draft_ready: { label: 'Draft ready', tone: 'good' },
+  awaiting_approval: { label: 'Awaiting approval', tone: 'warning' },
+  approved: { label: 'Approved', tone: 'good' },
+  sent: { label: 'Sent', tone: 'neutral' },
+};

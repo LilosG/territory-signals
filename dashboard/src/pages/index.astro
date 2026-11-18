@@ -7,18 +7,17 @@ import Grid from '../components/ui/Grid.astro';
 import Stack from '../components/ui/Stack.astro';
 import Card from '../components/ui/Card.astro';
 import LeadCard from '../components/ui/LeadCard.astro';
-import SignalChip from '../components/ui/SignalChip.astro';
-import SourceLink from '../components/ui/SourceLink.astro';
 import EmptyState from '../components/ui/EmptyState.astro';
-import ScoreBadge from '../components/ui/ScoreBadge.astro';
 import Button from '../components/ui/Button.astro';
+import SignalFeedItem from '../components/ui/SignalFeedItem.astro';
+import ApprovalRow from '../components/ui/ApprovalRow.astro';
+import CallTaskRow from '../components/ui/CallTaskRow.astro';
 import { data } from '../lib/data';
-import { fmtDate, fmtDateTime } from '../lib/format';
+import { fmtDate } from '../lib/format';
 
 const feed = await data.getTodayFeed();
 const config = await data.getConfig();
 const recipeNames = Object.fromEntries(config.recipes.map((r) => [r.key, r.name]));
-const channelLabel = { mail: 'Letter', email: 'Email', call_task: 'Call task' } as const;
 ---
 <AppShell title="Today" active="today">
   <PageHeader eyebrow={fmtDate(feed.as_of.slice(0, 10))} title="Good morning" description="The ten properties most worth your attention today, and what changed overnight.">
@@ -40,31 +39,16 @@ const channelLabel = { mail: 'Letter', email: 'Email', call_task: 'Call task' } 
           <Card padded={false}>
             {feed.new_signals.length === 0
               ? <EmptyState title="Nothing new" description="No new signals were detected overnight." />
-              : <ul class="divide-y divide-line">
-                  {feed.new_signals.slice(0, 8).map((s) => (
-                    <li class="flex flex-col gap-1.5 px-5 py-4">
-                      <div class="flex flex-wrap items-center gap-2"><SignalChip type={s.signal_type} estimate={s.is_estimate} /><span class="text-xs text-ink-muted">{fmtDateTime(s.detected_at)}</span></div>
-                      <a href={`/leads/${s.apn}`} class="text-sm font-medium hover:text-accent hover:underline underline-offset-2">{s.situs_address} <span class="font-normal text-ink-muted">· {s.neighborhood}</span></a>
-                      <SourceLink sourceKey={s.source_key} recordId={s.source_record_id} />
-                    </li>
-                  ))}
-                </ul>}
+              : <ul class="divide-y divide-line">{feed.new_signals.slice(0, 8).map((s) => <SignalFeedItem signal={s} />)}</ul>}
             {feed.new_signals.length > 8 && <p class="border-t border-line px-5 py-3 text-xs text-ink-muted">+ {feed.new_signals.length - 8} more new signals</p>}
           </Card>
         </Section>
 
-        <Section title="Approvals waiting" description="Drafts need a human approval before anything is sent.">
+        <Section title={`Approvals waiting · ${feed.approvals_waiting.length}`} description="Drafts need a human approval before anything is sent.">
           <Card padded={false}>
             {feed.approvals_waiting.length === 0
               ? <EmptyState title="All clear" description="No drafts are waiting for approval." />
-              : <ul class="divide-y divide-line">
-                  {feed.approvals_waiting.slice(0, 6).map((o) => (
-                    <li class="flex items-center justify-between gap-3 px-5 py-3.5">
-                      <div class="min-w-0"><a href={`/leads/${o.apn}`} class="block truncate text-sm font-medium hover:text-accent">{o.situs_address}</a><span class="text-xs text-ink-muted">{channelLabel[o.channel]} draft</span></div>
-                      <span class="shrink-0 text-xs font-medium text-warning">Awaiting approval</span>
-                    </li>
-                  ))}
-                </ul>}
+              : <ul class="divide-y divide-line">{feed.approvals_waiting.slice(0, 6).map((o) => <ApprovalRow item={o} />)}</ul>}
             {feed.approvals_waiting.length > 6 && <p class="border-t border-line px-5 py-3 text-xs text-ink-muted">+ {feed.approvals_waiting.length - 6} more (approval screen arrives in Phase 5)</p>}
           </Card>
         </Section>
@@ -73,14 +57,7 @@ const channelLabel = { mail: 'Letter', email: 'Email', call_task: 'Call task' } 
           <Card padded={false}>
             {feed.call_tasks_due.length === 0
               ? <EmptyState title="No calls due" />
-              : <ul class="divide-y divide-line">
-                  {feed.call_tasks_due.map((o) => (
-                    <li class="flex items-center gap-3 px-5 py-3.5">
-                      {o.score != null && <ScoreBadge score={o.score} size="sm" />}
-                      <a href={`/leads/${o.apn}`} class="min-w-0 truncate text-sm font-medium hover:text-accent">{o.situs_address}</a>
-                    </li>
-                  ))}
-                </ul>}
+              : <ul class="divide-y divide-line">{feed.call_tasks_due.map((o) => <CallTaskRow task={o} />)}</ul>}
             <p class="border-t border-line px-5 py-3 text-xs text-ink-muted">Calls are placed manually by the team. Nothing is dialed automatically.</p>
           </Card>
         </Section>

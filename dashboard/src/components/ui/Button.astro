@@ -11,7 +11,8 @@ const v = {
   secondary: 'bg-surface text-ink border border-line-strong hover:bg-sunken',
   ghost: 'text-ink-muted hover:bg-sunken hover:text-ink',
 }[variant];
-const dis = 'opacity-55 pointer-events-none';
+// Disabled stays hoverable so the title tooltip can explain why; it just cannot be activated.
+const dis = 'opacity-55 cursor-not-allowed !bg-sunken !text-ink-muted !border-line hover:!bg-sunken';
 const sz = { sm: 'h-8 px-3 text-sm', md: 'h-10 px-4 text-sm' }[size];
 const classes = [base, v, sz, disabled && dis, cls];
 ---

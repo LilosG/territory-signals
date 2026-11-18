@@ -19,7 +19,7 @@ import DataTable from '../../../components/ui/DataTable.astro';
 import EmptyState from '../../../components/ui/EmptyState.astro';
 import SampleDataBadge from '../../../components/ui/SampleDataBadge.astro';
 import { data, OUTCOME_LABELS } from '../../../lib/data';
-import { fmtApn, fmtDate, fmtNum, fmtPct, fmtUsd } from '../../../lib/format';
+import { fmtApn, fmtDate, fmtNum, fmtPct, fmtUsd, sentenceCase } from '../../../lib/format';
 
 export async function getStaticPaths() {
   const leads = await data.getLeads();
@@ -55,7 +55,7 @@ const owned = lead.years_owned;
           </div>
           <div class="min-w-0 flex-1">
             <h2 id="why-h" class="eyebrow">Why this lead</h2>
-            <p class="mt-1.5 text-lg font-medium leading-7 text-ink">{score.reason_text}</p>
+            <p class="mt-1.5 text-lg font-medium leading-7 text-ink">{sentenceCase(score.reason_text)}</p>
             <Cluster class="mt-3" gap={2}>{(score.recipe_matches ?? []).map((r) => <RecipeTag name={recipeNames[r] ?? r} />)}</Cluster>
           </div>
         </div>

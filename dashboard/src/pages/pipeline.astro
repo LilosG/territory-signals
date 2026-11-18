@@ -16,12 +16,13 @@ const [pipe, bt] = await Promise.all([data.getPipeline(), data.getBacktest()]);
   <Stack gap={10}>
     <Card as="section" aria-labelledby="bt-h">
       <div class="flex flex-wrap items-center gap-2"><h2 id="bt-h" class="text-lg font-semibold">Backtest</h2><SampleDataBadge label="Sample until Phase 6" /></div>
-      <p class="mt-1 text-sm text-ink-muted">Would we have seen past sales coming? Share of past sales flagged before they listed, and how early.</p>
+      <p class="mt-0.5 text-sm text-ink-muted">{fmtDate(bt.window.from)} – {fmtDate(bt.window.to)}</p>
+      <p class="mt-2 text-sm text-ink-muted">Would we have seen past sales coming? Share of past sales flagged before they listed, and how early.</p>
       <dl class="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-4">
-        <StatTile emphasis label="Flagged before listing" value={fmtPct(bt.share_flagged)} hint={`${bt.flagged_before_listing} of ${bt.past_sales_considered} past sales`} />
-        <StatTile emphasis label="Average days early" value={String(bt.avg_days_early)} hint="days before the listing date" />
-        <StatTile label="Median days early" value={String(bt.median_days_early)} />
-        <StatTile label="Window" value={`${fmtDate(bt.window.from)} – ${fmtDate(bt.window.to)}`} />
+        <StatTile emphasis label="Flagged before listing" value={fmtPct(bt.share_flagged)} hint={`of past sales · ${bt.flagged_before_listing} of ${bt.past_sales_considered}`} smallSample={bt.flagged_before_listing < 5} />
+        <StatTile emphasis label="Average days early" value={String(bt.avg_days_early)} hint="days" />
+        <StatTile label="Median days early" value={String(bt.median_days_early)} hint="days" />
+        <StatTile label="Past sales considered" value={String(bt.past_sales_considered)} hint="sales" />
       </dl>
       <p class="mt-5 border-t border-line pt-4 text-xs text-ink-muted">{bt.note}</p>
     </Card>

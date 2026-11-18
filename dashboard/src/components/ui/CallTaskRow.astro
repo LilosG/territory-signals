@@ -1,0 +1,15 @@
+---
+import type { TodayFeed } from '../../lib/data/types';
+import { sentenceCase } from '../../lib/format';
+import ScoreBadge from './ScoreBadge.astro';
+export interface Props { task: TodayFeed['call_tasks_due'][number] }
+const { task: o } = Astro.props;
+---
+<li class="flex items-start gap-3 px-5 py-3.5">
+  {o.score != null && <ScoreBadge score={o.score} size="sm" class="mt-0.5" />}
+  <div class="min-w-0 flex-1">
+    <a href={`/leads/${o.apn}`} class="block truncate text-sm font-medium hover:text-accent">{o.situs_address}</a>
+    {o.reason_text && <p class="truncate text-xs text-ink-muted" title={sentenceCase(o.reason_text)}>{sentenceCase(o.reason_text)}</p>}
+    {o.assigned_agent && <p class="mt-0.5 truncate text-xs text-ink-faint">Assigned to {o.assigned_agent}</p>}
+  </div>
+</li>

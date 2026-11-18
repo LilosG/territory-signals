@@ -1,10 +1,10 @@
 ---
 import SampleDataBadge from './SampleDataBadge.astro';
-export interface Props { label: string; value: string | number; hint?: string; sample?: boolean; emphasis?: boolean; class?: string }
-const { label, value, hint, sample = false, emphasis = false, class: cls } = Astro.props;
+export interface Props { label: string; value: string | number; hint?: string; sample?: boolean; emphasis?: boolean; smallSample?: boolean; class?: string }
+const { label, value, hint, sample = false, emphasis = false, smallSample = false, class: cls } = Astro.props;
 ---
 <div class:list={['flex min-w-0 flex-col gap-1', cls]}>
   <dt class="eyebrow flex items-center gap-1.5">{label}{sample && <SampleDataBadge />}</dt>
-  <dd class:list={['font-semibold tabular-nums tracking-tight text-ink', emphasis ? 'text-4xl' : 'text-2xl']}>{value}</dd>
+  <dd class:list={['font-semibold tabular-nums tracking-tight', emphasis ? 'text-4xl' : 'text-2xl', smallSample ? 'cursor-help text-ink-faint' : 'text-ink']} title={smallSample ? 'Small sample' : undefined}>{value}</dd>
   {hint && <dd class="text-xs text-ink-muted">{hint}</dd>}
 </div>

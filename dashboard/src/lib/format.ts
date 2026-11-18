@@ -17,3 +17,25 @@ export const fmtApn = (apn: string) => `${apn.slice(0, 3)}-${apn.slice(3, 6)}-${
 export const FIXTURE_NOW = new Date('2026-11-18T12:00:00Z');
 export const daysSince = (s: string, now: Date = FIXTURE_NOW) => Math.floor((now.getTime() - new Date(s).getTime()) / 86_400_000);
 export const cx = (...xs: (string | false | null | undefined)[]) => xs.filter(Boolean).join(' ');
+
+/* ── display text: sentence case, acronyms stay uppercase ── */
+const ACRONYMS = ['ADU', 'SB 9', 'SB 79', 'STR', 'STRO', 'APN', 'HOA', 'ZIP', 'LLC', 'ATTOM', 'SANDAG', 'SanGIS'];
+const KEEP_CAPS = new Set(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'La', 'Jolla', 'Pacific', 'Beach', 'Mission', 'Sample', 'San', 'Diego', 'City', 'County']);
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const ACRONYM_RES = ACRONYMS.map((a) => [new RegExp(`\\b${esc(a).replace(/ /g, '\\s?')}\\b`, 'gi'), a] as const);
+/**
+ * Sentence case for generated labels and reason text: first letter of each sentence capitalised, other
+ * Title Case words lowered, known acronyms and proper nouns (months, neighborhoods) preserved.
+ */
+export function sentenceCase(text: string | null | undefined): string {
+  if (!text) return '';
+  let atStart = true;
+  const out = text.replace(/([A-Za-z][A-Za-z']*)|([.!?]\s+)/g, (m, word: string | undefined) => {
+    if (!word) { atStart = true; return m; }
+    const isTitleWord = /^[A-Z][a-z]+$/.test(word);
+    const r = atStart ? word[0]!.toUpperCase() + word.slice(1) : isTitleWord && !KEEP_CAPS.has(word) ? word.toLowerCase() : word;
+    atStart = false;
+    return r;
+  });
+  return ACRONYM_RES.reduce((acc, [re, a]) => acc.replace(re, a), out);
+}

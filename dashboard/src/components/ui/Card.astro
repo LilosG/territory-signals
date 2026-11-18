@@ -3,4 +3,4 @@ export interface Props { as?: 'div' | 'section' | 'article' | 'li'; padded?: boo
 const { as: Tag = 'div', padded = true, interactive = false, tone = 'default', class: cls, ...rest } = Astro.props;
 const tones = { default: 'bg-surface border-line', sunken: 'bg-sunken border-transparent', accent: 'bg-accent text-accent-fg border-transparent' };
 ---
-<Tag {...rest} class:list={['rounded-lg border shadow-xs', tones[tone], padded && 'p-5 sm:p-6', interactive && 'transition hover:shadow-md hover:border-line-strong focus-within:shadow-md', cls]}><slot /></Tag>
+<Tag {...rest} class:list={['rounded-lg border shadow-xs', tones[tone], padded && 'p-5 sm:p-6', interactive && 'transition-[box-shadow,border-color,transform] duration-150 hover:-translate-y-px hover:shadow-md hover:border-line-strong focus-within:shadow-md', cls]}><slot /></Tag>

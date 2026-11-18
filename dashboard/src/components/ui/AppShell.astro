@@ -3,7 +3,6 @@ import '../../styles/global.css';
 import { brand, brandCssVars } from '../../config/brand';
 import { data } from '../../lib/data';
 import Icon from './Icon.astro';
-import SampleDataBadge from './SampleDataBadge.astro';
 export interface Props { title: string; active?: 'today' | 'map' | 'trends' | 'pipeline' | 'settings' | 'system'; bleed?: boolean; description?: string }
 const { title, active, bleed = false, description } = Astro.props;
 const nav = [
@@ -28,13 +27,8 @@ const nav = [
   </head>
   <body class="min-h-dvh">
     <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:shadow-md">Skip to content</a>
-    {data.isSample && (
-      <div role="status" class="no-print border-b border-warning/25 bg-warning-soft px-4 py-1.5 text-center text-xs text-warning">
-        <strong class="font-semibold">Sample data.</strong> Every owner, address, sale and signal on this page is fictional. No live data is connected.
-      </div>
-    )}
-    <div class="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
-      <aside class="no-print hidden lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col lg:border-r lg:border-line lg:bg-surface lg:px-4 lg:py-6">
+    <div class="lg:pl-60">
+      <aside class="no-print hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-60 lg:flex-col lg:overflow-y-auto lg:border-r lg:border-line lg:bg-surface lg:px-4 lg:py-6">
         <a href="/" class="flex items-center gap-3 px-2 pb-8">
           <span class="grid h-9 w-9 place-items-center rounded-md bg-accent text-sm font-semibold tracking-wide text-accent-fg">{brand.initials}</span>
           <span class="leading-tight"><span class="block text-sm font-semibold">{brand.name}</span><span class="block text-xs text-ink-muted">{brand.tagline}</span></span>
@@ -47,10 +41,14 @@ const nav = [
             </a>
           ))}
         </nav>
-        <p class="mt-auto px-2 text-xs text-ink-faint">Preview build · Phase 4</p>
       </aside>
 
-      <div class="flex min-w-0 flex-col">
+      <div class="flex min-h-dvh min-w-0 flex-col">
+        {data.isSample && (
+          <div role="status" class="no-print border-b border-warning/25 bg-warning-soft px-4 py-1.5 text-center text-xs text-warning">
+            <strong class="font-semibold">Sample data.</strong> Every owner, address, sale and signal on this page is fictional. No live data is connected.
+          </div>
+        )}
         <header class="no-print sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-surface/90 px-4 backdrop-blur sm:px-8">
           <div class="flex items-center gap-3 lg:hidden">
             <span class="grid h-8 w-8 place-items-center rounded-md bg-accent text-xs font-semibold text-accent-fg">{brand.initials}</span>
@@ -58,7 +56,6 @@ const nav = [
           </div>
           <p class="hidden text-sm text-ink-muted lg:block">{title}</p>
           <div class="flex items-center gap-3">
-            {data.isSample && <SampleDataBadge label="Sample data" />}
             <span class="grid h-8 w-8 place-items-center rounded-full bg-sunken text-xs font-semibold text-ink-muted" title="Signed-in user (sample)">SP</span>
           </div>
         </header>

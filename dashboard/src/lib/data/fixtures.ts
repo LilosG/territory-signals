@@ -2,7 +2,7 @@ import raw from '../../data/fixtures.json';
 import { SIGNAL_GROUPS, SIGNAL_TYPES, SOURCES, bandOf } from './catalog';
 import type { DataProvider } from './provider';
 import type {
-  Backtest, FixtureBundle, FunnelRow, FunnelStage, LeadDetail, LeadFilters, LeadSummary, MapPoint,
+  Backtest, FixtureBundle, FunnelRow, FunnelStage, LeadDetail, LeadFilters, LeadStatus, LeadSummary, MapPoint,
   Outcome, Pipeline, Signal, TrendMetric, Trends,
 } from './types';
 
@@ -23,13 +23,22 @@ const yearsOwned = (apn: string) => {
   return d ? Math.round(((TODAY - new Date(d).getTime()) / (365.25 * DAY)) * 10) / 10 : null;
 };
 
+const STATUS_RANK: Record<string, number> = { draft: 1, approved: 2, awaiting_approval: 3, sent: 4 };
+/** Most advanced outreach state wins; no outreach rows means the lead is new. Call tasks do not count as drafts. */
+function leadStatus(apn: string): LeadStatus {
+  const rows = db.outreach.filter((o) => o.apn === apn && o.channel !== 'call_task' && o.status in STATUS_RANK);
+  const top = rows.sort((a, b) => STATUS_RANK[b.status]! - STATUS_RANK[a.status]!)[0];
+  return !top ? 'new' : top.status === 'draft' ? 'draft_ready' : (top.status as LeadStatus);
+}
+
 function summary(apn: string): LeadSummary {
   const sigs = [...(signalsBy.get(apn) ?? [])].sort((a, b) => (b.signal_date ?? '').localeCompare(a.signal_date ?? ''));
   const owner = ownerBy.get(apn) ?? null;
   return {
     parcel: parcelBy.get(apn)!, score: scoreBy.get(apn)!, owner,
     signal_count: sigs.length,
-    top_signal_types: [...new Set(sigs.map((s) => s.signal_type))].slice(0, 4),
+    top_signal_types: [...new Set(sigs.map((s) => s.signal_type))],
+    status: leadStatus(apn),
     latest_signal_date: sigs[0]?.signal_date ?? null,
     is_sample: !!owner?.is_sample || sigs.some((s) => s.is_sample),
   };
@@ -90,7 +99,9 @@ const META: Record<TrendMetric['key'], { title: string; unit: string; est?: bool
   str_lost: { title: 'Short-term rental licenses lost', unit: 'licenses per month' },
   tax_default: { title: 'Tax-default count', unit: 'parcels' },
   upzoning: { title: 'Upzoning-eligible parcels (estimated)', unit: 'parcels', est: true },
+  recipes: { title: 'Recipes matched this month', unit: 'parcels' },
 };
+const MONTHLY_KEYS = ['turnover', 'permits', 'str_lost', 'tax_default'] as const;
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 function takeaway(key: TrendMetric['key'], series: { label: string; points: { value: number }[] }[]): string {
   const total = series[0]!.points.map((_, i) => sum(series.map((s) => s.points[i]!.value)));
@@ -106,24 +117,70 @@ function takeaway(key: TrendMetric['key'], series: { label: string; points: { va
     }
     case 'str_lost': return `${last3} licenses lost in the last 3 months, ${dir} versus the prior 3.`;
     case 'tax_default': return `${lastV} tax-defaulted parcels this month, ${lastV <= firstV ? 'down' : 'up'} from ${firstV} twelve months ago.`;
-    case 'upzoning': return `Estimated eligible parcels grew from ${firstV} to ${lastV} over 12 months (in-house screen, unofficial).`;
+    default: return '';
   }
+}
+
+/** Count distinct parcels per neighborhood that carry a signal matching `pred`. */
+const parcelsWith = (hood: string, pred: (s: Signal) => boolean) =>
+  new Set(db.signals.filter((s) => parcelBy.get(s.apn)?.neighborhood === hood && pred(s)).map((s) => s.apn)).size;
+const dist = (s: Signal) => Number((s.details as { distance_miles?: number } | null)?.distance_miles ?? Infinity);
+const grouped = (key: 'upzoning' | 'recipes', hoods: string[], defs: { label: string; count: (h: string) => number }[], takeawayText: string): TrendMetric => ({
+  key, title: META[key].title, unit: META[key].unit, is_estimate: !!META[key].est, categories: hoods, takeaway: takeawayText,
+  series: defs.map((d) => ({ key: d.label, label: d.label, points: hoods.map((h) => ({ month: h, value: d.count(h) })) })),
+});
+
+function upzoningBreakdown(hoods: string[]): TrendMetric {
+  const defs = [
+    { label: 'SB 9 estimate', count: (h: string) => parcelsWith(h, (s) => s.signal_type === 'upzoning_sb9') },
+    { label: 'SB 79 within 1/4 mile', count: (h: string) => parcelsWith(h, (s) => s.signal_type === 'upzoning_sb79' && dist(s) <= 0.25) },
+    // "within 1/2 mile" is cumulative: it includes everything within 1/4 mile
+    { label: 'SB 79 within 1/2 mile', count: (h: string) => parcelsWith(h, (s) => s.signal_type === 'upzoning_sb79' && dist(s) <= 0.5) },
+  ];
+  const tot = defs.map((d) => sum(hoods.map(d.count)));
+  const top = hoods.map((h) => ({ h, n: defs[0]!.count(h) })).sort((a, b) => b.n - a.n)[0]!;
+  const where = hoods.length > 1 ? `${top.h} has the most SB 9 candidates (${top.n}). ` : '';
+  return grouped('upzoning', hoods, defs,
+    `${tot[0]} estimated SB 9 parcels; ${tot[2]} sit within 1/2 mile of transit, ${tot[1]} within 1/4 mile. ${where}In-house screen, unofficial.`.trim());
+}
+
+function recipesMatched(hoods: string[]): TrendMetric {
+  const recipes = db.config.recipes.filter((r) => r.enabled);
+  const count = (key: string, h: string) => db.parcels.filter((p) => p.neighborhood === h && (scoreBy.get(p.apn)?.recipe_matches ?? []).includes(key)).length;
+  const ranked = recipes.map((r) => ({ r, total: sum(hoods.map((h) => count(r.key, h))) })).sort((a, b) => b.total - a.total);
+  const shown = ranked.slice(0, 4), rest = ranked.slice(4);
+  const defs = [
+    ...shown.map(({ r }) => ({ label: r.name, count: (h: string) => count(r.key, h) })),
+    ...(rest.length ? [{ label: 'Other recipes', count: (h: string) => sum(rest.map(({ r }) => count(r.key, h))) }] : []),
+  ];
+  const byHood = hoods.map((h) => ({ h, n: sum(recipes.map((r) => count(r.key, h))) })).sort((a, b) => b.n - a.n)[0]!;
+  const lead = ranked[0]!;
+  const tail = hoods.length > 1 ? ` ${byHood.h} has the most matches (${byHood.n}).` : '';
+  return grouped('recipes', hoods, defs, `${lead.r.name} is the most-matched recipe (${lead.total} parcels).${tail}`);
 }
 
 function trendsFor(area: string): Trends {
   const names = Object.keys(db.trends);
   const sel = area === 'All' || !db.trends[area] ? names : [area];
   const months = db.trends[names[0]!]!.months;
-  const metrics: TrendMetric[] = (Object.keys(META) as TrendMetric['key'][]).map((key) => {
+  const monthly: TrendMetric[] = MONTHLY_KEYS.map((key) => {
     const labels = Object.keys(db.trends[names[0]!]!.raw[key]!);
     const series = labels.map((lab) => ({
       key: lab,
       label: key === 'permits' ? (SIGNAL_TYPES[lab]?.label.replace(' permit', '') ?? lab) : lab,
       points: months.map((m, i) => ({ month: m, value: sum(sel.map((n) => db.trends[n]!.raw[key]![lab]![i]!)) })),
     }));
-    return { key, title: META[key].title, unit: META[key].unit, series, is_estimate: !!META[key].est, takeaway: takeaway(key, series) };
+    return { key, title: META[key].title, unit: META[key].unit, series, is_estimate: false, takeaway: takeaway(key, series) };
   });
-  return { area: sel.length === names.length ? 'All' : area, months, metrics, is_sample: true };
+  return { area: sel.length === names.length ? 'All' : area, months, metrics: [...monthly, upzoningBreakdown(sel), recipesMatched(sel)], is_sample: true };
+}
+
+/** Sample assignment: the agent who last logged an outcome on the lead, else a stable pick by APN. */
+function assignedAgent(apn: string): string | null {
+  const agents = db.team_members.filter((t) => t.role === 'agent');
+  const last = db.outcomes.filter((o) => o.apn === apn && o.team_member_email).sort((a, b) => b.noted_at.localeCompare(a.noted_at))[0];
+  const m = agents.find((a) => a.email === last?.team_member_email) ?? agents[Number(apn.slice(-4)) % Math.max(1, agents.length)];
+  return m?.name ?? null;
 }
 
 export const fixturesProvider: DataProvider = {
@@ -144,7 +201,7 @@ export const fixturesProvider: DataProvider = {
         .map((s) => ({ ...s, situs_address: addr(s.apn), neighborhood: parcelBy.get(s.apn)?.neighborhood ?? null })),
       approvals_waiting: db.outreach.filter((o) => o.status === 'awaiting_approval').map((o) => ({ ...o, situs_address: addr(o.apn) })),
       call_tasks_due: db.outreach.filter((o) => o.channel === 'call_task' && o.status === 'approved' && !o.sent_at)
-        .map((o) => ({ ...o, situs_address: addr(o.apn), score: scoreBy.get(o.apn)?.score ?? null })),
+        .map((o) => ({ ...o, situs_address: addr(o.apn), score: scoreBy.get(o.apn)?.score ?? null, reason_text: scoreBy.get(o.apn)?.reason_text ?? null, assigned_agent: assignedAgent(o.apn) })),
     };
   },
 

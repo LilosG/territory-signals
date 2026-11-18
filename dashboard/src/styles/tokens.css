@@ -31,14 +31,16 @@
   --color-critical-soft: #fbe7e4;
 
   /* Score bands: navy ramp (map + badges) */
-  --color-band-low: #b9bdc7;
+  /* Four clearly separated steps. Each is >= 2.8:1 on white (map dots also carry a white ring)
+     and adjacent steps differ by >= 1.5:1, so bands stay distinguishable. */
+  --color-band-low: #8592ad;
   --color-band-low-soft: #eceef1;
-  --color-band-watch: #8da2c6;
+  --color-band-watch: #5878b3;
   --color-band-watch-soft: #e4eaf4;
-  --color-band-warm: #3f5f96;
+  --color-band-warm: #2c4a88;
   --color-band-warm-soft: #d9e3f3;
-  --color-band-hot: #17294d;
-  --color-band-hot-soft: #17294d;
+  --color-band-hot: #0e1c38;
+  --color-band-hot-soft: #0e1c38;
 
   /* Type */
   --font-sans: var(--brand-font, 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif);
@@ -70,3 +72,6 @@
   --breakpoint-xl: 80rem;
 }
 /* spacing: Tailwind's default scale is already 4px-based (--spacing: 0.25rem); 8px steps are the even numbers. */
+
+/* Map dot radius (px) per score band: size grows with band as well as color. Map and legend both read these. */
+:root { --dot-low: 4; --dot-watch: 5; --dot-warm: 6.5; --dot-hot: 8; }

@@ -218,6 +218,8 @@ function addSignal(apn: string, type: string, source_key: string, opts: { daysBa
     is_estimate: opts.est ?? false, is_sample: true, details: opts.details ?? null, created_at: iso(detected),
   });
 }
+/** Sample distance to the nearest transit stop (0.10 to 0.49 mi). Hash-based so the seeded random sequence is untouched. */
+const sb79Distance = (apn: string) => Math.round((0.1 + (Number(apn.slice(-4)) % 40) / 100) * 100) / 100;
 const PERMIT_TYPES = ['permit_addition_remodel', 'permit_addition_remodel', 'permit_adu', 'permit_new_construction', 'permit_demolition'] as const;
 for (const p of parcels) {
   const { area, lot } = meta.get(p.apn)!;
@@ -228,7 +230,7 @@ for (const p of parcels) {
   if (chance(0.3)) { const pt = pick(PERMIT_TYPES); addSignal(p.apn, pt, 'dsd_permits', { method: chance(0.9) ? 'apn' : 'address', details: { approval_type: pt.replace('permit_', '').replace('_', ' ') } }); }
   if (chance(0.05)) addSignal(p.apn, 'tax_default', 'treasurer_tax_defaults', { details: { list: '2026 Impending Power to Sell (sample)' } });
   if (lot >= 4500 && p.zoning?.startsWith('RS') && chance(0.4)) addSignal(p.apn, 'upzoning_sb9', 'sandag_zoning', { method: 'spatial', est: true, details: { screen: 'zoning + lot size (in-house, unofficial)' } });
-  if (area === 'Pacific Beach' && chance(0.18)) addSignal(p.apn, 'upzoning_sb79', 'sandag_transit', { method: 'spatial', est: true, details: { screen: 'stop proximity (in-house, unofficial)' } });
+  if (area === 'Pacific Beach' && chance(0.18)) addSignal(p.apn, 'upzoning_sb79', 'sandag_transit', { method: 'spatial', est: true, details: { screen: 'stop proximity (in-house, unofficial)', distance_miles: sb79Distance(p.apn) } });
   if (area === 'La Jolla' && chance(0.1)) addSignal(p.apn, 'fire_hazard_zone', 'fire_hazard_zones', { method: 'spatial', daysBack: int(60, 300) });
   if (chance(0.15)) addSignal(p.apn, 'recorded_document', 'sangis_parcels', { details: { note: 'Last recorded document date, not a purchase date' } });
   // Phase 6 (owner-data-derived) signals
