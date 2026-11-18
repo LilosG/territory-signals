@@ -1,0 +1,167 @@
+field,value,approvals_in_territory,issued_approvals_in_territory
+APPROVAL_TYPE,Traffic Control Permit,5503,4378
+APPROVAL_TYPE,Construction Change - Building,4611,4149
+APPROVAL_TYPE,No-Plan - Residential - Combination Mech/Elec/Plum,4463,4130
+APPROVAL_TYPE,Combination Building Permit,4065,1948
+APPROVAL_TYPE,Electrical Pmt,2160,1519
+APPROVAL_TYPE,Right Of Way Permit-Const Plan,2066,1756
+APPROVAL_TYPE,ROW Permit-Traffic Control,2018,821
+APPROVAL_TYPE,Coastal Development Permit,1789,1213
+APPROVAL_TYPE,Encroachment Agreement,1746,1048
+APPROVAL_TYPE,Building Permit,1685,716
+APPROVAL_TYPE,Approval - Construction - Right Of Way Pmt-Const Plan,1473,1083
+APPROVAL_TYPE,Elec.-UG Program-City only    ,1270,1217
+APPROVAL_TYPE,Traffic Control Plan-Permit,1075,777
+APPROVAL_TYPE,Right Of Way Permit,1056,793
+APPROVAL_TYPE,Approval - Process - Agreement,985,504
+APPROVAL_TYPE,Electrical Permit,964,394
+APPROVAL_TYPE,Deferred Fire Approval,926,898
+APPROVAL_TYPE,Mechanical Permit,915,369
+APPROVAL_TYPE,Photovoltaic - SB 379,894,863
+APPROVAL_TYPE,Plumbing Permit ,801,279
+APPROVAL_TYPE,Approval - Construction - Electrical Pmt - PV Combo,768,663
+APPROVAL_TYPE,No-Plan - Nonresidential/Multifamily - Electrical,743,619
+APPROVAL_TYPE,No-Plan - Nonresidential/Multifamily - Plumbing,658,603
+APPROVAL_TYPE,Site Development Permit,654,382
+APPROVAL_TYPE,Construction Noise Permit,622,613
+APPROVAL_TYPE,Construction Change - Eng.,571,418
+APPROVAL_TYPE,Plumbing Pmt,561,298
+APPROVAL_TYPE,Agreement,542,425
+APPROVAL_TYPE,Mechanical Pmt,541,248
+APPROVAL_TYPE,No-Plan - Nonresidential/Multifamily - Mechanical,531,492
+APPROVAL_TYPE,Sign Permit,528,444
+APPROVAL_TYPE,Zoning Use Certificate,407,352
+APPROVAL_TYPE,Electrical-Photovoltaic,386,335
+APPROVAL_TYPE,Coastal Development,308,106
+APPROVAL_TYPE,Map Waiver,285,224
+APPROVAL_TYPE,Construction Change - Fire,266,262
+APPROVAL_TYPE,Approval - Construction - Electrical Pmt-PV Combo,252,185
+APPROVAL_TYPE,Approval - Construction - Demolition Pmt,245,112
+APPROVAL_TYPE,Parcel Map,240,119
+APPROVAL_TYPE,Deferred Document Review,224,173
+APPROVAL_TYPE,Easement Dedication,202,126
+APPROVAL_TYPE,Tentative Map,202,133
+APPROVAL_TYPE,Approval - Construction - Sign Pmt,199,163
+APPROVAL_TYPE,Approval - Construction - Fire Pmt - Alarm,185,147
+APPROVAL_TYPE,Storm Water Maintenance Agrmnt,174,149
+APPROVAL_TYPE,Substantial Conformance Review,174,93
+APPROVAL_TYPE,Grading Permit,164,112
+APPROVAL_TYPE,Fire Permit,149,104
+APPROVAL_TYPE,Certificate of Compliance,128,64
+APPROVAL_TYPE,Conditional Use Permit,121,59
+APPROVAL_TYPE,Public Right of Way Dedication,120,71
+APPROVAL_TYPE,Neighborhood Use Permit,117,45
+APPROVAL_TYPE,Variance,117,48
+APPROVAL_TYPE,Approval - Construction - Fire Pmt - Suppression,105,75
+APPROVAL_TYPE,Neighborhood Developmnt Permit,84,52
+APPROVAL_TYPE,Notice of Termination,82,66
+APPROVAL_TYPE,Final Map,72,26
+APPROVAL_TYPE,Demolition Permit,71,8
+APPROVAL_TYPE,Sign Permit (No Inspection),68,64
+APPROVAL_TYPE,Zone History Letter,67,54
+APPROVAL_TYPE,Planned Development Permit,63,28
+APPROVAL_TYPE,Fire Permit - Suppression,61,38
+APPROVAL_TYPE,Grading + Right of Way Permit,59,43
+APPROVAL_TYPE,Easement Vacation,58,31
+APPROVAL_TYPE,Hydrant Flow,53,52
+APPROVAL_TYPE,Lot-Line Adjustment,52,23
+APPROVAL_TYPE,Spectrum Act Permit,51,5
+APPROVAL_TYPE,Map - Public Right of Way Dedication,48,23
+APPROVAL_TYPE,Site  Development Permit,48,20
+APPROVAL_TYPE,Approval - Construction - Grading-Right of Way Pmt,47,25
+APPROVAL_TYPE,Approval - Construction - Right Of Way Pmt,44,17
+APPROVAL_TYPE,Alternate Methods and Materials,41,27
+APPROVAL_TYPE,Public Right of Way Vacation,40,13
+APPROVAL_TYPE,Extension of Time - Dev. Pmt,39,31
+APPROVAL_TYPE,Individual Historical Resource Nomination,37,13
+APPROVAL_TYPE,Temporary Use Permit,35,4
+APPROVAL_TYPE,Approval - Construction - Grading Pmt,32,10
+APPROVAL_TYPE,Approval - Construction - Grading Pmt-Private,31,10
+APPROVAL_TYPE,Fire Permit - Alarm,30,24
+APPROVAL_TYPE,ROW Permit-Std Public Improvmt,30,23
+APPROVAL_TYPE,Map - Easement Dedication,28,7
+APPROVAL_TYPE,Newsrack Permit,27,26
+APPROVAL_TYPE,Approval - Construction - Fire Pmt - Kitchen Hood,26,19
+APPROVAL_TYPE,Alternate Methods & Materials,25,24
+APPROVAL_TYPE,Mills Act Agreement,25,15
+APPROVAL_TYPE,Fire Permit - Kitchen Hood,24,20
+APPROVAL_TYPE,Sidewalk Cafe Agreement,24,12
+APPROVAL_TYPE,Neighborhood Development Permit,23,8
+APPROVAL_TYPE,Street Address Change,23,10
+APPROVAL_TYPE,Approval - Construction - Fire Pmt - Underground,22,15
+APPROVAL_TYPE,Uncontrolled Embankment Agrmnt,22,19
+APPROVAL_TYPE,Temporary Use Pmt,21,14
+APPROVAL_TYPE,Vesting Tentative Map,21,15
+APPROVAL_TYPE,Tentative - Map,17,3
+APPROVAL_TYPE,Limited Use Permit,16,7
+APPROVAL_TYPE,Emergency Coastal Dev Permit,15,10
+APPROVAL_TYPE,Map - Irrevocable Offer of Dedication,15,10
+APPROVAL_TYPE,Easement - Vacation,14,8
+APPROVAL_TYPE,Map - Parcel Map,14,5
+APPROVAL_TYPE,Right Of Way Permit-Combo,12,10
+APPROVAL_TYPE,Transportation Permit,12,10
+APPROVAL_TYPE,Certificate of Correction,11,9
+APPROVAL_TYPE,Map - Lot-Line Adjustment,11,3
+APPROVAL_TYPE,Special Permit,11,6
+APPROVAL_TYPE,Fire Permit - Underground,10,6
+APPROVAL_TYPE,Street Tree Permit,9,1
+APPROVAL_TYPE,Inspect-Mitigation Monitoring,8,7
+APPROVAL_TYPE,Land Use Plan,8,4
+APPROVAL_TYPE,Lot Tie Agreement,8,3
+APPROVAL_TYPE,Map - Certificate of Compliance,8,5
+APPROVAL_TYPE,Map - Covenant of Easement,8,5
+APPROVAL_TYPE,Map - Final Map,8,4
+APPROVAL_TYPE,Public R.O.W. Use Permit,8,2
+APPROVAL_TYPE,Public ROW Vacation,8,1
+APPROVAL_TYPE,Discretionary Map - Waiver,7,6
+APPROVAL_TYPE,Emergency Authorization-ESL,6,4
+APPROVAL_TYPE,La Jolla Shores Planned Dist.,6,0
+APPROVAL_TYPE,Mobile Food Truck Pmt,6,1
+APPROVAL_TYPE,Street -Tree Permit,6,0
+APPROVAL_TYPE,Extension of Time - TM,5,0
+APPROVAL_TYPE,Grading Permit - Private,4,2
+APPROVAL_TYPE,Rezone,4,2
+APPROVAL_TYPE,Variance permit,4,1
+APPROVAL_TYPE,Mobile Food Truck Permit,3,3
+APPROVAL_TYPE,Re-zone,3,0
+APPROVAL_TYPE,Vesting Tentative - Map,3,1
+APPROVAL_TYPE,City Council Approval,2,0
+APPROVAL_TYPE,City Manager Approval,2,2
+APPROVAL_TYPE,Emergency Authorization-Hist,2,2
+APPROVAL_TYPE,La Jolla Planned District,2,0
+APPROVAL_TYPE,Map - Certificate of Correction,2,1
+APPROVAL_TYPE,Sensitive Coastal Resource,2,0
+APPROVAL_TYPE,Street Name Change,2,1
+APPROVAL_TYPE,Approval - Construction - Master Plan Establish,1,0
+APPROVAL_TYPE,Condominium Conversion,1,1
+APPROVAL_TYPE,DSD/Record Type/Process/Affordable Housing Verif Req,1,0
+APPROVAL_TYPE,Elec. Utility Undergrnd. Prgm,1,1
+APPROVAL_TYPE,Elec.-UG Program-Cust Upgrades,1,1
+APPROVAL_TYPE,Hillside Review Overlay Zone,1,0
+APPROVAL_TYPE,Home Occupation Permit,1,0
+APPROVAL_TYPE,Map - Irrevocable Offer of Dedication Acceptance,1,0
+APPROVAL_TYPE,Public Improvement Maint. Agmt,1,0
+APPROVAL_TYPE,Public Project Assessment Permit,1,0
+APPROVAL_TYPE,Reclaimed Water Permit,1,0
+APPROVAL_TYPE,Res. High Occupancy Permit,1,0
+APPROVAL_TYPE,Shared Mobility Device Permit ,1,1
+APPROVAL_TYPE,Tentative Map Exemption,1,0
+PROJECT_TYPE,(blank),42048,30631
+PROJECT_TYPE,Building Construction,5388,3356
+PROJECT_TYPE,"Grading, ROW, Mapping - Standalone",1429,707
+PROJECT_TYPE,Utility Undergrounding Program,1281,1050
+PROJECT_TYPE,Right of Way - Dry Utilities,772,717
+PROJECT_TYPE,Discretionary Project,569,191
+PROJECT_TYPE,Plan - Mechanical/Electrical/Plumbing Standalone,458,266
+PROJECT_TYPE,Photo-voltaic Residential Project,304,270
+PROJECT_TYPE,Demolition,237,116
+PROJECT_TYPE,Photovoltaic,237,192
+PROJECT_TYPE,Project - Residential - Photo-voltaic,225,201
+PROJECT_TYPE,Sign,200,164
+PROJECT_TYPE,Others,188,141
+PROJECT_TYPE,Right of Way - Minor - Rapid Review,186,101
+PROJECT_TYPE,Project - Residential - Photovoltaic,127,74
+PROJECT_TYPE,Fire,126,94
+PROJECT_TYPE,Project - Residential - Photovoltaic Pro Certify,125,111
+PROJECT_TYPE,Building Construction - CIP or Public Project,20,15
+PROJECT_TYPE,"Grading, ROW, Mapping - Associated Submittal",4,3
