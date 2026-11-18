@@ -1,0 +1,17 @@
+---
+import { BAND_LABEL, bandOf } from '../../lib/data/catalog';
+export interface Props { score: number; size?: 'sm' | 'md' | 'lg'; showLabel?: boolean; class?: string }
+const { score, size = 'md', showLabel = false, class: cls } = Astro.props;
+const band = bandOf(score);
+const tone = {
+  low: 'bg-band-low-soft text-ink-muted border-band-low/50',
+  watch: 'bg-band-watch-soft text-ink border-band-watch/60',
+  warm: 'bg-band-warm-soft text-accent-strong border-band-warm/50',
+  hot: 'bg-band-hot-soft text-accent-fg border-transparent',
+}[band];
+const dim = { sm: 'h-7 min-w-7 text-sm px-1.5', md: 'h-9 min-w-9 text-base px-2', lg: 'h-14 min-w-14 text-2xl px-3' }[size];
+---
+<span class:list={['inline-flex items-center gap-1.5', cls]} role="img" aria-label={`Score ${score} out of 100, ${BAND_LABEL[band]}`}>
+  <span class:list={['inline-flex items-center justify-center rounded-md border font-semibold tabular-nums', tone, dim]}>{score}</span>
+  {showLabel && <span class="text-xs font-medium text-ink-muted">{BAND_LABEL[band]}</span>}
+</span>

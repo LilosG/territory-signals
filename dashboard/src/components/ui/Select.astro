@@ -1,0 +1,14 @@
+---
+export interface Option { value: string; label: string }
+export interface Props { label: string; name: string; options: Option[]; value?: string; id?: string; hideLabel?: boolean; compact?: boolean; class?: string }
+const { label, name, options, value = '', id = `sel-${name}`, hideLabel = false, compact = false, class: cls } = Astro.props;
+---
+<div class:list={['flex flex-col gap-1', cls]}>
+  <label for={id} class:list={[hideLabel ? 'sr-only' : 'text-xs font-medium text-ink-muted']}>{label}</label>
+  <div class="relative">
+    <select id={id} name={name} class:list={['w-full appearance-none rounded-md border border-line-strong bg-surface text-ink hover:bg-sunken/60', compact ? 'h-8 pl-2.5 pr-7 text-xs' : 'h-10 pl-3 pr-9 text-sm']}>
+      {options.map((o) => <option value={o.value} selected={o.value === value}>{o.label}</option>)}
+    </select>
+    <svg class:list={['pointer-events-none absolute top-1/2 -translate-y-1/2 text-ink-muted', compact ? 'right-2' : 'right-3']} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+  </div>
+</div>

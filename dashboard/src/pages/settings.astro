@@ -1,0 +1,58 @@
+---
+import AppShell from '../components/ui/AppShell.astro';
+import PageHeader from '../components/ui/PageHeader.astro';
+import Card from '../components/ui/Card.astro';
+import Section from '../components/ui/Section.astro';
+import Stack from '../components/ui/Stack.astro';
+import Grid from '../components/ui/Grid.astro';
+import FactList from '../components/ui/FactList.astro';
+import DataTable from '../components/ui/DataTable.astro';
+import StatusPill from '../components/ui/StatusPill.astro';
+import SampleDataBadge from '../components/ui/SampleDataBadge.astro';
+import { data } from '../lib/data';
+import { fmtDateTime, fmtNum } from '../lib/format';
+const [config, sources] = await Promise.all([data.getConfig(), data.getSources()]);
+const tone = { success: 'good', failed: 'critical', running: 'warning', never: 'neutral' } as const;
+const word = { success: 'Live', failed: 'Failed', running: 'Running', never: 'Not connected' } as const;
+---
+<AppShell title="Settings" active="settings">
+  <PageHeader eyebrow="Read-only" title="Settings" description="The client configuration this deployment runs on. Changes are made in the config file, not here." />
+  <Stack gap={10}>
+    <Grid split="even" gap={6}>
+      <Card as="section" aria-labelledby="client-h">
+        <h2 id="client-h" class="mb-4 text-base font-semibold">Client</h2>
+        <FactList items={[
+          { label: 'Client', value: config.display_name }, { label: 'Client id', value: config.client_id },
+          { label: 'Planning areas', value: config.territory.planning_areas.join(', ') }, { label: 'ZIP codes', value: config.territory.zips.join(', ') },
+          { label: 'Owner data provider', value: config.owner_data_provider, sample: config.owner_data_provider === 'sample' },
+        ]} />
+      </Card>
+      <Card as="section" aria-labelledby="send-h">
+        <h2 id="send-h" class="mb-4 flex items-center gap-2 text-base font-semibold">Outreach {config.is_sample && <SampleDataBadge label="Sample values" />}</h2>
+        <FactList items={[
+          { label: 'Mode', value: config.outreach.mode === 'preview' ? 'Preview (nothing is sent)' : config.outreach.mode },
+          { label: 'Daily send cap', value: fmtNum(config.outreach.daily_send_cap) }, { label: 'Weekly send cap', value: fmtNum(config.outreach.weekly_send_cap) },
+          { label: 'Automated texts or calls', value: 'Never' },
+        ]} />
+      </Card>
+    </Grid>
+
+    <Section title="Recipes" description="Which scoring recipes are switched on for this client.">
+      <DataTable caption="Recipes" columns={[{ key: 'n', label: 'Recipe' }, { key: 'd', label: 'Rule', hideOnMobile: true }, { key: 's', label: 'Status', align: 'right' }]}
+        rows={config.recipes.map((r) => ({ cells: { n: { v: r.name }, d: { v: r.description }, s: { v: r.enabled ? 'On' : 'Off' } } }))} />
+    </Section>
+
+    <Section title="Data sources" description="Latest run for each source, from source_runs.">
+      <DataTable caption="Data sources" defaultSort={{ key: 'src', dir: 'asc' }}
+        columns={[{ key: 'src', label: 'Source', sortable: true }, { key: 'st', label: 'Status', sortable: true }, { key: 'when', label: 'Last run', sortable: true, hideOnMobile: true }, { key: 'fetched', label: 'Fetched', align: 'right', type: 'number', sortable: true, hideOnMobile: true }, { key: 'matched', label: 'Matched', align: 'right', type: 'number', sortable: true }]}
+        rows={sources.map((s) => ({ cells: {
+          src: { v: s.label + (s.is_sample ? ' (sample)' : '') }, st: { v: word[s.status] },
+          when: { v: s.last_run?.started_at ?? '', display: fmtDateTime(s.last_run?.started_at) },
+          fetched: { v: s.last_run?.rows_fetched ?? 0, display: fmtNum(s.last_run?.rows_fetched) }, matched: { v: s.last_run?.rows_matched ?? 0, display: fmtNum(s.last_run?.rows_matched) },
+        } }))} />
+      <ul class="flex flex-wrap gap-2 text-xs text-ink-muted">
+        {sources.filter((s) => s.status !== 'success').map((s) => <li><StatusPill tone={tone[s.status]}>{s.label}: {word[s.status]}{s.last_run?.error_message ? ` · ${s.last_run.error_message}` : ''}</StatusPill></li>)}
+      </ul>
+    </Section>
+  </Stack>
+</AppShell>

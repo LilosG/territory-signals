@@ -1,0 +1,16 @@
+---
+import { sentenceCase } from '../../lib/format';
+import type { ScoreComponent } from '../../lib/data/types';
+export interface Props { items: ScoreComponent[]; class?: string }
+const items = Astro.props.items.filter((i) => i.max > 0);
+---
+<ul class:list={['flex flex-col gap-3', Astro.props.class]}>
+  {items.map((i) => (
+    <li>
+      <div class="flex items-baseline justify-between text-sm"><span class:list={[i.points ? 'text-ink' : 'text-ink-muted']}>{sentenceCase(i.label)}</span><span class="tabular-nums text-ink-muted"><span class="font-medium text-ink">{i.points}</span> / {i.max}</span></div>
+      <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-sunken" role="meter" aria-label={i.label} aria-valuemin="0" aria-valuemax={i.max} aria-valuenow={i.points}>
+        <div class="h-full rounded-full bg-accent" style={`width:${Math.round((i.points / i.max) * 100)}%`}></div>
+      </div>
+    </li>
+  ))}
+</ul>

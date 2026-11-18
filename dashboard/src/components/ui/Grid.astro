@@ -1,0 +1,11 @@
+---
+export interface Props { cols?: 1 | 2 | 3 | 4 | 5; gap?: 3 | 4 | 6 | 8; split?: 'main-aside' | 'even'; as?: 'div' | 'ul'; class?: string }
+const { cols = 1, gap = 4, split, as: Tag = 'div', class: cls } = Astro.props;
+const g = { 3: 'gap-3', 4: 'gap-4', 6: 'gap-6', 8: 'gap-8' }[gap];
+const c = {
+  1: 'grid-cols-1', 2: 'grid-cols-1 md:grid-cols-2', 3: 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3',
+  4: 'grid-cols-2 lg:grid-cols-4', 5: 'grid-cols-2 md:grid-cols-3 xl:grid-cols-5',
+}[cols];
+const s = split === 'main-aside' ? 'grid-cols-1 xl:grid-cols-[minmax(0,1fr)_22rem]' : split === 'even' ? 'grid-cols-1 lg:grid-cols-2' : c;
+---
+<Tag class:list={['grid', g, s, cls]}><slot /></Tag>

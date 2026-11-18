@@ -1,0 +1,34 @@
+---
+import type { Signal } from '../../lib/data/types';
+import { fmtDate } from '../../lib/format';
+import ConfidenceIndicator from './ConfidenceIndicator.astro';
+import SampleDataBadge from './SampleDataBadge.astro';
+import SignalChip from './SignalChip.astro';
+import SourceLink from './SourceLink.astro';
+import EmptyState from './EmptyState.astro';
+export interface Props { signals: Signal[]; class?: string }
+const { signals } = Astro.props;
+---
+{signals.length === 0
+  ? <EmptyState title="No signals yet" description="Nothing has been detected for this parcel." />
+  : <ol class:list={['relative flex flex-col', Astro.props.class]}>
+      {signals.map((s, i) => (
+        <li class="relative grid grid-cols-[1.25rem_1fr] gap-x-4 pb-6 last:pb-0">
+          <span class="relative flex justify-center" aria-hidden="true">
+            <span class:list={['mt-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-surface', s.is_estimate ? 'border-2 border-accent bg-surface' : 'bg-accent']}></span>
+            {i < signals.length - 1 && <span class="absolute top-4 bottom-[-1.25rem] w-px bg-line"></span>}
+          </span>
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <SignalChip type={s.signal_type} estimate={s.is_estimate} />
+              <time class="text-sm text-ink-muted" datetime={s.signal_date ?? undefined}>{fmtDate(s.signal_date)}</time>
+              {s.is_sample && <SampleDataBadge />}
+            </div>
+            <div class="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+              <SourceLink sourceKey={s.source_key} recordId={s.source_record_id} />
+              <ConfidenceIndicator confidence={s.confidence} method={s.match_method} />
+            </div>
+          </div>
+        </li>
+      ))}
+    </ol>}

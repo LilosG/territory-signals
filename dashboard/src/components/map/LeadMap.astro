@@ -1,0 +1,168 @@
+---
+import type { MapPoint, Recipe } from '../../lib/data/types';
+import { SIGNAL_GROUPS } from '../../lib/data/catalog';
+import FilterBar from '../ui/FilterBar.astro';
+import Select from '../ui/Select.astro';
+import Drawer from '../ui/Drawer.astro';
+import SampleDataBadge from '../ui/SampleDataBadge.astro';
+import areasRaw from '../../data/planning-areas.geojson?raw';
+const areas = JSON.parse(areasRaw);
+export interface Props { points: MapPoint[]; recipes: Recipe[]; neighborhoods: string[] }
+const { points, recipes, neighborhoods } = Astro.props;
+const payload = { points, areas, recipes: Object.fromEntries(recipes.map((r) => [r.key, r.name])), groups: SIGNAL_GROUPS };
+---
+<div class="flex h-[calc(100dvh-10.5rem)] flex-col lg:h-[calc(100dvh-5.5rem)]" data-leadmap>
+  <div class="border-b border-line bg-surface px-4 py-2 sm:px-8">
+    <FilterBar id="map-filters" label="Map filters">
+      <Select compact hideLabel label="Recipe" name="recipe" class="w-44 shrink-0" options={[{ value: '', label: 'All recipes' }, ...recipes.map((r) => ({ value: r.key, label: r.name }))]} />
+      <Select compact hideLabel label="Signal group" name="group" class="w-40 shrink-0" options={[{ value: '', label: 'All signal groups' }, ...Object.entries(SIGNAL_GROUPS).map(([k, v]) => ({ value: k, label: v }))]} />
+      <Select compact hideLabel label="Neighborhood" name="hood" class="w-44 shrink-0" options={[{ value: '', label: 'All neighborhoods' }, ...neighborhoods.map((n) => ({ value: n, label: n }))]} />
+      <Select compact hideLabel label="Score range" name="range" class="w-40 shrink-0" options={[{ value: '', label: 'All scores' }, { value: '80-100', label: '80–100 · Hot' }, { value: '60-79', label: '60–79 · Warm' }, { value: '40-59', label: '40–59 · Watch' }, { value: '0-39', label: '0–39 · Low' }]} />
+    </FilterBar>
+  </div>
+  <div class="relative min-h-0 flex-1 bg-sunken">
+    <div class="absolute inset-0"><div id="lead-map" class="h-full w-full" role="application" aria-label="Map of scored parcels. Use the results list to browse by keyboard."></div></div>
+
+    <div class="pointer-events-none absolute left-3 top-3 flex max-h-[calc(100%-5rem)] w-72 flex-col gap-2 max-lg:hidden">
+      <section aria-labelledby="results-h" class="pointer-events-auto flex min-h-0 flex-col rounded-lg border border-line bg-surface/95 shadow-md backdrop-blur">
+        <h2 id="results-h" class="flex items-center justify-between px-4 py-3 text-sm font-semibold">Top matches <span id="map-count" class="text-xs font-normal text-ink-muted" aria-live="polite"></span></h2>
+        <ul id="map-results" class="min-h-0 flex-1 overflow-y-auto border-t border-line"></ul>
+      </section>
+    </div>
+
+    <div class="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-2 max-sm:bottom-3">
+      <div class="pointer-events-auto flex items-center gap-3 rounded-md border border-line bg-surface/95 px-3 py-2 text-xs shadow-sm backdrop-blur">
+        <span class="font-medium text-ink-muted">Score</span>
+        <span class="flex items-center gap-1.5"><i class="inline-block shrink-0 rounded-full bg-band-low ring-1 ring-white" style="width:calc(var(--dot-low) * 2px);height:calc(var(--dot-low) * 2px)"></i>0–39</span>
+        <span class="flex items-center gap-1.5"><i class="inline-block shrink-0 rounded-full bg-band-watch ring-1 ring-white" style="width:calc(var(--dot-watch) * 2px);height:calc(var(--dot-watch) * 2px)"></i>40–59</span>
+        <span class="flex items-center gap-1.5"><i class="inline-block shrink-0 rounded-full bg-band-warm ring-1 ring-white" style="width:calc(var(--dot-warm) * 2px);height:calc(var(--dot-warm) * 2px)"></i>60–79</span>
+        <span class="flex items-center gap-1.5"><i class="inline-block shrink-0 rounded-full bg-band-hot ring-1 ring-white" style="width:calc(var(--dot-hot) * 2px);height:calc(var(--dot-hot) * 2px)"></i>80+</span>
+        <SampleDataBadge />
+      </div>
+    </div>
+  </div>
+</div>
+
+<Drawer id="lead-preview" title="Lead preview">
+  <div id="preview-body" class="flex flex-col gap-5"></div>
+</Drawer>
+
+<script type="application/json" id="map-payload" set:html={JSON.stringify(payload)} />
+<script>
+  import maplibregl from 'maplibre-gl';
+  import 'maplibre-gl/dist/maplibre-gl.css';
+  import { sentenceCase } from '../../lib/format';
+
+  type P = {
+    apn: string; lng: number; lat: number; score: number; band: 'low' | 'watch' | 'warm' | 'hot'; address: string; neighborhood: string;
+    recipes: string[]; signalGroups: string[]; reason_text: string | null; owner_name: string | null; est_equity: number | null; years_owned: number | null;
+  };
+  const payload = JSON.parse(document.getElementById('map-payload')!.textContent!) as {
+    points: P[]; areas: GeoJSON.FeatureCollection; recipes: Record<string, string>; groups: Record<string, string>;
+  };
+  const css = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const bandRadius = { low: Number(css('--dot-low')), watch: Number(css('--dot-watch')), warm: Number(css('--dot-warm')), hot: Number(css('--dot-hot')) };
+  const bandColor = { low: css('--color-band-low'), watch: css('--color-band-watch'), warm: css('--color-band-warm'), hot: css('--color-band-hot') };
+  const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 2 });
+  const form = document.getElementById('map-filters') as HTMLFormElement;
+  const results = document.getElementById('map-results')!;
+  const count = document.getElementById('map-count')!;
+  const activeCount = form.querySelector<HTMLElement>('[data-filter-count]')!;
+  const clearBtn = form.querySelector<HTMLElement>('[data-filter-clear]')!;
+
+  const toFC = (pts: P[]): GeoJSON.FeatureCollection => ({
+    type: 'FeatureCollection',
+    features: pts.map((p) => ({ type: 'Feature', id: undefined, properties: { apn: p.apn, score: p.score, band: p.band }, geometry: { type: 'Point', coordinates: [p.lng, p.lat] } })),
+  });
+  const filtered = (): P[] => {
+    const v = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
+    const [lo, hi] = v.range ? v.range.split('-').map(Number) as [number, number] : [0, 100];
+    return payload.points.filter((p) =>
+      (!v.recipe || p.recipes.includes(v.recipe)) && (!v.group || p.signalGroups.includes(v.group)) &&
+      (!v.hood || p.neighborhood === v.hood) && p.score >= lo && p.score <= hi);
+  };
+
+  // Initial view: the three planning areas, padded so the territory is centred in the part of the map not covered by the results panel.
+  const bounds = new maplibregl.LngLatBounds();
+  const extend = (c: unknown): void => { if (Array.isArray(c) && typeof c[0] === 'number') bounds.extend(c as [number, number]); else (c as unknown[]).forEach(extend); };
+  for (const f of payload.areas.features) extend((f.geometry as GeoJSON.Polygon).coordinates);
+  const panelLeft = () => (window.innerWidth >= 1024 ? 300 + 24 : 24); // w-72 panel + left-3 inset + breathing room
+
+  const map = new maplibregl.Map({
+    container: 'lead-map', style: 'https://tiles.openfreemap.org/styles/positron',
+    bounds, fitBoundsOptions: { padding: { top: 40, bottom: 64, left: panelLeft(), right: 56 } },
+    attributionControl: { compact: true }, cooperativeGestures: false,
+  });
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+
+  const bandBadge = (s: number, band: P['band']) => {
+    const tone = { low: 'bg-band-low-soft text-ink-muted border-band-low/50', watch: 'bg-band-watch-soft text-ink border-band-watch/60', warm: 'bg-band-warm-soft text-accent-strong border-band-warm/50', hot: 'bg-band-hot-soft text-accent-fg border-transparent' }[band];
+    return `<span class="inline-flex h-7 min-w-7 items-center justify-center rounded-md border px-1.5 text-sm font-semibold ${tone}">${s}</span>`;
+  };
+  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+
+  function renderResults(pts: P[]) {
+    count.textContent = `${pts.length} parcels`;
+    results.innerHTML = [...pts].sort((a, b) => b.score - a.score).slice(0, 25).map((p) => `
+      <li class="border-b border-line last:border-0"><button type="button" data-apn="${p.apn}" class="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-sunken">
+        ${bandBadge(p.score, p.band)}<span class="min-w-0"><span class="block truncate text-sm font-medium">${esc(p.address)}</span><span class="block truncate text-xs text-ink-muted">${esc(p.neighborhood)}</span></span></button></li>`).join('')
+      || '<li class="px-4 py-6 text-sm text-ink-muted">No parcels match these filters.</li>';
+  }
+
+  function preview(apn: string) {
+    const p = payload.points.find((x) => x.apn === apn); if (!p) return;
+    const el = document.getElementById('preview-body')!;
+    el.innerHTML = `
+      <div class="flex items-start gap-4">${bandBadge(p.score, p.band).replace('h-7 min-w-7 text-sm', 'h-14 min-w-14 text-2xl')}
+        <div class="min-w-0"><p class="text-base font-semibold">${esc(p.address)}</p><p class="text-sm text-ink-muted">${esc(p.neighborhood)}</p></div></div>
+      <p class="text-sm text-ink">${esc(sentenceCase(p.reason_text))}</p>
+      <div class="flex flex-wrap gap-1.5">${p.recipes.map((r) => `<span class="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-fg">${esc(sentenceCase(payload.recipes[r] ?? r))}</span>`).join('')}</div>
+      <dl class="grid grid-cols-2 gap-4 border-t border-line pt-4 text-sm">
+        <div><dt class="eyebrow">Owner</dt><dd class="mt-1">${esc(p.owner_name ?? '—')} <span class="inline-flex items-center rounded-full border border-warning/30 bg-warning-soft px-1.5 py-px text-2xs font-semibold uppercase tracking-wide text-warning">Sample</span></dd></div>
+        <div><dt class="eyebrow">Years owned</dt><dd class="mt-1">${p.years_owned ?? '—'}</dd></div>
+        <div><dt class="eyebrow">Est. equity</dt><dd class="mt-1">${p.est_equity != null ? usd.format(p.est_equity) : '—'}</dd></div>
+        <div><dt class="eyebrow">Signal groups</dt><dd class="mt-1">${p.signalGroups.map((g) => esc(payload.groups[g] ?? g)).join(', ') || '—'}</dd></div>
+      </dl>
+      <a href="/leads/${p.apn}" class="inline-flex h-10 items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-fg hover:bg-accent-strong">Open full brief</a>`;
+    document.dispatchEvent(new CustomEvent('drawer:open', { detail: { id: 'lead-preview' } }));
+    map.easeTo({ center: [p.lng, p.lat], duration: 500, offset: window.innerWidth >= 640 ? [-150, 0] : [0, -120] });
+    if (map.getSource('selected')) (map.getSource('selected') as maplibregl.GeoJSONSource).setData(toFC([p]));
+  }
+
+  map.on('load', () => {
+    map.addSource('areas', { type: 'geojson', data: payload.areas });
+    map.addLayer({ id: 'areas-line', type: 'line', source: 'areas', paint: { 'line-color': css('--color-accent'), 'line-width': 1.25, 'line-opacity': 0.55, 'line-dasharray': [3, 2] } });
+    map.addSource('leads', { type: 'geojson', data: toFC(payload.points) });
+    map.addSource('selected', { type: 'geojson', data: toFC([]) });
+    map.addLayer({
+      id: 'leads', type: 'circle', source: 'leads',
+      paint: {
+        // radius steps up with band (tokens --dot-*); a mild zoom factor keeps the steps proportional
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, ['*', 0.85, ['match', ['get', 'band'], 'hot', bandRadius.hot, 'warm', bandRadius.warm, 'watch', bandRadius.watch, bandRadius.low]], 15, ['match', ['get', 'band'], 'hot', bandRadius.hot, 'warm', bandRadius.warm, 'watch', bandRadius.watch, bandRadius.low]],
+        'circle-color': ['match', ['get', 'band'], 'hot', bandColor.hot, 'warm', bandColor.warm, 'watch', bandColor.watch, bandColor.low],
+        'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.25, 'circle-opacity': 1,
+      },
+    });
+    map.addLayer({ id: 'selected', type: 'circle', source: 'selected', paint: { 'circle-radius': 14, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': css('--color-accent'), 'circle-stroke-width': 2.5 } });
+    map.on('click', 'leads', (e) => { const f = e.features?.[0]; if (f) preview(f.properties!.apn as string); });
+    map.on('mouseenter', 'leads', () => (map.getCanvas().style.cursor = 'pointer'));
+    map.on('mouseleave', 'leads', () => (map.getCanvas().style.cursor = ''));
+  });
+
+  const syncFilterUi = () => {
+    const n = [...new FormData(form).values()].filter((v) => v !== '').length;
+    activeCount.hidden = clearBtn.hidden = n === 0;
+    activeCount.textContent = `${n} active`;
+  };
+  const apply = () => {
+    syncFilterUi();
+    const pts = filtered();
+    renderResults(pts);
+    (map.getSource('leads') as maplibregl.GeoJSONSource | undefined)?.setData(toFC(pts));
+    if (pts.length) { const b = new maplibregl.LngLatBounds(); pts.forEach((p) => b.extend([p.lng, p.lat])); map.fitBounds(b, { padding: { top: 60, bottom: 80, left: panelLeft() + 16, right: 56 }, maxZoom: 15.5, duration: 600 }); }
+  };
+  form.addEventListener('change', apply);
+  clearBtn.addEventListener('click', () => { form.reset(); apply(); });
+  results.addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-apn]'); if (b) preview(b.dataset.apn!); });
+  renderResults(payload.points);
+</script>

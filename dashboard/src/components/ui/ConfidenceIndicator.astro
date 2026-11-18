@@ -1,0 +1,11 @@
+---
+export interface Props { confidence: number; method?: string; class?: string }
+const { confidence, method, class: cls } = Astro.props;
+const pct = Math.round(confidence * 100);
+const level = confidence >= 0.9 ? 'High' : confidence >= 0.75 ? 'Medium' : 'Low';
+const tone = confidence >= 0.9 ? 'bg-good' : confidence >= 0.75 ? 'bg-accent' : 'bg-warning';
+---
+<span class:list={['inline-flex items-center gap-2 text-xs text-ink-muted', cls]} title={`Match confidence ${pct}%${method ? ` via ${method} match` : ''}`}>
+  <span class="relative h-1.5 w-10 overflow-hidden rounded-full bg-line" aria-hidden="true"><span class:list={['absolute inset-y-0 left-0 rounded-full', tone]} style={`width:${pct}%`}></span></span>
+  <span><span class="sr-only">Confidence </span>{level} {pct}%{method && <span> · {method}</span>}</span>
+</span>

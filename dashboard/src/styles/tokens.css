@@ -1,0 +1,77 @@
+/*
+ * Design tokens: the single source of visual truth.
+ * Neutrals (warm), ONE accent (from brand.ts), semantic colors, type scale,
+ * spacing (4/8 base), radius, borders, elevation. Screens never hard-code these.
+ */
+@theme {
+  --color-*: initial;
+
+  /* Neutrals */
+  --color-canvas: #f6f5f2;       /* page background */
+  --color-surface: #ffffff;      /* cards */
+  --color-sunken: #efeeea;       /* wells, table headers */
+  --color-line: #e4e1da;         /* hairlines */
+  --color-line-strong: #cfcbc2;
+  --color-ink: #14171f;          /* primary text, 16:1 on canvas */
+  --color-ink-muted: #565c6b;    /* secondary text, 6.5:1 on white */
+  --color-ink-faint: #626777;    /* tertiary text, 5:1 on canvas and wells */
+
+  /* The one accent, swappable per client */
+  --color-accent: var(--brand-accent, #17294d);
+  --color-accent-strong: var(--brand-accent-strong, #0e1c38);
+  --color-accent-soft: var(--brand-accent-soft, #e9edf5);
+  --color-accent-fg: var(--brand-accent-fg, #ffffff);
+
+  /* Semantic */
+  --color-good: #1d6f48;
+  --color-good-soft: #e5f2ea;
+  --color-warning: #85560a;
+  --color-warning-soft: #fbf0d9;
+  --color-critical: #a8281f;
+  --color-critical-soft: #fbe7e4;
+
+  /* Score bands: navy ramp (map + badges) */
+  /* Four clearly separated steps. Each is >= 2.8:1 on white (map dots also carry a white ring)
+     and adjacent steps differ by >= 1.5:1, so bands stay distinguishable. */
+  --color-band-low: #8592ad;
+  --color-band-low-soft: #eceef1;
+  --color-band-watch: #5878b3;
+  --color-band-watch-soft: #e4eaf4;
+  --color-band-warm: #2c4a88;
+  --color-band-warm-soft: #d9e3f3;
+  --color-band-hot: #0e1c38;
+  --color-band-hot-soft: #0e1c38;
+
+  /* Type */
+  --font-sans: var(--brand-font, 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif);
+  --text-2xs: 0.6875rem;  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;     --text-xs--line-height: 1.125rem;
+  --text-sm: 0.8125rem;   --text-sm--line-height: 1.25rem;
+  --text-base: 0.9375rem; --text-base--line-height: 1.5rem;
+  --text-lg: 1.125rem;    --text-lg--line-height: 1.625rem;
+  --text-xl: 1.375rem;    --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.75rem;    --text-2xl--line-height: 2.125rem;
+  --text-3xl: 2.25rem;    --text-3xl--line-height: 2.5rem;
+  --text-4xl: 3rem;       --text-4xl--line-height: 3.25rem;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  /* Elevation: restrained */
+  --shadow-xs: 0 1px 0 rgb(20 23 31 / 0.04);
+  --shadow-sm: 0 1px 2px rgb(20 23 31 / 0.05), 0 1px 1px rgb(20 23 31 / 0.03);
+  --shadow-md: 0 8px 24px -8px rgb(20 23 31 / 0.14), 0 2px 6px rgb(20 23 31 / 0.05);
+  --shadow-lg: 0 24px 48px -16px rgb(20 23 31 / 0.22);
+
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+}
+/* spacing: Tailwind's default scale is already 4px-based (--spacing: 0.25rem); 8px steps are the even numbers. */
+
+/* Map dot radius (px) per score band: size grows with band as well as color. Map and legend both read these. */
+:root { --dot-low: 4; --dot-watch: 5; --dot-warm: 6.5; --dot-hot: 8; }

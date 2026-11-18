@@ -1,0 +1,16 @@
+---
+import SampleDataBadge from './SampleDataBadge.astro';
+import EstimateBadge from './EstimateBadge.astro';
+export interface Item { label: string; value: string; sample?: boolean; estimate?: boolean; tone?: 'default' | 'good' | 'warning' }
+export interface Props { items: Item[]; class?: string }
+---
+<dl class:list={['divide-y divide-line', Astro.props.class]}>
+  {Astro.props.items.map((i) => (
+    <div class="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
+      <dt class="text-sm text-ink-muted">{i.label}</dt>
+      <dd class:list={['flex flex-wrap items-center justify-end gap-1.5 text-right text-sm font-medium tabular-nums', i.tone === 'good' && 'text-good', i.tone === 'warning' && 'text-warning']}>
+        {i.value}{i.estimate && <EstimateBadge />}{i.sample && <SampleDataBadge />}
+      </dd>
+    </div>
+  ))}
+</dl>

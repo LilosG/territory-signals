@@ -1,0 +1,10 @@
+---
+export interface Props { label?: string; class?: string; id?: string }
+---
+<!-- Compact single row. Scrolls sideways inside the bar on narrow screens rather than wrapping. The page script toggles [data-filter-count] / [data-filter-clear]. -->
+<form id={Astro.props.id} role="search" aria-label={Astro.props.label ?? 'Filters'} onsubmit="return false"
+  class:list={['relative flex flex-nowrap items-center gap-2 overflow-x-auto', Astro.props.class]}>
+  <slot />
+  <span data-filter-count hidden class="inline-flex h-6 shrink-0 items-center rounded-full bg-accent-soft px-2 text-xs font-semibold text-accent" aria-live="polite"></span>
+  <button type="button" data-filter-clear hidden class="h-8 shrink-0 rounded-md px-2 text-xs font-medium text-accent underline-offset-2 hover:underline">Clear</button>
+</form>

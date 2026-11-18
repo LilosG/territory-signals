@@ -1,0 +1,20 @@
+---
+import type { TrendMetric } from '../../lib/data/types';
+import { fmtMonth } from '../../lib/format';
+import Card from './Card.astro';
+import Chart from './Chart.astro';
+import EstimateBadge from './EstimateBadge.astro';
+import SampleDataBadge from './SampleDataBadge.astro';
+export interface Props { metric: TrendMetric; months: string[]; idPrefix: string; compact?: boolean }
+const { metric: m, months, idPrefix, compact = false } = Astro.props;
+const grouped = !!m.categories;
+const kind = grouped ? 'groupedBar' : m.key === 'permits' ? 'stackedBar' : m.key === 'turnover' || m.key === 'str_lost' ? 'bar' : 'line';
+const option = { months: grouped ? m.categories : months.map(fmtMonth), unit: m.unit, estimate: m.is_estimate, series: m.series.map((s) => ({ name: s.label, data: s.points.map((p) => p.value) })) };
+---
+<Card as="article">
+  <header class="flex flex-wrap items-center gap-2">
+    <h3 class="text-base font-semibold">{m.title}</h3>{m.is_estimate && <EstimateBadge />}<SampleDataBadge />
+  </header>
+  <p class="mt-1 text-sm text-ink">{m.takeaway}</p>
+  <Chart id={`${idPrefix}-${m.key}`} option={option} kind={kind} height={compact ? 200 : grouped ? 270 : 250} label={grouped ? `${m.title}, by neighborhood` : `${m.title}, monthly, last 12 months`} class="mt-4" />
+</Card>

@@ -1,0 +1,43 @@
+---
+export interface Props { tabs: { id: string; label: string }[]; label: string; initial?: string; class?: string }
+const { tabs, label, initial = tabs[0]?.id, class: cls } = Astro.props;
+const uid = `tabs-${tabs.map((t) => t.id).join('-')}`;
+---
+<div data-tabs={uid} class:list={[cls]}>
+  <div role="tablist" aria-label={label} class="flex gap-1 border-b border-line overflow-x-auto">
+    {tabs.map((t) => (
+      <button type="button" role="tab" id={`${uid}-t-${t.id}`} data-tab={t.id} aria-controls={`${uid}-p-${t.id}`} aria-selected={t.id === initial} tabindex={t.id === initial ? 0 : -1}
+        class="-mb-px whitespace-nowrap border-b-2 border-transparent px-3.5 py-2.5 text-sm font-medium text-ink-muted hover:text-ink aria-selected:border-accent aria-selected:text-ink">{t.label}</button>
+    ))}
+  </div>
+  <slot />
+</div>
+<script>
+  document.querySelectorAll<HTMLElement>('[data-tabs]').forEach((root) => {
+    const uid = root.dataset.tabs!;
+    const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>('[role=tab]'));
+    root.querySelectorAll<HTMLElement>('[data-tab-panel]').forEach((p) => {
+      const id = p.dataset.tabPanel!;
+      p.id = `${uid}-p-${id}`; p.setAttribute('role', 'tabpanel'); p.setAttribute('aria-labelledby', `${uid}-t-${id}`); p.tabIndex = 0;
+    });
+    const select = (t: HTMLButtonElement, focus = false) => {
+      tabs.forEach((x) => {
+        const on = x === t;
+        x.setAttribute('aria-selected', String(on)); x.tabIndex = on ? 0 : -1;
+        const panel = root.querySelector<HTMLElement>(`[data-tab-panel="${x.dataset.tab}"]`);
+        if (panel) panel.hidden = !on;
+      });
+      if (focus) t.focus();
+    };
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => select(t));
+      t.addEventListener('keydown', (e) => {
+        const k = e.key;
+        if (k === 'ArrowRight') { e.preventDefault(); select(tabs[(i + 1) % tabs.length]!, true); }
+        else if (k === 'ArrowLeft') { e.preventDefault(); select(tabs[(i - 1 + tabs.length) % tabs.length]!, true); }
+        else if (k === 'Home') { e.preventDefault(); select(tabs[0]!, true); }
+        else if (k === 'End') { e.preventDefault(); select(tabs[tabs.length - 1]!, true); }
+      });
+    });
+  });
+</script>
