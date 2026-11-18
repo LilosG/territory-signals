@@ -1,0 +1,11 @@
+---
+import AppShell from '../components/ui/AppShell.astro';
+import LeadMap from '../components/map/LeadMap.astro';
+import { data } from '../lib/data';
+const points = await data.getMapPoints();
+const config = await data.getConfig();
+---
+<AppShell title="Map" active="map" bleed>
+  <h1 class="sr-only">Map of scored parcels</h1>
+  <LeadMap points={points} recipes={config.recipes} neighborhoods={config.territory.neighborhoods} />
+</AppShell>

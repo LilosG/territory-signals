@@ -1,0 +1,31 @@
+---
+import '../../styles/global.css';
+import { brand, brandCssVars } from '../../config/brand';
+import { data } from '../../lib/data';
+import Button from './Button.astro';
+import SampleDataBadge from './SampleDataBadge.astro';
+export interface Props { title: string; backHref: string; backLabel: string }
+const { title, backHref, backLabel } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="robots" content="noindex, nofollow" />
+    <title>{title} · {brand.shortName}</title>
+    <style set:html={brandCssVars()}></style>
+  </head>
+  <body class="min-h-dvh bg-sunken print:bg-white">
+    <div class="no-print sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3 sm:px-8">
+      <a href={backHref} class="text-sm text-ink-muted hover:text-ink">← {backLabel}</a>
+      <Button id="print-btn" variant="primary" size="sm" icon="print">Print / save as PDF</Button>
+    </div>
+    <main id="main" class="mx-auto my-6 w-full max-w-[52rem] bg-surface px-6 py-10 shadow-sm print:my-0 print:max-w-none print:px-0 print:py-0 print:shadow-none sm:px-14 sm:py-14">
+      <slot />
+      <footer class="mt-12 flex items-center justify-between border-t border-line pt-4 text-xs text-ink-muted">
+        <span>{brand.name}</span>
+        {data.isSample && <SampleDataBadge label="Sample data: fictional figures" />}
+      </footer>
+    </main>
+    <script>document.getElementById('print-btn')?.addEventListener('click', () => window.print());</script>
+  </body>
+</html>

@@ -1,0 +1,4 @@
+---
+export interface Props { id: string; active?: boolean }
+---
+<div data-tab-panel={Astro.props.id} hidden={!Astro.props.active} class="pt-5"><slot /></div>

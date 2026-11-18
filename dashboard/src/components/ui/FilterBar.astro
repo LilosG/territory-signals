@@ -1,0 +1,4 @@
+---
+export interface Props { label?: string; class?: string; id?: string }
+---
+<form id={Astro.props.id} role="search" aria-label={Astro.props.label ?? 'Filters'} onsubmit="return false" class:list={['grid grid-cols-2 gap-3 sm:grid-cols-4 items-end', Astro.props.class]}><slot /></form>

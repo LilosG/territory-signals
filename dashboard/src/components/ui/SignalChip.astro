@@ -1,0 +1,10 @@
+---
+import { SIGNAL_TYPES } from '../../lib/data/catalog';
+import EstimateBadge from './EstimateBadge.astro';
+export interface Props { type: string; estimate?: boolean; class?: string }
+const { type, estimate = false, class: cls } = Astro.props;
+const label = SIGNAL_TYPES[type]?.label ?? type;
+---
+<span class:list={['inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2 py-0.5 text-xs font-medium text-ink', cls]}>
+  <span class="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true"></span>{label}{estimate && <EstimateBadge />}
+</span>

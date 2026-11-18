@@ -1,0 +1,30 @@
+{
+  "name": "territory-signals-dashboard",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "fixtures": "tsx scripts/generate-fixtures.ts",
+    "screenshots": "tsx scripts/screenshots.ts"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "5.3.0",
+    "@tailwindcss/vite": "4.3.5",
+    "astro": "5.18.2",
+    "echarts": "5.6.0",
+    "maplibre-gl": "5.24.1",
+    "tailwindcss": "4.3.5"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.12",
+    "@types/geojson": "7946.0.16",
+    "@types/node": "22.15.21",
+    "playwright": "1.65.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

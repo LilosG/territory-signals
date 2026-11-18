@@ -1,0 +1,52 @@
+---
+import Icon from './Icon.astro';
+export interface Props { id: string; title?: string; side?: 'right' | 'bottom' }
+const { id, title = 'Details' } = Astro.props;
+---
+<div data-drawer={id} hidden class="fixed inset-0 z-40">
+  <div data-drawer-scrim class="absolute inset-0 bg-ink/25 backdrop-blur-[1px]"></div>
+  <aside role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabindex="-1"
+    class="absolute flex flex-col bg-surface shadow-lg outline-none
+           inset-x-0 bottom-0 max-h-[85dvh] rounded-t-lg border-t border-line
+           sm:inset-y-0 sm:right-0 sm:left-auto sm:max-h-none sm:w-[26rem] sm:rounded-none sm:border-l sm:border-t-0">
+    <header class="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+      <h2 id={`${id}-title`} class="text-base font-semibold" data-drawer-title>{title}</h2>
+      <button type="button" data-drawer-close aria-label="Close panel" class="grid h-9 w-9 place-items-center rounded-md text-ink-muted hover:bg-sunken hover:text-ink"><Icon name="close" /></button>
+    </header>
+    <div class="flex-1 overflow-y-auto px-5 py-5" data-drawer-body><slot /></div>
+  </aside>
+</div>
+<script>
+  // Any element with data-drawer-open="<id>" opens it; the page may also dispatch
+  // new CustomEvent('drawer:open', { detail: { id } }) and 'drawer:close'.
+  let opener: HTMLElement | null = null;
+  const find = (id: string) => document.querySelector<HTMLElement>(`[data-drawer="${id}"]`);
+  const open = (id: string, from?: HTMLElement | null) => {
+    const d = find(id); if (!d) return;
+    opener = from ?? (document.activeElement as HTMLElement | null);
+    d.hidden = false; document.body.style.overflow = 'hidden';
+    d.querySelector<HTMLElement>('[role=dialog]')?.focus();
+    d.dispatchEvent(new CustomEvent('drawer:opened', { bubbles: true }));
+  };
+  const close = (d: HTMLElement) => { d.hidden = true; document.body.style.overflow = ''; opener?.focus?.(); };
+  document.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    const o = t.closest<HTMLElement>('[data-drawer-open]');
+    if (o) { open(o.dataset.drawerOpen!, o); return; }
+    const d = t.closest<HTMLElement>('[data-drawer]');
+    if (d && (t.closest('[data-drawer-close]') || t.hasAttribute('data-drawer-scrim'))) close(d);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') document.querySelectorAll<HTMLElement>('[data-drawer]:not([hidden])').forEach(close);
+    if (e.key === 'Tab') {
+      const d = document.querySelector<HTMLElement>('[data-drawer]:not([hidden])'); if (!d) return;
+      const f = Array.from(d.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),select,[tabindex]:not([tabindex="-1"])')).filter((x) => x.offsetParent !== null);
+      if (!f.length) return;
+      const first = f[0]!, last = f[f.length - 1]!;
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+  document.addEventListener('drawer:open', ((e: CustomEvent<{ id: string }>) => open(e.detail.id)) as EventListener);
+  document.addEventListener('drawer:close', () => document.querySelectorAll<HTMLElement>('[data-drawer]:not([hidden])').forEach(close));
+</script>

@@ -1,0 +1,8 @@
+---
+export interface Props { title: string; description?: string; class?: string }
+---
+<div class:list={['flex flex-col items-center rounded-lg border border-dashed border-line-strong bg-surface/60 px-6 py-10 text-center', Astro.props.class]}>
+  <p class="text-base font-medium text-ink">{Astro.props.title}</p>
+  {Astro.props.description && <p class="mt-1 max-w-md text-sm text-ink-muted">{Astro.props.description}</p>}
+  <div class="mt-4 empty:hidden"><slot /></div>
+</div>

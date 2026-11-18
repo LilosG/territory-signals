@@ -1,0 +1,143 @@
+---
+import AppShell from '../../../components/ui/AppShell.astro';
+import PageHeader from '../../../components/ui/PageHeader.astro';
+import Button from '../../../components/ui/Button.astro';
+import Card from '../../../components/ui/Card.astro';
+import Grid from '../../../components/ui/Grid.astro';
+import Stack from '../../../components/ui/Stack.astro';
+import Cluster from '../../../components/ui/Cluster.astro';
+import Section from '../../../components/ui/Section.astro';
+import ScoreBadge from '../../../components/ui/ScoreBadge.astro';
+import ScoreBreakdown from '../../../components/ui/ScoreBreakdown.astro';
+import RecipeTag from '../../../components/ui/RecipeTag.astro';
+import FactList from '../../../components/ui/FactList.astro';
+import SignalTimeline from '../../../components/ui/SignalTimeline.astro';
+import TabPanel from '../../../components/ui/TabPanel.astro';
+import Tabs from '../../../components/ui/Tabs.astro';
+import DraftView from '../../../components/ui/DraftView.astro';
+import DataTable from '../../../components/ui/DataTable.astro';
+import EmptyState from '../../../components/ui/EmptyState.astro';
+import SampleDataBadge from '../../../components/ui/SampleDataBadge.astro';
+import { data, OUTCOME_LABELS } from '../../../lib/data';
+import { fmtApn, fmtDate, fmtNum, fmtPct, fmtUsd } from '../../../lib/format';
+
+export async function getStaticPaths() {
+  const leads = await data.getLeads();
+  return leads.map((l) => ({ params: { apn: l.parcel.apn } }));
+}
+const { apn } = Astro.params;
+const lead = (await data.getLead(apn!))!;
+const config = await data.getConfig();
+const recipeNames = Object.fromEntries(config.recipes.map((r) => [r.key, r.name]));
+const { parcel: p, score, owner } = lead;
+const ratio = owner?.est_value && owner.est_equity != null ? owner.est_equity / owner.est_value : null;
+const draftBy = (c: string) => lead.outreach.find((o) => o.channel === c);
+const letter = draftBy('mail'), email = draftBy('email'), call = draftBy('call_task');
+const channelLabel = { mail: 'Letter', email: 'Email', call_task: 'Call task' } as const;
+const history = lead.outreach.filter((o) => o.status === 'sent' || o.status === 'approved');
+const owned = lead.years_owned;
+---
+<AppShell title={p.situs_address ?? p.apn} active="today">
+  <a href="/" class="mb-4 inline-block text-sm text-ink-muted hover:text-ink">← Today</a>
+  <PageHeader eyebrow={`${p.neighborhood} · APN ${fmtApn(p.apn)}`} title={p.situs_address ?? p.apn}>
+    <Button href={`/leads/${p.apn}/presentation`} icon="print">Export for listing presentation</Button>
+    <Button disabled icon="lock" title="Available in Phase 5">Share as off-market opportunity<span class="ml-1 rounded bg-sunken px-1.5 py-px text-2xs font-semibold uppercase text-ink-muted">Phase 5</span></Button>
+  </PageHeader>
+
+  <Grid split="main-aside" gap={8}>
+    <Stack gap={8}>
+      <Card as="section" aria-labelledby="why-h">
+        <div class="flex flex-col gap-6 sm:flex-row">
+          <div class="flex shrink-0 flex-col items-start gap-2">
+            <p class="eyebrow">Score</p>
+            <ScoreBadge score={score.score} size="lg" showLabel />
+            <p class="text-xs text-ink-muted">Model {score.model_version}</p>
+          </div>
+          <div class="min-w-0 flex-1">
+            <h2 id="why-h" class="eyebrow">Why this lead</h2>
+            <p class="mt-1.5 text-lg font-medium leading-7 text-ink">{score.reason_text}</p>
+            <Cluster class="mt-3" gap={2}>{(score.recipe_matches ?? []).map((r) => <RecipeTag name={recipeNames[r] ?? r} />)}</Cluster>
+          </div>
+        </div>
+        {score.components && (
+          <div class="mt-6 border-t border-line pt-5">
+            <p class="eyebrow mb-3">Score components <span class="normal-case tracking-normal text-ink-faint">· computed from stored records, total capped at 100</span></p>
+            <ScoreBreakdown items={score.components.items} class="sm:grid sm:grid-cols-2 sm:gap-x-8" />
+          </div>
+        )}
+      </Card>
+
+      <Section title="Signals" description={`${lead.signals.length} detected. Every signal links to its source record.`}>
+        <Card><SignalTimeline signals={lead.signals} /></Card>
+      </Section>
+
+      <Section title="Outreach drafts" description="Drafts only use facts in the database. A person approves before anything is sent.">
+        <Card>
+          {!letter && !email && !call
+            ? <EmptyState title="No drafts yet" description="Drafts are prepared for the highest-scoring leads." />
+            : <Tabs label="Outreach drafts" tabs={[{ id: 'letter', label: 'Letter' }, { id: 'email', label: 'Email' }, { id: 'call', label: 'Call script' }]}>
+                <TabPanel id="letter" active>{letter ? <DraftView draft={letter} /> : <EmptyState title="No letter drafted" />}</TabPanel>
+                <TabPanel id="email">{email ? <DraftView draft={email} /> : <EmptyState title="No email drafted" />}</TabPanel>
+                <TabPanel id="call">{call ? <DraftView draft={call} /> : <EmptyState title="No call script drafted" />}</TabPanel>
+              </Tabs>}
+        </Card>
+      </Section>
+
+      <Section title="Outreach history">
+        {history.length === 0 && lead.outcomes.length === 0
+          ? <EmptyState title="No outreach yet" description="Nothing has been sent or recorded for this property." />
+          : <Stack gap={4}>
+              {history.length > 0 && <DataTable caption="Outreach history" columns={[{ key: 'ch', label: 'Channel' }, { key: 'st', label: 'Status' }, { key: 'when', label: 'Sent', align: 'right' }]}
+                rows={history.map((o) => ({ cells: { ch: { v: channelLabel[o.channel] }, st: { v: o.status }, when: { v: o.sent_at ?? '', display: o.sent_at ? fmtDate(o.sent_at) : 'Not sent' } } }))} />}
+              {lead.outcomes.length > 0 && <DataTable caption="Recorded outcomes" columns={[{ key: 'o', label: 'Outcome' }, { key: 'by', label: 'By', hideOnMobile: true }, { key: 'when', label: 'Noted', align: 'right' }]}
+                rows={lead.outcomes.map((o) => ({ cells: { o: { v: OUTCOME_LABELS[o.status] ?? o.status }, by: { v: o.team_member_email }, when: { v: o.noted_at, display: fmtDate(o.noted_at) } } }))} />}
+            </Stack>}
+      </Section>
+    </Stack>
+
+    <Stack gap={6}>
+      <Card as="section" aria-labelledby="owner-h">
+        <h2 id="owner-h" class="mb-4 flex items-center gap-2 text-base font-semibold">Owner {owner?.is_sample && <SampleDataBadge />}</h2>
+        {owner
+          ? <FactList items={[
+              { label: 'Owner', value: owner.owner_name ?? '—', sample: owner.is_sample },
+              { label: 'Years owned', value: owned != null ? `${owned.toFixed(1)}` : '—', sample: owner.is_sample },
+              { label: 'Last sale', value: `${fmtDate(owner.last_sale_date)} · ${fmtUsd(owner.last_sale_price)}`, sample: owner.is_sample },
+              { label: 'Estimated value', value: fmtUsd(owner.est_value), estimate: true, sample: owner.is_sample },
+              { label: 'Estimated equity', value: `${fmtUsd(owner.est_equity)}${ratio != null ? ` (${fmtPct(ratio)})` : ''}`, estimate: true, sample: owner.is_sample },
+              { label: 'Mortgage', value: owner.mortgage_open ? 'Open mortgage' : 'No open mortgage', sample: owner.is_sample },
+              { label: 'Occupancy', value: owner.absentee ? (owner.out_of_state ? 'Absentee, out of state' : 'Absentee') : 'Owner-occupied', sample: owner.is_sample },
+              { label: 'Mailing address', value: owner.mailing_address ?? '—', sample: owner.is_sample },
+            ]} />
+          : <EmptyState title="No owner data" />}
+        <p class="mt-4 text-xs text-ink-muted">As of {fmtDate(owner?.as_of)} · provider: {owner?.provider}</p>
+      </Card>
+
+      <Card as="section" aria-labelledby="prop-h">
+        <h2 id="prop-h" class="mb-4 text-base font-semibold">Property</h2>
+        <FactList items={[
+          { label: 'Neighborhood', value: p.neighborhood ?? '—' },
+          { label: 'Zoning', value: p.zoning ?? '—' },
+          { label: 'Land use', value: p.land_use ?? '—' },
+          { label: 'Lot size', value: p.lot_sqft ? `${fmtNum(p.lot_sqft)} sq ft` : '—' },
+          { label: 'Year built', value: String(p.year_built ?? '—') },
+          { label: 'Last recorded document', value: fmtDate(p.last_recorded_doc_date) },
+        ]} />
+        <p class="mt-4 text-xs text-ink-muted">Last recorded document date is not a purchase date.</p>
+      </Card>
+
+      <Card as="section" aria-labelledby="sales-h">
+        <h2 id="sales-h" class="mb-4 flex items-center gap-2 text-base font-semibold">Sales history <SampleDataBadge /></h2>
+        {lead.sales.length === 0 ? <EmptyState title="No sales on record" /> : <FactList items={lead.sales.map((s) => ({ label: fmtDate(s.sale_date), value: `${fmtUsd(s.sale_price)}${s.doc_type ? ` · ${s.doc_type}` : ''}` }))} />}
+      </Card>
+
+      <Card as="section" aria-labelledby="outcome-h">
+        <h2 id="outcome-h" class="mb-1 text-base font-semibold">Record an outcome</h2>
+        <p class="mb-4 text-sm text-ink-muted">Recording is switched on in Phase 5.</p>
+        <Cluster gap={2}>
+          {['contacted', 'conversation', 'appointment', 'listing', 'not_interested', 'bad_data'].map((k) => <Button size="sm" disabled title="Available in Phase 5">{OUTCOME_LABELS[k]}</Button>)}
+        </Cluster>
+      </Card>
+    </Stack>
+  </Grid>
+</AppShell>

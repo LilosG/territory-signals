@@ -1,0 +1,17 @@
+---
+import type { Coverage } from '../../lib/data/types';
+import { fmtDateTime, fmtNum } from '../../lib/format';
+import Card from './Card.astro';
+import StatTile from './StatTile.astro';
+export interface Props { coverage: Coverage }
+const { coverage: c } = Astro.props;
+---
+<Card as="section" aria-labelledby="coverage-h" class="!p-0">
+  <h2 id="coverage-h" class="sr-only">Coverage</h2>
+  <dl class="grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x [&>div]:p-5 sm:[&>div]:p-6 max-sm:[&>div:nth-child(n+3)]:border-t max-sm:[&>div:nth-child(even)]:border-l max-sm:[&>div]:border-line">
+    <StatTile label="Parcels monitored" value={fmtNum(c.parcels_monitored)} sample={c.is_sample} />
+    <StatTile label="Sources live" value={`${c.sources_live} / ${c.sources_total}`} hint={c.sources_live < c.sources_total ? `${c.sources_total - c.sources_live} not reporting` : 'All reporting'} />
+    <StatTile label="Last pull" value={fmtDateTime(c.last_pull)} />
+    <StatTile label="Signals this week" value={fmtNum(c.signals_this_week)} />
+  </dl>
+</Card>

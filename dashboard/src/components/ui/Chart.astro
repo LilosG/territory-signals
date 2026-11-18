@@ -1,0 +1,43 @@
+---
+export interface Props { id: string; option: Record<string, unknown>; height?: number; label: string; kind?: 'line' | 'bar' | 'stackedBar'; class?: string }
+const { id, option, height = 260, label, kind = 'line', class: cls } = Astro.props;
+---
+<div class:list={[cls]}>
+  <div data-chart={id} data-kind={kind} role="img" aria-label={label} style={`height:${height}px`} class="w-full"></div>
+  <script type="application/json" data-chart-data={id} set:html={JSON.stringify(option)} />
+</div>
+<script>
+  import { init, use } from 'echarts/core';
+  import { LineChart, BarChart } from 'echarts/charts';
+  import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components';
+  import { CanvasRenderer } from 'echarts/renderers';
+  import { chartTheme } from '../../lib/chartTheme';
+  use([LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
+
+  const t = chartTheme();
+  const charts: ReturnType<typeof init>[] = [];
+  document.querySelectorAll<HTMLElement>('[data-chart]').forEach((el) => {
+    const id = el.dataset.chart!;
+    const spec = JSON.parse(document.querySelector(`[data-chart-data="${id}"]`)!.textContent!) as {
+      months: string[]; unit: string; series: { name: string; data: number[] }[]; estimate?: boolean;
+    };
+    const kind = el.dataset.kind;
+    const multi = spec.series.length > 1;
+    const chart = init(el, undefined, { renderer: 'canvas' });
+    chart.setOption({
+      ...t.base,
+      legend: multi ? { top: 0, left: 0, icon: 'roundRect', itemWidth: 10, itemHeight: 10, textStyle: { color: t.muted, fontSize: 12 } } : undefined,
+      grid: { ...t.base.grid, top: multi ? 40 : 16 },
+      tooltip: { ...t.base.tooltip, trigger: 'axis', valueFormatter: (v: number) => `${v} ${spec.unit}` },
+      xAxis: { ...t.base.xAxis, type: 'category', data: spec.months, boundaryGap: kind !== 'line' },
+      yAxis: { ...t.base.yAxis, type: 'value', minInterval: 1 },
+      series: spec.series.map((s, i) => kind === 'line'
+        ? { name: s.name, type: 'line', data: s.data, smooth: 0.25, symbol: 'circle', symbolSize: 5, showSymbol: false, lineStyle: { width: 2.25, type: spec.estimate ? 'dashed' : 'solid', color: t.palette[i % t.palette.length] }, itemStyle: { color: t.palette[i % t.palette.length] }, areaStyle: multi ? undefined : { color: t.accent, opacity: 0.06 } }
+        : { name: s.name, type: 'bar', stack: kind === 'stackedBar' ? 'total' : undefined, data: s.data, barMaxWidth: 22, itemStyle: { color: t.palette[i % t.palette.length], borderRadius: kind === 'stackedBar' ? 0 : [3, 3, 0, 0] } }),
+    });
+    charts.push(chart);
+  });
+  const resize = () => charts.forEach((c) => c.resize());
+  new ResizeObserver(resize).observe(document.body);
+  document.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('[role=tab]')) requestAnimationFrame(resize); });
+</script>

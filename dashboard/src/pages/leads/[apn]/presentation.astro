@@ -1,0 +1,42 @@
+---
+import PrintShell from '../../../components/ui/PrintShell.astro';
+import FactList from '../../../components/ui/FactList.astro';
+import SignalTimeline from '../../../components/ui/SignalTimeline.astro';
+import Stack from '../../../components/ui/Stack.astro';
+import Section from '../../../components/ui/Section.astro';
+import { data } from '../../../lib/data';
+import { brand } from '../../../config/brand';
+import { fmtApn, fmtNum, fmtDate } from '../../../lib/format';
+
+export async function getStaticPaths() {
+  return (await data.getLeads()).map((l) => ({ params: { apn: l.parcel.apn } }));
+}
+const lead = (await data.getLead(Astro.params.apn!))!;
+const p = lead.parcel;
+const trends = await data.getTrends(p.neighborhood ?? 'All');
+// A listing presentation shares property and neighborhood context only: no owner, equity or mortgage data.
+const publicSignals = lead.signals.filter((s) => ['permits', 'upzoning', 'short_term_rental'].includes(s.signal_group));
+---
+<PrintShell title={`Listing presentation · ${p.situs_address}`} backHref={`/leads/${p.apn}`} backLabel="Back to brief">
+  <Stack gap={10}>
+    <header>
+      <p class="eyebrow">Listing presentation · {brand.name}</p>
+      <h1 class="mt-2 text-3xl font-semibold">{p.situs_address}</h1>
+      <p class="mt-1 text-base text-ink-muted">{p.neighborhood}, San Diego · APN {fmtApn(p.apn)}</p>
+    </header>
+    <Section title="Property at a glance">
+      <FactList items={[
+        { label: 'Zoning', value: p.zoning ?? '—' }, { label: 'Land use', value: p.land_use ?? '—' },
+        { label: 'Lot size', value: p.lot_sqft ? `${fmtNum(p.lot_sqft)} sq ft` : '—' }, { label: 'Year built', value: String(p.year_built ?? '—') },
+      ]} />
+    </Section>
+    <Section title="Public-record highlights" description="Permits, upzoning screens and rental licensing on record for this parcel.">
+      <SignalTimeline signals={publicSignals} />
+    </Section>
+    <Section title={`${p.neighborhood} market pulse`} description={`Last 12 months to ${fmtDate('2026-11-18')}. Sample figures.`}>
+      <ul class="flex flex-col gap-3">
+        {trends.metrics.map((m) => <li class="border-l-2 border-accent pl-4"><p class="text-sm font-medium">{m.title}</p><p class="text-sm text-ink-muted">{m.takeaway}</p></li>)}
+      </ul>
+    </Section>
+  </Stack>
+</PrintShell>

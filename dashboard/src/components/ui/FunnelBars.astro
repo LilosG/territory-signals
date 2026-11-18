@@ -1,0 +1,26 @@
+---
+import type { FunnelRow } from '../../lib/data/types';
+import { fmtPct } from '../../lib/format';
+export interface Props { rows: FunnelRow[]; caption: string }
+const { rows, caption } = Astro.props;
+---
+<div role="table" aria-label={caption} class="flex flex-col divide-y divide-line">
+  {rows.map((r) => {
+    const top = Math.max(1, r.stages[0]!.count);
+    return (
+      <div role="row" class="grid gap-3 py-4 first:pt-0 last:pb-0 md:grid-cols-[12rem_minmax(0,1fr)] md:items-center">
+        <div role="rowheader" class="text-sm font-medium">{r.label}</div>
+        <ol class="grid grid-cols-5 gap-2">
+          {r.stages.map((s, i) => (
+            <li role="cell" class="min-w-0">
+              <div class="flex h-14 items-end rounded-sm bg-sunken" aria-hidden="true"><div class="w-full rounded-sm bg-accent" style={`height:${Math.max(4, Math.round((s.count / top) * 100))}%;opacity:${1 - i * 0.14}`}></div></div>
+              <p class="mt-1.5 text-base font-semibold tabular-nums leading-none">{s.count}</p>
+              <p class="text-2xs text-ink-muted">{s.label}</p>
+              <p class="text-2xs text-ink-faint">{i > 0 && r.stages[i - 1]!.count > 0 ? fmtPct(s.count / r.stages[i - 1]!.count) : '\u00a0'}</p>
+            </li>
+          ))}
+        </ol>
+      </div>
+    );
+  })}
+</div>

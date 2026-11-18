@@ -1,0 +1,7 @@
+---
+export interface Props { tone?: 'good' | 'warning' | 'critical' | 'neutral'; class?: string }
+const { tone = 'neutral' } = Astro.props;
+const t = { good: 'bg-good-soft text-good', warning: 'bg-warning-soft text-warning', critical: 'bg-critical-soft text-critical', neutral: 'bg-sunken text-ink-muted' }[tone];
+const dot = { good: 'bg-good', warning: 'bg-warning', critical: 'bg-critical', neutral: 'bg-ink-faint' }[tone];
+---
+<span class:list={['inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ', t, Astro.props.class]}><span class:list={['h-1.5 w-1.5 rounded-full', dot]} aria-hidden="true"></span><slot /></span>

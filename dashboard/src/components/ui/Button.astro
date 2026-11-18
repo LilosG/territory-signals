@@ -1,0 +1,20 @@
+---
+import Icon from './Icon.astro';
+export interface Props {
+  variant?: 'primary' | 'secondary' | 'ghost'; size?: 'sm' | 'md'; href?: string; disabled?: boolean;
+  type?: 'button' | 'submit'; icon?: Parameters<typeof Icon>[0]['name']; title?: string; class?: string; id?: string; target?: string;
+}
+const { variant = 'secondary', size = 'md', href, disabled = false, type = 'button', icon, title, class: cls, id, target } = Astro.props;
+const base = 'inline-flex items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap transition-colors select-none';
+const v = {
+  primary: 'bg-accent text-accent-fg hover:bg-accent-strong',
+  secondary: 'bg-surface text-ink border border-line-strong hover:bg-sunken',
+  ghost: 'text-ink-muted hover:bg-sunken hover:text-ink',
+}[variant];
+const dis = 'opacity-55 pointer-events-none';
+const sz = { sm: 'h-8 px-3 text-sm', md: 'h-10 px-4 text-sm' }[size];
+const classes = [base, v, sz, disabled && dis, cls];
+---
+{href && !disabled
+  ? <a id={id} href={href} target={target} rel={target ? 'noopener noreferrer' : undefined} title={title} class:list={classes}>{icon && <Icon name={icon} size={16} />}<slot /></a>
+  : <button id={id} type={type} disabled={disabled} aria-disabled={disabled} title={title} class:list={classes}>{icon && <Icon name={icon} size={16} />}<slot /></button>}

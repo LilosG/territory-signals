@@ -1,0 +1,28 @@
+---
+import AppShell from '../../components/ui/AppShell.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import Button from '../../components/ui/Button.astro';
+import TabPanel from '../../components/ui/TabPanel.astro';
+import Tabs from '../../components/ui/Tabs.astro';
+import Grid from '../../components/ui/Grid.astro';
+import TrendCard from '../../components/ui/TrendCard.astro';
+import { data } from '../../lib/data';
+const config = await data.getConfig();
+const areas = ['All', ...config.territory.neighborhoods];
+const trends = await Promise.all(areas.map((a) => data.getTrends(a)));
+const slug = (a: string) => a.toLowerCase().replace(/\s+/g, '-');
+---
+<AppShell title="Trends" active="trends">
+  <PageHeader eyebrow="Month over month · last 12 months" title="Neighborhood trends" description="What is moving in each neighborhood, with a plain-language takeaway for every chart.">
+    <Button href="/trends/newsletter" variant="secondary" icon="mail">Export for newsletter</Button>
+  </PageHeader>
+  <Tabs label="Neighborhood" tabs={areas.map((a) => ({ id: slug(a), label: a === 'All' ? 'All neighborhoods' : a }))}>
+    {trends.map((t, i) => (
+      <TabPanel id={slug(t.area)} active={i === 0}>
+        <Grid cols={2} gap={6}>
+          {t.metrics.map((m) => <TrendCard metric={m} months={t.months} idPrefix={slug(t.area)} />)}
+        </Grid>
+      </TabPanel>
+    ))}
+  </Tabs>
+</AppShell>
