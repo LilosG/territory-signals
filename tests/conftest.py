@@ -25,3 +25,22 @@ def conn(migrated_db):
     with connect() as c:
         yield c
         c.rollback()
+
+
+TRUNCATE_ALL = (
+    "truncate signals, raw_records, source_runs, owners, sales_history, scores, suppressions, "
+    "outreach, outcomes, parcels, neighborhoods restart identity cascade"
+)
+
+
+@pytest.fixture
+def db(migrated_db):
+    """Autocommit connection to a clean database. Pipeline runs open their own
+    connections and commit, so tests that run them start from truncated tables
+    (TRUNCATE is not blocked by the append-only triggers)."""
+    from territory.db import connect
+
+    with connect(autocommit=True) as c:
+        c.execute(TRUNCATE_ALL)
+        yield c
+        c.execute(TRUNCATE_ALL)

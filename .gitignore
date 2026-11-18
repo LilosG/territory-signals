@@ -3,3 +3,4 @@
 __pycache__/
 recon/raw/
 *.pyc
+data/
