@@ -38,6 +38,18 @@ The build copies MapLibre's web worker to `public/maplibre/` (`scripts/copy-mapl
 
 Local checks before deploying: `npm run build`, then `npx wrangler dev --ip 127.0.0.1 --port 3000` (uses the local Supabase), then `npm run e2e`.
 
+### Phase 5D release steps (database first, then the Worker)
+
+```bash
+supabase db push --remote --yes          # applies 20261120000000_dashboard_5d.sql to the cloud project (without --remote it targets the LOCAL stack)
+psql "$CLOUD_DB_URL" -c "select private.refresh_dashboard_aggregates();"   # fills the scored_parcels materialized view the lists read
+cd dashboard && npm run deploy
+```
+
+The migration only adds objects (a materialized view, views, functions, indexes); it changes no existing table. The materialized view `private.scored_parcels` must be refreshed after every pipeline load that changes scores (`select private.refresh_dashboard_aggregates();`); the lists, search and navigation counts read it. Pages new in 5D: Outreach, Recipes, Off-market, Reports, Performance, Data sources, Team.
+
+Local checks for 5D: `npm run check`, `npm run e2e` (seeds two synthetic parcels and removes them again), `npm run screenshots` (every page at 1440x900 and 390x844, fails on console errors or horizontal overflow), and `pytest tests/test_dashboard_timing.py` (each new view under 500 ms as a team member).
+
 ## Refresh the cloud data from the local database
 
 Pipelines run against the local Supabase. To publish the result to the cloud:

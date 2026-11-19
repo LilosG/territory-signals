@@ -1,24 +1,28 @@
 ---
 import AppShell from '../../../components/ui/AppShell.astro';
-import PageHeader from '../../../components/ui/PageHeader.astro';
 import Button from '../../../components/ui/Button.astro';
 import Card from '../../../components/ui/Card.astro';
 import Grid from '../../../components/ui/Grid.astro';
 import Stack from '../../../components/ui/Stack.astro';
 import Cluster from '../../../components/ui/Cluster.astro';
-import Section from '../../../components/ui/Section.astro';
-import ScoreBadge from '../../../components/ui/ScoreBadge.astro';
+import ScoreRing from '../../../components/ui/ScoreRing.astro';
 import ScoreBreakdown from '../../../components/ui/ScoreBreakdown.astro';
 import RecipeTag from '../../../components/ui/RecipeTag.astro';
-import FactList from '../../../components/ui/FactList.astro';
-import SignalTimeline from '../../../components/ui/SignalTimeline.astro';
+import StatusPill from '../../../components/ui/StatusPill.astro';
+import FactRows from '../../../components/ui/FactRows.astro';
+import Fact from '../../../components/ui/Fact.astro';
+import SignalChip from '../../../components/ui/SignalChip.astro';
+import SourceLink from '../../../components/ui/SourceLink.astro';
+import ConfidenceIndicator from '../../../components/ui/ConfidenceIndicator.astro';
 import TabPanel from '../../../components/ui/TabPanel.astro';
 import Tabs from '../../../components/ui/Tabs.astro';
 import DraftView from '../../../components/ui/DraftView.astro';
 import DataTable from '../../../components/ui/DataTable.astro';
 import EmptyState from '../../../components/ui/EmptyState.astro';
 import SampleDataBadge from '../../../components/ui/SampleDataBadge.astro';
-import { OUTCOME_LABELS, RECIPE_LABELS } from '../../../lib/data';
+import { OUTCOME_LABELS, RECIPE_LABELS, LEAD_STATUS, signalLabel } from '../../../lib/data/catalog';
+import { landUseLabel } from '../../../data/landUse';
+import { collapseSignals, detailHeadline, docTypeLabel, eventTitle, isSensitiveComponent, publicReason, publicRecipes, reasonParts, type ReasonPart } from '../../../lib/present';
 import { fmtApn, fmtDate, fmtDateTime, fmtNum, fmtUsd, sentenceCase } from '../../../lib/format';
 export const prerender = false;
 
@@ -26,164 +30,274 @@ const lead = await Astro.locals.data.getLead(Astro.params.apn ?? '');
 if (!lead) return new Response('Not found', { status: 404 });
 const { parcel: p, score, owner } = lead;
 const back = `/leads/${p.apn}`;
-const draftBy = (c: string) => lead.outreach.find((o) => o.channel === c);
-const letter = draftBy('mail'), email = draftBy('email'), call = draftBy('call_task');
-const channelLabel = { mail: 'Letter', email: 'Email', call_task: 'Call task' } as const;
-const statusWord = (s: string) => sentenceCase(s.replace(/_/g, ' '));
-const history = lead.outreach.filter((o) => o.status === 'sent' || o.status === 'approved');
+const status = LEAD_STATUS[lead.status];
+const headline = detailHeadline(lead);
+const recipes = publicRecipes(score.recipe_matches ?? []);
+const primary = score.primary_recipe && recipes.includes(score.primary_recipe) ? score.primary_recipe : recipes[0] ?? null;
+const reason: ReasonPart[] = reasonParts(publicReason(score.reason_text));
+const items = lead.score_items.filter((i) => !isSensitiveComponent(i.key));
+const sensitiveItems = lead.score_items.filter((i) => isSensitiveComponent(i.key) && i.points > 0);
+const ownerSample = !!owner?.is_sample;
+
+const years = lead.years_owned;
 const noMortgage = owner ? !owner.mortgage_open : false;
 const equityPct = owner?.est_value && owner.est_equity != null ? Math.round((owner.est_equity / owner.est_value) * 100) : null;
-const years = lead.years_owned;
-const yearsText = years == null ? '—' : `${years} ${years === 1 ? 'year' : 'years'}`;
-const occupancy = owner ? (owner.absentee ? (owner.out_of_state ? 'Absentee, out of state' : 'Absentee') : 'Owner-occupied') : '—';
-const origin = Astro.url.origin;
-const ownerFacts = owner ? [
-  { label: 'Owner', value: owner.owner_name ?? '—' },
-  { label: 'Years owned', value: yearsText },
-  { label: 'Last sale', value: `${fmtDate(owner.last_sale_date)} · ${fmtUsd(owner.last_sale_price)}` },
-  { label: 'Estimated value', value: fmtUsd(owner.est_value), estimate: true },
+const occupancy = owner ? (owner.absentee ? (owner.out_of_state ? 'Absentee, out of state' : 'Absentee') : 'Owner-occupied') : null;
+type Row = { label: string; text: string; sample?: boolean; estimate?: boolean };
+const rows = (xs: (Row | null)[]) => xs.filter((x): x is Row => !!x && !!x.text);
+
+const keyFacts = rows([
+  years != null ? { label: 'Years owned', text: `${years} ${years === 1 ? 'year' : 'years'}`, sample: ownerSample } : null,
+  equityPct != null ? { label: 'Equity', text: `${equityPct}%`, estimate: true, sample: ownerSample } : null,
+  occupancy ? { label: 'Occupancy', text: occupancy, sample: ownerSample } : null,
+  p.lot_sqft ? { label: 'Lot size', text: `${fmtNum(Math.round(p.lot_sqft))} sq ft` } : null,
+  p.zoning ? { label: 'Zoning', text: p.zoning } : null,
+]);
+
+const ownerRows = owner ? rows([
+  owner.owner_name ? { label: 'Owner', text: owner.owner_name, sample: ownerSample } : null,
+  years != null ? { label: 'Years owned', text: `${years} ${years === 1 ? 'year' : 'years'}`, sample: ownerSample } : null,
+  owner.last_sale_date || owner.last_sale_price != null ? { label: 'Last sale', text: [owner.last_sale_date ? fmtDate(owner.last_sale_date) : null, owner.last_sale_price != null ? fmtUsd(owner.last_sale_price) : null].filter(Boolean).join(' · '), sample: ownerSample } : null,
+  owner.est_value != null ? { label: 'Estimated value', text: fmtUsd(owner.est_value), estimate: true, sample: ownerSample } : null,
   // With no open mortgage equity equals value, so the dollar figure is shown once and equity is a percentage.
-  noMortgage
-    ? { label: 'Estimated equity', value: equityPct != null ? `${equityPct}% of value` : '—', estimate: true }
-    : { label: 'Estimated equity', value: `${fmtUsd(owner.est_equity)}${equityPct != null ? ` (${equityPct}%)` : ''}`, estimate: true },
-  { label: 'Mortgage', value: owner.mortgage_open ? 'Open mortgage' : 'No open mortgage' },
-  { label: 'Occupancy', value: occupancy },
-  { label: 'Mailing address', value: owner.mailing_address ?? '—' },
-] : [];
+  owner.est_equity != null ? { label: 'Estimated equity', text: noMortgage ? (equityPct != null ? `${equityPct}% of value` : '') : `${fmtUsd(owner.est_equity)}${equityPct != null ? ` (${equityPct}%)` : ''}`, estimate: true, sample: ownerSample } : null,
+  owner.mortgage_open != null ? { label: 'Mortgage', text: owner.mortgage_open ? 'Open mortgage' : 'No open mortgage', sample: ownerSample } : null,
+  occupancy ? { label: 'Occupancy', text: occupancy, sample: ownerSample } : null,
+  owner.mailing_address ? { label: 'Mailing address', text: owner.mailing_address, sample: ownerSample } : null,
+]) : [];
+const propertyRows = rows([
+  p.neighborhood ? { label: 'Neighborhood', text: p.neighborhood } : null,
+  p.zoning ? { label: 'Zoning', text: p.zoning } : null,
+  landUseLabel(p.land_use) ? { label: 'Land use', text: landUseLabel(p.land_use)! } : null,
+  p.lot_sqft ? { label: 'Lot size', text: `${fmtNum(Math.round(p.lot_sqft))} sq ft` } : null,
+  p.year_built ? { label: 'Year built', text: String(p.year_built) } : null,
+  p.last_recorded_doc_date ? { label: 'Last recorded document', text: fmtDate(p.last_recorded_doc_date) } : null,
+]);
+const saleRows = lead.sales.map((s) => ({
+  label: s.sale_date ? fmtDate(s.sale_date) : 'Date not recorded',
+  text: [s.sale_price != null ? fmtUsd(s.sale_price) : null, docTypeLabel(s.doc_type)].filter(Boolean).join(' · '),
+  sample: s.is_sample,
+})).filter((r) => r.text);
+const salesSample = lead.sales.some((s) => s.is_sample);
+
+const events = collapseSignals(lead.signals);
+const traits = lead.trait_signals;
+const draftBy = (c: string) => lead.outreach.find((o) => o.channel === c);
+const drafts = [
+  { ch: 'mail', label: 'Letter', d: draftBy('mail') }, { ch: 'email', label: 'Email', d: draftBy('email') }, { ch: 'call_task', label: 'Call script', d: draftBy('call_task') },
+].filter((x) => x.d);
+const channelLabel = { mail: 'Letter', email: 'Email', call_task: 'Call task' } as const;
+const history = lead.outreach.filter((o) => o.status === 'sent' || o.status === 'approved');
+const dashboardEvents = lead.stage_events.filter((e) => e.source === 'dashboard');
+const origin = Astro.url.origin;
+const sensitiveCount = lead.sensitive_signals.length + sensitiveItems.length;
+const sensitiveLine = (t: string, d: string | null) =>
+  t === 'tax_default' ? `On the county tax-default list${d ? `, noticed ${fmtDate(d)}` : ''}` : t === 'ownership_transfer' ? `Ownership transfer recorded${d ? ` ${fmtDate(d)}` : ''}` : sentenceCase(signalLabel(t));
 ---
-<AppShell title={p.situs_address ?? p.apn} active="today">
-  <a href="/" class="mb-3 inline-block text-sm text-ink-muted hover:text-ink">← Today</a>
-  <PageHeader eyebrow={`${p.neighborhood} · APN ${fmtApn(p.apn)}`} title={p.situs_address ?? p.apn}>
-    <div class="flex items-center gap-2">
-      <Button href={`/leads/${p.apn}/presentation`} icon="print" size="sm">Export presentation</Button>
-      <details class="relative" data-overflow>
-        <summary class="grid h-8 w-8 cursor-pointer list-none place-items-center rounded-md border border-line-strong bg-surface text-ink hover:bg-sunken [&::-webkit-details-marker]:hidden" aria-label="More actions"><span aria-hidden="true" class="text-base leading-none">⋯</span></summary>
-        <div class="absolute right-0 z-20 mt-1 w-64 rounded-md border border-line bg-surface p-1 shadow-md">
-          <form method="post" action="/actions/share-create">
-            <input type="hidden" name="apn" value={p.apn} /><input type="hidden" name="back" value={`${back}#share`} />
-            <button type="submit" id="create-share" class="block w-full rounded px-3 py-2 text-left text-sm hover:bg-sunken">Share as off-market opportunity</button>
-          </form>
-        </div>
-      </details>
-    </div>
-  </PageHeader>
+<AppShell title={p.situs_address ?? p.apn} active="leads">
+  <a href="/leads" class="mb-3 inline-block text-sm text-ink-muted hover:text-ink">← Leads</a>
 
-  <Grid split="main-aside" gap={8}>
-    <Stack gap={8}>
-      <Card as="section" aria-labelledby="why-h">
-        <div class="flex flex-col gap-4 sm:flex-row sm:gap-6">
-          <div class="flex shrink-0 items-center gap-3 sm:flex-col sm:items-start sm:gap-2">
-            <p class="eyebrow max-sm:hidden">Score</p>
-            <ScoreBadge score={score.score} size="lg" showLabel />
-            <p class="text-xs text-ink-muted" data-model-version>Model {score.model_version}</p>
-          </div>
-          <div class="min-w-0 flex-1">
-            <h2 id="why-h" class="eyebrow">Why this lead</h2>
-            <p class="t-lead-reason mt-1.5 text-ink">{sentenceCase(score.reason_text)}</p>
-            <Cluster class="mt-3" gap={2}>{(score.recipe_matches ?? []).map((r) => <RecipeTag name={RECIPE_LABELS[r] ?? r} />)}</Cluster>
-          </div>
-        </div>
-        <!-- Key facts, phones only: the owner panel carries these on larger screens. -->
-        {owner && (
-          <dl data-key-facts class="mt-4 grid grid-cols-3 gap-3 border-t border-line pt-4 sm:hidden">
-            <div><dt class="eyebrow">Years owned</dt><dd class="mt-0.5 text-sm font-semibold">{yearsText}</dd></div>
-            <div><dt class="eyebrow">Equity</dt><dd class="mt-0.5 text-sm font-semibold">{equityPct != null ? `${equityPct}%` : '—'} <span class="text-2xs font-normal text-ink-muted">est.</span></dd></div>
-            <div><dt class="eyebrow">Occupancy</dt><dd class="mt-0.5 text-sm font-semibold">{occupancy}</dd></div>
-          </dl>
-        )}
-        {lead.score_items.length > 0 && (
-          <div class="mt-5 border-t border-line pt-5">
-            <p class="eyebrow mb-3">Score components <span class="normal-case tracking-normal text-ink-faint">· computed from stored records, total capped at 100</span></p>
-            <ScoreBreakdown items={lead.score_items} class="sm:grid sm:grid-cols-2 sm:gap-x-8" />
-          </div>
-        )}
-      </Card>
-
-      <Section title="Signals" description={`${lead.signal_total} detected${lead.signal_total > lead.signals.length ? `, latest ${lead.signals.length} shown` : ''}. Dated events only. Every signal links to its source record.`}>
-        <Card><SignalTimeline signals={lead.signals} /></Card>
-      </Section>
-
-      <Section id="drafts" title="Outreach drafts" description="Drafts only use facts in the database. A person approves before anything is sent.">
-        <Card>
-          {!letter && !email && !call
-            ? <EmptyState title="No drafts yet" description="Drafts are prepared for the highest-scoring leads." />
-            : <Tabs label="Outreach drafts" tabs={[{ id: 'letter', label: 'Letter' }, { id: 'email', label: 'Email' }, { id: 'call', label: 'Call script' }]}>
-                <TabPanel id="letter" active>{letter ? <DraftView draft={letter} back={`${back}#drafts`} /> : <EmptyState title="No letter drafted" />}</TabPanel>
-                <TabPanel id="email">{email ? <DraftView draft={email} back={`${back}#drafts`} /> : <EmptyState title="No email drafted" />}</TabPanel>
-                <TabPanel id="call">{call ? <DraftView draft={call} back={`${back}#drafts`} /> : <EmptyState title="No call script drafted" />}</TabPanel>
-              </Tabs>}
-        </Card>
-      </Section>
-
-      <Section title="Outreach history">
-        {history.length === 0 && lead.stage_events.length === 0
-          ? <EmptyState title="No outreach yet" description="Nothing has been sent or recorded for this property." />
-          : <Stack gap={4}>
-              {history.length > 0 && <DataTable caption="Outreach history" columns={[{ key: 'ch', label: 'Channel' }, { key: 'st', label: 'Status' }, { key: 'when', label: 'Sent', align: 'right' }]}
-                rows={history.map((o) => ({ cells: { ch: { v: channelLabel[o.channel] }, st: { v: statusWord(o.status) }, when: { v: o.sent_at ?? '', display: o.sent_at ? fmtDate(o.sent_at) : '—' } } }))} />}
-              {lead.stage_events.filter((e) => e.source === 'dashboard').length > 0 && <DataTable caption="Recorded outcomes" columns={[{ key: 'o', label: 'Outcome' }, { key: 'by', label: 'By', hideOnMobile: true }, { key: 'note', label: 'Note', hideOnMobile: true }, { key: 'when', label: 'Noted', align: 'right' }]}
-                rows={lead.stage_events.filter((e) => e.source === 'dashboard').map((e) => ({ cells: { o: { v: OUTCOME_LABELS[e.stage] ?? e.stage }, by: { v: e.team_member_email }, note: { v: e.note }, when: { v: e.occurred_at, display: fmtDateTime(e.occurred_at) } } }))} />}
-            </Stack>}
-      </Section>
-    </Stack>
-
-    <Stack gap={6}>
-      <Card as="section" aria-labelledby="owner-h">
-        <h2 id="owner-h" class="mb-4 flex items-center gap-2 text-base font-semibold">Owner {owner?.is_sample && <SampleDataBadge />}</h2>
-        {owner ? <FactList items={ownerFacts} /> : <EmptyState title="No owner data" />}
-        {owner && <p class="mt-4 text-xs text-ink-muted">As of {fmtDate(owner.as_of)} · provider: {owner.provider}</p>}
-      </Card>
-
-      <Card as="section" aria-labelledby="prop-h">
-        <h2 id="prop-h" class="mb-4 text-base font-semibold">Property</h2>
-        <FactList items={[
-          { label: 'Neighborhood', value: p.neighborhood ?? '—' },
-          { label: 'Zoning', value: p.zoning ?? '—' },
-          { label: 'Land use', value: p.land_use ?? '—' },
-          { label: 'Lot size', value: p.lot_sqft ? `${fmtNum(Math.round(p.lot_sqft))} sq ft` : '—' },
-          { label: 'Year built', value: p.year_built ? String(p.year_built) : '—' },
-          { label: 'Last recorded document', value: fmtDate(p.last_recorded_doc_date) },
-        ]} />
-        <p class="mt-4 text-xs text-ink-muted">Last recorded document date is not a purchase date.</p>
-      </Card>
-
-      <Card as="section" aria-labelledby="sales-h">
-        <h2 id="sales-h" class="mb-4 flex items-center gap-2 text-base font-semibold">Sales history {lead.sales.some((s) => s.is_sample) && <SampleDataBadge />}</h2>
-        {lead.sales.length === 0 ? <EmptyState title="No sales on record" /> : <FactList items={lead.sales.map((s) => ({ label: fmtDate(s.sale_date), value: `${fmtUsd(s.sale_price)}${s.doc_type ? ` · ${sentenceCase(s.doc_type)}` : ''}` }))} />}
-      </Card>
-
-      <Card as="section" aria-labelledby="outcome-h">
-        <h2 id="outcome-h" class="mb-1 text-base font-semibold">Record an outcome</h2>
-        <p class="mb-3 text-sm text-ink-muted">Log what happened after you reached out. It feeds the pipeline.</p>
-        <form method="post" action="/actions/stage" class="flex flex-col gap-3">
-          <input type="hidden" name="apn" value={p.apn} /><input type="hidden" name="back" value={back} />
-          <input type="text" name="note" maxlength="300" placeholder="Note (optional)" aria-label="Note (optional)" class="h-9 rounded-md border border-line-strong bg-surface px-3 text-sm placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30" />
-          <Cluster gap={2}>
-            {['contacted', 'conversation', 'appointment', 'listing', 'not_interested', 'bad_data'].map((k) => (
-              <button type="submit" name="stage" value={k} data-outcome={k} class="inline-flex h-8 items-center rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-ink hover:bg-sunken">{OUTCOME_LABELS[k]}</button>
-            ))}
-          </Cluster>
+  <Card as="section" aria-labelledby="hero-h" class="mb-6" data-hero>
+    <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+      <ScoreRing score={score.score} size="xl" showLabel />
+      <div class="min-w-0 flex-1">
+        <p class="eyebrow">{p.neighborhood} · APN {fmtApn(p.apn)}</p>
+        <h1 id="hero-h" class="t-h1 mt-1 text-ink">{p.situs_address ?? p.apn}</h1>
+        <Cluster class="mt-2" gap={2}>
+          {primary && <RecipeTag name={RECIPE_LABELS[primary] ?? primary} />}
+          <StatusPill tone={status.tone}>{status.label}</StatusPill>
+          {lead.is_sample && <SampleDataBadge />}
+        </Cluster>
+        {headline && <p class="mt-3 text-base font-medium text-ink"><Fact {...headline} /></p>}
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <Button href={`/leads/${p.apn}/presentation`} icon="print" size="sm">Export presentation</Button>
+        <form method="post" action="/actions/share-create">
+          <input type="hidden" name="apn" value={p.apn} /><input type="hidden" name="back" value={`${back}#share`} />
+          <Button type="submit" size="sm" icon="share" id="create-share">Share as off-market</Button>
         </form>
-      </Card>
+      </div>
+    </div>
+    {keyFacts.length > 0 && (
+      <dl data-key-facts class="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-line pt-4 sm:grid-cols-3 lg:grid-cols-5">
+        {keyFacts.map((f) => <div class="min-w-0"><dt class="eyebrow">{f.label}</dt><dd class="mt-0.5 truncate text-sm font-semibold tabular-nums"><Fact text={f.text} sample={f.sample} estimate={f.estimate} /></dd></div>)}
+      </dl>
+    )}
+  </Card>
 
-      <Card as="section" id="share" aria-labelledby="share-h">
-        <h2 id="share-h" class="mb-1 text-base font-semibold">Share links</h2>
-        <p class="mb-3 text-sm text-ink-muted">A share page shows property facts only: no owner, equity, sales or distress signals.</p>
-        {lead.share_links.length === 0
-          ? <p class="text-sm text-ink-muted">No active links. Create one from the ⋯ menu above.</p>
-          : <ul class="flex flex-col gap-3">
-              {lead.share_links.map((l) => (
-                <li class="flex flex-col gap-1.5 border-t border-line pt-3 first:border-0 first:pt-0" data-share-link>
-                  <input readonly value={`${origin}/share/${l.token}`} aria-label="Share link" class="h-9 w-full rounded-md border border-line bg-canvas px-2 text-xs text-ink" onfocus="this.select()" />
-                  <div class="flex items-center justify-between gap-2 text-xs text-ink-muted">
-                    <span>Created {fmtDate(l.created_at)} by {l.created_by}</span>
-                    <form method="post" action="/actions/share-revoke"><input type="hidden" name="token" value={l.token} /><input type="hidden" name="back" value={`${back}#share`} />
-                      <button type="submit" data-revoke class="font-medium text-critical hover:underline">Revoke</button></form>
-                  </div>
-                </li>
-              ))}
-            </ul>}
-      </Card>
-    </Stack>
-  </Grid>
+  <Tabs label="Lead brief" tabs={[{ id: 'overview', label: 'Overview' }, { id: 'signals', label: 'Signals' }, { id: 'owner', label: 'Owner and property' }, { id: 'outreach', label: 'Outreach' }, { id: 'activity', label: 'Activity' }]}>
+    <TabPanel id="overview" active>
+      <Grid split="main-aside" gap={6}>
+        <Card as="section" aria-labelledby="why-h">
+          <h2 id="why-h" class="t-h2">Why this lead</h2>
+          {reason.length > 0 && <p class="t-lead-reason mt-2 text-ink">{reason.map((r) => <Fact {...r} />)}</p>}
+          {recipes.length > 0 && <Cluster class="mt-3" gap={2}>{recipes.map((r) => <RecipeTag name={RECIPE_LABELS[r] ?? r} />)}</Cluster>}
+          {items.length > 0 && (
+            <div class="mt-5 border-t border-line pt-5">
+              <p class="eyebrow mb-3">Score components <span class="normal-case tracking-normal text-ink-faint">· computed from stored records, total capped at 100</span></p>
+              <ScoreBreakdown items={items} class="sm:grid sm:grid-cols-2 sm:gap-x-8" />
+            </div>
+          )}
+          <p class="mt-4 text-xs text-ink-muted" data-model-version>Model {score.model_version}</p>
+        </Card>
+        <Stack gap={6}>
+          <Card as="section" aria-labelledby="next-h">
+            <h2 id="next-h" class="t-h2">Next step</h2>
+            <p class="mt-1 text-sm text-ink-muted">{lead.status === 'new' ? 'No outreach yet.' : `Outreach is ${status.label.toLowerCase()}.`}</p>
+            <div class="mt-3"><Button size="sm" variant="primary" href="#drafts">Open drafts</Button></div>
+          </Card>
+        </Stack>
+      </Grid>
+    </TabPanel>
+
+    <TabPanel id="signals">
+      <Stack gap={6}>
+        <Card as="section" aria-labelledby="sig-h">
+          <h2 id="sig-h" class="t-h2">Events</h2>
+          <p class="mb-4 mt-0.5 text-sm text-ink-muted">Dated events that matter for selling. Permits approved the same day are grouped. Every event links to its source record.</p>
+          {events.length === 0
+            ? <EmptyState title="No events yet" description="Nothing that matters for selling has been detected for this property." />
+            : <ol class="flex flex-col">
+                {events.map(({ event: e, items: group }, i) => (
+                  <li class="relative grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-4 pb-5 last:pb-0" data-event>
+                    <span class="relative flex justify-center" aria-hidden="true">
+                      <span class:list={['mt-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-surface', e.is_estimate ? 'border-2 border-gold bg-surface' : 'bg-gold']}></span>
+                      {i < events.length - 1 && <span class="absolute bottom-[-1.25rem] top-4 w-px bg-line"></span>}
+                    </span>
+                    <div class="min-w-0">
+                      <p class="flex flex-wrap items-baseline gap-x-3 text-sm font-medium text-ink"><span>{eventTitle(e, false)}</span><time class="t-meta text-ink-muted" datetime={e.date}>{fmtDate(e.date)}</time>{e.is_sample && <span class="sample-fact t-meta text-ink-muted" title="Based on sample data, not a real record">sample</span>}</p>
+                      <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1"><SourceLink sourceKey={e.source_key} recordId={e.source_record_id} /><ConfidenceIndicator confidence={group[0]!.confidence} method={group[0]!.match_method} /></div>
+                      {group.length > 1 && (
+                        <details class="mt-2 text-sm">
+                          <summary class="cursor-pointer text-xs font-medium text-ink-muted hover:text-ink">Show all {group.length}</summary>
+                          <ul class="mt-2 flex flex-col gap-1.5 border-l border-line pl-3">
+                            {group.map((s) => <li class="flex flex-wrap items-center gap-x-3"><span>{sentenceCase(signalLabel(s.signal_type, s.details))}</span><SourceLink sourceKey={s.source_key} recordId={s.source_record_id} /></li>)}
+                          </ul>
+                        </details>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ol>}
+          {lead.signal_total > lead.signals.length && <p class="mt-4 text-xs text-ink-muted">Latest {lead.signals.length} of {lead.signal_total} shown.</p>}
+        </Card>
+        {traits.length > 0 && (
+          <Card as="section" aria-labelledby="trait-h">
+            <h2 id="trait-h" class="t-h2">Property traits</h2>
+            <p class="mb-3 mt-0.5 text-sm text-ink-muted">Latest status from the monitored datasets.</p>
+            <ul class="flex flex-wrap gap-2">{traits.map((t) => <li><SignalChip type={t.signal_type} details={t.details} estimate={t.is_estimate} /></li>)}</ul>
+          </Card>
+        )}
+      </Stack>
+    </TabPanel>
+
+    <TabPanel id="owner">
+      <Grid split="even" gap={6}>
+        <Stack gap={6}>
+          <Card as="section" aria-labelledby="owner-h">
+            <h2 id="owner-h" class="t-h2 mb-4 flex items-center gap-2">Owner {ownerSample && <SampleDataBadge />}</h2>
+            {ownerRows.length > 0 ? <FactRows rows={ownerRows} /> : <EmptyState title="No owner data" />}
+            {owner && <p class="mt-4 text-xs text-ink-muted">As of {fmtDate(owner.as_of)}</p>}
+          </Card>
+          {saleRows.length > 0 && (
+            <Card as="section" aria-labelledby="sales-h">
+              <h2 id="sales-h" class="t-h2 mb-4 flex items-center gap-2">Sales history {salesSample && <SampleDataBadge />}</h2>
+              <FactRows rows={saleRows} />
+            </Card>
+          )}
+        </Stack>
+        <Stack gap={6}>
+          <Card as="section" aria-labelledby="prop-h">
+            <h2 id="prop-h" class="t-h2 mb-4">Property</h2>
+            {propertyRows.length > 0 ? <FactRows rows={propertyRows} /> : <EmptyState title="No property details" />}
+            <p class="mt-4 text-xs text-ink-muted">Last recorded document date is not a purchase date.</p>
+          </Card>
+          {sensitiveCount > 0 && (
+            <Card as="section" aria-labelledby="sens-h" tone="sunken" data-sensitive>
+              <h2 id="sens-h" class="t-h2">Sensitive records</h2>
+              <p class="mb-3 mt-0.5 text-sm text-ink-muted">Handle with care. This information is never shown on lead cards, lists or share links, and is never used in outreach drafts.</p>
+              <ul class="flex flex-col gap-2 text-sm">
+                {lead.sensitive_signals.map((s) => <li class="flex flex-wrap items-baseline gap-x-3"><span>{sensitiveLine(s.signal_type, s.signal_date)}</span><SourceLink sourceKey={s.source_key} recordId={s.source_record_id} />{s.is_sample && <SampleDataBadge />}</li>)}
+                {sensitiveItems.map((i) => <li class="text-ink-muted">Contributes {i.points} of {i.max} points: {sentenceCase(i.label).replace(/ \(death, trust or inheritance\)/i, '')}</li>)}
+              </ul>
+            </Card>
+          )}
+        </Stack>
+      </Grid>
+    </TabPanel>
+
+    <TabPanel id="outreach">
+      <Stack gap={6}>
+        <Card as="section" id="drafts" aria-labelledby="drafts-h">
+          <h2 id="drafts-h" class="t-h2">Drafts</h2>
+          <p class="mb-4 mt-0.5 text-sm text-ink-muted">Drafts only use facts in the database. A person approves before anything is sent.</p>
+          {drafts.length === 0
+            ? <EmptyState title="No drafts yet" description="Drafts are prepared for the highest-scoring leads." />
+            : <Stack gap={8}>{drafts.map((x) => (
+                <section aria-label={x.label} class="border-t border-line pt-5 first:border-0 first:pt-0">
+                  <h3 class="eyebrow mb-3">{x.label}</h3>
+                  <DraftView draft={x.d!} back={`${back}#drafts`} />
+                </section>
+              ))}</Stack>}
+        </Card>
+        {history.length > 0 && (
+          <section aria-labelledby="hist-h" class="flex flex-col gap-3">
+            <h2 id="hist-h" class="t-h2">Outreach history</h2>
+            <DataTable caption="Outreach history" columns={[{ key: 'ch', label: 'Channel' }, { key: 'st', label: 'Status' }, { key: 'when', label: 'Sent', align: 'right' }]}
+              rows={history.map((o) => ({ cells: { ch: { v: channelLabel[o.channel] }, st: { v: sentenceCase(o.status.replace(/_/g, ' ')) }, when: { v: o.sent_at ?? '', display: o.sent_at ? fmtDate(o.sent_at) : 'Not sent' } } }))} />
+          </section>
+        )}
+      </Stack>
+    </TabPanel>
+
+    <TabPanel id="activity">
+      <Grid split="even" gap={6}>
+        <Stack gap={6}>
+          <Card as="section" aria-labelledby="outcome-h">
+            <h2 id="outcome-h" class="t-h2">Record an outcome</h2>
+            <p class="mb-3 mt-0.5 text-sm text-ink-muted">Log what happened after you reached out. It feeds Performance.</p>
+            <form method="post" action="/actions/stage" class="flex flex-col gap-3">
+              <input type="hidden" name="apn" value={p.apn} /><input type="hidden" name="back" value={`${back}#activity`} />
+              <input type="text" name="note" maxlength="300" placeholder="Note (optional)" aria-label="Note (optional)" class="h-9 rounded-md border border-line-strong bg-surface px-3 text-sm placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30" />
+              <Cluster gap={2}>
+                {['contacted', 'conversation', 'appointment', 'listing', 'not_interested', 'bad_data'].map((k) => (
+                  <button type="submit" name="stage" value={k} data-outcome={k} class="inline-flex h-8 items-center rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-ink hover:bg-sunken">{OUTCOME_LABELS[k]}</button>
+                ))}
+              </Cluster>
+            </form>
+          </Card>
+          <Card as="section" id="share" aria-labelledby="share-h">
+            <h2 id="share-h" class="t-h2">Share links</h2>
+            <p class="mb-3 mt-0.5 text-sm text-ink-muted">A share page shows property facts only: no owner, equity, sales or sensitive records.</p>
+            {lead.share_links.length === 0
+              ? <p class="text-sm text-ink-muted">No active links. Use “Share as off-market” at the top of this page.</p>
+              : <ul class="flex flex-col gap-3">
+                  {lead.share_links.map((l) => (
+                    <li class="flex flex-col gap-1.5 border-t border-line pt-3 first:border-0 first:pt-0" data-share-link>
+                      <input readonly value={`${origin}/share/${l.token}`} aria-label="Share link" class="h-9 w-full rounded-md border border-line bg-canvas px-2 text-xs text-ink" onfocus="this.select()" />
+                      <div class="flex items-center justify-between gap-2 text-xs text-ink-muted">
+                        <span>Created {fmtDate(l.created_at)} by {l.created_by}</span>
+                        <form method="post" action="/actions/share-revoke"><input type="hidden" name="token" value={l.token} /><input type="hidden" name="back" value={`${back}#share`} /><button type="submit" data-revoke class="font-medium text-critical hover:underline">Revoke</button></form>
+                      </div>
+                    </li>
+                  ))}
+                </ul>}
+          </Card>
+        </Stack>
+        <Card as="section" aria-labelledby="act-h">
+          <h2 id="act-h" class="t-h2 mb-3">Activity</h2>
+          {dashboardEvents.length === 0
+            ? <EmptyState title="No activity yet" description="Outcomes you record appear here." />
+            : <ul class="flex flex-col divide-y divide-line">
+                {dashboardEvents.map((e) => (
+                  <li class="py-3 first:pt-0 last:pb-0">
+                    <p class="flex flex-wrap items-baseline gap-x-3 text-sm"><span class="font-medium">{OUTCOME_LABELS[e.stage] ?? e.stage}</span><span class="t-meta text-ink-muted">{e.team_member_email} · {fmtDateTime(e.occurred_at)}</span></p>
+                    {e.note && <p class="mt-0.5 text-sm text-ink-muted">{e.note}</p>}
+                  </li>
+                ))}
+              </ul>}
+        </Card>
+      </Grid>
+    </TabPanel>
+  </Tabs>
 </AppShell>

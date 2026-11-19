@@ -1,0 +1,10 @@
+---
+import { sparkPoints } from '../../lib/present';
+/** Tiny trend line. Decorative; the number next to it carries the meaning. */
+export interface Props { values: number[]; width?: number; height?: number; class?: string }
+const { values, width = 88, height = 28, class: cls } = Astro.props;
+const pts = sparkPoints(values, width, height);
+---
+<svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false" class:list={['shrink-0 text-gold', cls]}>
+  {values.length > 1 && <polyline points={pts} fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />}
+</svg>

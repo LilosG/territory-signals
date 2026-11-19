@@ -72,3 +72,27 @@ export const LEAD_STATUS: Record<'new' | 'draft_ready' | 'awaiting_approval' | '
   approved: { label: 'Approved', tone: 'good' },
   sent: { label: 'Sent', tone: 'neutral' },
 };
+
+/**
+ * What the Data sources page shows, in this order, under friendly names. Internal steps (permit re-derivation) and
+ * base layers (parcels, zoning, planning areas) are deliberately not listed. `key` is the pipeline's source key.
+ */
+export const SOURCE_CATALOG: { key: string; label: string; description: string }[] = [
+  { key: 'dev_permits', label: 'City development permits', description: 'Approved and expired building, remodel, ADU and demolition permits.' },
+  { key: 'stro_licenses', label: 'Short-term rental licenses', description: 'Active City licenses; removals appear from the second weekly snapshot.' },
+  { key: 'tax_default', label: 'County tax-default list', description: 'Parcels on the Treasurer-Tax Collector power-to-sell list (updated each June).' },
+  { key: 'upzoning_estimate', label: 'Upzoning screen (estimated)', description: 'In-house SB 9 and SB 79 eligibility screen. Not an official determination.' },
+  { key: 'fire_zones', label: 'Fire hazard zones', description: 'State fire hazard severity zones, loaded from a downloaded file.' },
+  { key: 'owner_data', label: 'Owner and sales records', description: 'Ownership, tenure, equity and sale history.' },
+];
+/** Pipeline steps that are not data sources a person needs to look at. */
+export const INTERNAL_SOURCES = new Set(['permit_rederive', 'parcels', 'zoning', 'planning_areas', 'sample_sales_history', 'sample_owner']);
+
+/** Signal types that make a dated selling event (shown in timelines, feeds and counts). Permits in the "other" group never are. */
+export const EVENT_TYPES = ['permit_approved', 'permit_stalled', 'stro_license_removed'] as const;
+/** Tax default and ownership transfer: only the lead brief shows these, in a labeled section. */
+export const SENSITIVE_TYPES = ['tax_default', 'ownership_transfer'] as const;
+/** Property traits (latest snapshot): upzoning estimates, an active STR license, fire zone. */
+export const TRAIT_TYPES = ['sb9_lot_split_estimate', 'sb79_transit_estimate', 'stro_license_active', 'fire_hazard_zone'] as const;
+/** Recipes that describe an owner in distress. Their tags never appear on lead cards or lists. */
+export const SENSITIVE_RECIPES = new Set(['financial_pressure', 'quiet_inheritance']);

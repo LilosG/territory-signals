@@ -5,43 +5,41 @@ import Card from '../components/ui/Card.astro';
 import Section from '../components/ui/Section.astro';
 import Stack from '../components/ui/Stack.astro';
 import FunnelBars from '../components/ui/FunnelBars.astro';
-import StatTile from '../components/ui/StatTile.astro';
 import SampleDataBadge from '../components/ui/SampleDataBadge.astro';
 import EmptyState from '../components/ui/EmptyState.astro';
-import { fmtDate, fmtPct } from '../lib/format';
+import Button from '../components/ui/Button.astro';
+import { OUTCOME_LABELS } from '../lib/data/catalog';
+import { fmtDateTime } from '../lib/format';
 export const prerender = false;
-const [pipe, bt] = await Promise.all([Astro.locals.data.getPipeline(), Astro.locals.data.getBacktest()]);
+const pipe = await Astro.locals.data.getPipeline();
 ---
 <AppShell title="Pipeline" active="pipeline">
-  <PageHeader eyebrow="Signals to listings" title="Pipeline" description="How flagged properties move from signal to listing, by agent and by recipe." />
-  <Stack gap={10}>
-    <Card as="section" aria-labelledby="bt-h">
-      <div class="flex flex-wrap items-center gap-2"><h2 id="bt-h" class="text-lg font-semibold">Backtest</h2>{bt?.is_sample && <SampleDataBadge label="Sample until Phase 6" />}</div>
-      {bt
-        ? <>
-            <p class="mt-0.5 text-sm text-ink-muted">{fmtDate(bt.window.from)} – {fmtDate(bt.window.to)}</p>
-            <p class="mt-2 text-sm text-ink-muted">Would we have seen past sales coming? Share of past sales flagged before they listed, and how early.</p>
-            <dl class="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-4">
-              <StatTile emphasis label="Flagged before listing" value={fmtPct(bt.share_flagged)} hint={`of past sales · ${bt.flagged_before_listing} of ${bt.past_sales_considered}`} smallSample={bt.flagged_before_listing < 5} />
-              <StatTile emphasis label="Average days early" value={String(bt.avg_days_early)} hint="days" />
-              <StatTile label="Median days early" value={String(bt.median_days_early)} hint="days" />
-              <StatTile label="Past sales considered" value={String(bt.past_sales_considered)} hint="sales" />
-            </dl>
-            <p class="mt-5 border-t border-line pt-4 text-xs text-ink-muted">{bt.note}</p>
-          </>
-        : <EmptyState class="mt-4" title="Runs once owner sale history is connected (Phase 6)" description="A backtest needs real past sales. No backtest numbers are shown until then." />}
-    </Card>
-
+  <PageHeader eyebrow="Signals to listings" title="Pipeline" description="Where flagged properties stand and the latest outcomes the team has logged.">
+    <Button href="/performance" variant="secondary" icon="performance">Funnels by agent and recipe</Button>
+  </PageHeader>
+  <Stack gap={8}>
     {!pipe.has_events
-      ? <EmptyState title="No outcomes recorded yet" description="Open a lead and record an outcome (contacted, conversation, appointment, listing). The funnel fills in as the team logs results." />
+      ? <Card><EmptyState title="No outcomes recorded yet" description="Open a lead and record an outcome (contacted, conversation, appointment, listing). The pipeline fills in as the team logs results." /></Card>
       : <>
-          <Section title="Overall funnel" description="Parcels that reached each stage. Each stage shows the share that advanced from the stage before.">
-            <Card><FunnelBars caption="Overall funnel" rows={[pipe.overall]} /></Card>
+          <Section title="Overall funnel" description="Parcels that reached each stage.">
+            <Card><div class="mb-4 flex items-center gap-2">{pipe.is_sample && <SampleDataBadge />}</div><FunnelBars caption="Overall funnel" rows={[pipe.overall]} /></Card>
           </Section>
-          <Stack gap={10}>
-            <Section title="By agent"><Card><FunnelBars caption="Funnel by agent" rows={pipe.by_agent} /></Card></Section>
-            <Section title="By recipe" description="Each parcel counts once, under its primary recipe."><Card><FunnelBars caption="Funnel by recipe" rows={pipe.by_recipe} /></Card></Section>
-          </Stack>
+          <Section title="Recent outcomes">
+            <Card padded={false}>
+              {pipe.recent.length === 0
+                ? <p class="px-5 py-6 text-sm text-ink-muted">No outcomes yet.</p>
+                : <ul class="divide-y divide-line">
+                    {pipe.recent.map((e) => (
+                      <li class="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3" data-outcome-row>
+                        <span class="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent">{OUTCOME_LABELS[e.stage] ?? e.stage}</span>
+                        <a href={`/leads/${e.apn}`} class="min-w-0 flex-1 truncate text-sm font-medium hover:text-accent">{e.situs_address}{e.neighborhood ? ` · ${e.neighborhood}` : ''}</a>
+                        <span class="t-meta text-ink-muted">{e.by ?? 'System'} · {fmtDateTime(e.occurred_at)}</span>
+                        {e.note && <p class="w-full text-sm text-ink-muted">{e.note}</p>}
+                      </li>
+                    ))}
+                  </ul>}
+            </Card>
+          </Section>
         </>}
   </Stack>
 </AppShell>

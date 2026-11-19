@@ -14,7 +14,7 @@ import Tabs from '../components/ui/Tabs.astro';
 import Drawer from '../components/ui/Drawer.astro';
 import DataTable from '../components/ui/DataTable.astro';
 import StatTile from '../components/ui/StatTile.astro';
-import ScoreBadge from '../components/ui/ScoreBadge.astro';
+import ScoreRing from '../components/ui/ScoreRing.astro';
 import ScoreBreakdown from '../components/ui/ScoreBreakdown.astro';
 import SignalChip from '../components/ui/SignalChip.astro';
 import RecipeTag from '../components/ui/RecipeTag.astro';
@@ -36,9 +36,8 @@ import { brand } from '../config/brand';
 
 // The gallery always renders from the fixture bundle so it works without a database or a session.
 const data = fixturesProvider(() => { Astro.locals.sample.used = true; });
-const [feed, config, pipe, lead, trends] = await Promise.all([data.getTodayFeed(), data.getConfig(), data.getPipeline(), data.getLead((await data.getLeads()).items[0]!.parcel.apn), data.getTrends('All')]);
+const [feed, pipe, lead, trends] = await Promise.all([data.getTodayFeed(), data.getPipeline(), data.getLead((await data.getLeads()).items[0]!.parcel.apn), data.getTrends('All')]);
 const l = lead!;
-const recipeNames = Object.fromEntries(config.recipes.map((r) => [r.key, r.name]));
 const swatch = (name: string, cls: string, text = 'text-ink') => ({ name, cls, text });
 const neutrals = [swatch('canvas', 'bg-canvas'), swatch('surface', 'bg-surface'), swatch('sunken', 'bg-sunken'), swatch('line', 'bg-line'), swatch('line-strong', 'bg-line-strong'), swatch('ink-faint', 'bg-ink-faint', 'text-accent-fg'), swatch('ink-muted', 'bg-ink-muted', 'text-accent-fg'), swatch('ink', 'bg-ink', 'text-accent-fg')];
 const accents = [swatch('accent', 'bg-accent', 'text-accent-fg'), swatch('accent-strong', 'bg-accent-strong', 'text-accent-fg'), swatch('accent-soft', 'bg-accent-soft')];
@@ -86,7 +85,7 @@ const types = [['text-4xl', '4xl · 48'], ['text-3xl', '3xl · 36'], ['text-2xl'
 
     <Section title="Badges and indicators">
       <Card><Stack gap={6}>
-        <Cluster gap={3}><ScoreBadge score={92} showLabel /><ScoreBadge score={71} showLabel /><ScoreBadge score={48} showLabel /><ScoreBadge score={22} showLabel /><ScoreBadge score={92} size="lg" /><ScoreBadge score={55} size="sm" /></Cluster>
+        <Cluster gap={3}><ScoreRing score={92} size="md" showLabel /><ScoreRing score={71} size="md" showLabel /><ScoreRing score={48} size="md" showLabel /><ScoreRing score={22} size="md" showLabel /><ScoreRing score={92} size="lg" /><ScoreRing score={55} size="sm" /></Cluster>
         <Cluster gap={2}><SignalChip type="permit_approved" details={{ approval_type: "Approval - Construction - Demolition Pmt" }} /><SignalChip type="sb9_lot_split_estimate" estimate /><SignalChip type="stro_license_removed" /><SignalChip type="ownership_transfer" /><RecipeTag name="Tired landlord" /><SampleDataBadge /><EstimateBadge /></Cluster>
         <Cluster gap={6}><ConfidenceIndicator confidence={0.98} method="apn" /><ConfidenceIndicator confidence={0.83} method="address" /><ConfidenceIndicator confidence={0.62} method="name" /></Cluster>
         <Cluster gap={2}><StatusPill tone="good">Live</StatusPill><StatusPill tone="warning">Running</StatusPill><StatusPill tone="critical">Failed</StatusPill><StatusPill>Not connected</StatusPill></Cluster>
@@ -99,7 +98,7 @@ const types = [['text-4xl', '4xl · 48'], ['text-3xl', '3xl · 36'], ['text-2xl'
       <Card><dl class="grid grid-cols-2 gap-6 sm:grid-cols-4"><StatTile label="Standard" value="1,284" /><StatTile label="With hint" value="38%" hint="of past sales" /><StatTile label="Sample" value="$2.4M" sample /><StatTile label="Emphasis" value="74" emphasis hint="days early" /></dl></Card>
     </Stack></Section>
 
-    <Section title="Lead card"><Grid cols={2} gap={4}><LeadCard lead={feed.top_leads[0]!} recipeNames={recipeNames} rank={1} /><LeadCard lead={feed.top_leads[5]!} recipeNames={recipeNames} rank={6} /></Grid></Section>
+    <Section title="Lead card"><Grid cols={2} gap={4}><LeadCard lead={feed.top_leads[0]!} rank={1} /><LeadCard lead={feed.top_leads[5]!} rank={6} /></Grid></Section>
 
     <Section title="Signal timeline, score breakdown, fact list"><Grid cols={3} gap={4}>
       <Card><SignalTimeline signals={l.signals.slice(0, 4)} /></Card>
@@ -110,7 +109,7 @@ const types = [['text-4xl', '4xl · 48'], ['text-3xl', '3xl · 36'], ['text-2xl'
     <Section title="Data table (sortable)">
       <DataTable caption="Example leads" defaultSort={{ key: 'score', dir: 'desc' }}
         columns={[{ key: 'addr', label: 'Address', sortable: true }, { key: 'hood', label: 'Neighborhood', sortable: true, hideOnMobile: true }, { key: 'score', label: 'Score', type: 'score', sortable: true, align: 'right' }, { key: 'sig', label: 'Signals', type: 'number', sortable: true, align: 'right' }]}
-        rows={feed.top_leads.slice(0, 5).map((x) => ({ href: `/leads/${x.parcel.apn}`, cells: { addr: { v: x.parcel.situs_address }, hood: { v: x.parcel.neighborhood }, score: { v: x.score.score }, sig: { v: x.signal_count } } }))} />
+        rows={feed.top_leads.slice(0, 5).map((x) => ({ href: `/leads/${x.parcel.apn}`, cells: { addr: { v: x.parcel.situs_address }, hood: { v: x.parcel.neighborhood }, score: { v: x.score.score }, sig: { v: x.top_components.length } } }))} />
     </Section>
 
     <Section title="Tabs, funnel, trend card, empty state"><Stack gap={6}>

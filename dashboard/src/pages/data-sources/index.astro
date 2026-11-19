@@ -1,0 +1,39 @@
+---
+import AppShell from '../../components/ui/AppShell.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import Card from '../../components/ui/Card.astro';
+import Grid from '../../components/ui/Grid.astro';
+import Stack from '../../components/ui/Stack.astro';
+import StatusPill from '../../components/ui/StatusPill.astro';
+import { fmtDateTime, fmtNum } from '../../lib/format';
+export const prerender = false;
+const sources = await Astro.locals.data.getSources();
+// "Not connected yet" is neutral. Red is only for a source that is connected and whose last update failed.
+const tone = { live: 'good', failed: 'critical', running: 'warning', not_connected: 'neutral', sample: 'neutral' } as const;
+const word = { live: 'Live', failed: 'Last update failed', running: 'Updating now', not_connected: 'Not connected yet', sample: 'Sample data' } as const;
+const live = sources.filter((s) => s.state === 'live').length;
+---
+<AppShell title="Data sources" active="data-sources">
+  <PageHeader eyebrow={`${live} of ${sources.length} live`} title="Data sources" description="The public records and datasets behind every signal, and when each was last updated." />
+  <Stack gap={6}>
+    <Grid cols={2} gap={4}>
+      {sources.map((s) => (
+        <Card as="article" class="flex flex-col gap-3" data-source={s.key} data-state={s.state}>
+          <header class="flex flex-wrap items-start justify-between gap-2">
+            <h2 class="t-h2">{s.label}</h2>
+            <StatusPill tone={tone[s.state]}>{word[s.state]}</StatusPill>
+          </header>
+          <p class="text-sm text-ink-muted">{s.description}</p>
+          {s.note && <p class="text-sm text-ink">{s.note}</p>}
+          {s.last_run && (
+            <dl class="mt-auto grid grid-cols-3 gap-3 border-t border-line pt-3">
+              <div><dt class="eyebrow">Last update</dt><dd class="mt-0.5 text-sm font-medium">{fmtDateTime(s.last_run)}</dd></div>
+              <div><dt class="eyebrow">Records</dt><dd class="mt-0.5 text-sm font-medium tabular-nums">{fmtNum(s.rows_fetched)}</dd></div>
+              <div><dt class="eyebrow">Matched</dt><dd class="mt-0.5 text-sm font-medium tabular-nums">{fmtNum(s.rows_matched)}</dd></div>
+            </dl>
+          )}
+        </Card>
+      ))}
+    </Grid>
+  </Stack>
+</AppShell>

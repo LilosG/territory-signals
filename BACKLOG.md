@@ -111,3 +111,23 @@ Added during Phase 5C:
 - [ ] **Dashboard queries are heavy for a small instance.** Found in Phase 5C: `latest_scores` (a `DISTINCT ON` over all 131k score rows) made `leads_page` take 12-14 s on the cloud project, past the 8 s `authenticated` statement timeout (HTTP 500 on `/`). Fixed in migration `20261119000000_latest_scores_perf.sql` (index + one probe per parcel). Still the slowest on the cloud project (as the signed-in role): `leads_page` with the signal-group filter (~4 s), `trend_upzoning_by_hood` (~1.7 s), `trend_signals_monthly` (~1.6 s), `map_points` (~1.2 s). Consider a `latest_scores` table maintained by the scoring pipeline, and computing `total` separately from the page in `leads_page`.
 - Refresh of the trend tables is automatic after pipeline loads (done). Still manual after a raw `pg_dump` restore.
 - [ ] **`/api/map` payload is ~5 MB raw (about 26k features).** It is built in SQL and compressed by Cloudflare, but a score threshold, bounding-box queries or vector tiles would cut it. Also trim the `neighborhood` / `primary_recipe` properties the map does not use.
+
+Added during Phase 5D:
+
+- [ ] **"New this week" definition.** A lead is "new this week" when it has a selling-relevant event dated within the last 7 days (an approved permit outside the "other" group, or a removed short-term rental license). Tax default and ownership transfer never count. Revisit if the team wants "newly scored" instead.
+- [ ] **Bulk actions are capped at 50 and run one database call per item** (`approve-bulk`, `share-bulk`). Fine for a team's queue; move to a set-based function if queues grow.
+- [ ] **Map default of 30+** is applied in `/api/map` and `/api/leads` (query param `all=1` turns it off). The 5 MB payload item above shrinks a lot with it; re-measure on the cloud project.
+
+## Phase 5D Chunk 2 notes
+- Recipes page leaves out the distress recipes (financial_pressure, quiet_inheritance) on purpose; decide whether the team wants a labeled, permissioned view for them.
+- Today stat tiles use the last 14 days of signals, drafts, outcomes and active leads; fixtures data is older than that so tiles read zero in demo mode.
+- Outreach "Approve selected" runs one database check per draft (capped at 50); a single batch function would be faster if queues grow.
+- Reports are print-to-PDF pages; no generated PDF files yet.
+
+## Phase 5D Chunk 3 notes
+- [ ] **Refresh `private.scored_parcels` after every scoring run.** It is a materialized view, so the lists, search and counts show old scores until `select private.refresh_dashboard_aggregates();` runs. Call it at the end of the scoring pipeline (and the weekly VPS job).
+- [ ] **Search by APN matches digits only** (real APNs are numeric); a non-numeric APN is found by address only.
+- [ ] **Cmd+K dialog** now closes on Escape through its own handler (the browser's built-in close needed a fresh user gesture in automated tests).
+- [ ] **Playwright tests that page through Outreach and Off-market** walk up to 40 pages to find the seeded rows; add a search box to those pages if the lists keep growing.
+- [ ] **Screenshots** are saved in `dashboard/screenshots/` (git-tracked); consider git-ignoring them if the repo grows.
+

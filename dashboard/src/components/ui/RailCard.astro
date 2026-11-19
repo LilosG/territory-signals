@@ -1,0 +1,14 @@
+---
+import Card from './Card.astro';
+/** Right-rail card: title with a count, at most 5 rows, and a "View all" link. */
+export interface Props { title: string; count: number; href: string; shown: number; empty: string }
+const { title, count, href, shown, empty } = Astro.props;
+---
+<Card as="section" padded={false}>
+  <header class="flex items-center justify-between gap-3 border-b border-line px-5 py-3">
+    <h2 class="t-h2">{title} <span class="t-meta ml-1 tabular-nums text-ink-muted">{count}</span></h2>
+    {count > shown && <a href={href} class="t-meta text-accent hover:underline">View all</a>}
+  </header>
+  {shown === 0 ? <p class="px-5 py-6 text-sm text-ink-muted">{empty}</p> : <ul class="divide-y divide-line"><slot /></ul>}
+  {count > 0 && count <= shown && <a href={href} class="block border-t border-line px-5 py-2.5 text-xs font-medium text-accent hover:underline">View all</a>}
+</Card>

@@ -1,0 +1,113 @@
+---
+import AppShell from '../../components/ui/AppShell.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import Card from '../../components/ui/Card.astro';
+import Stack from '../../components/ui/Stack.astro';
+import Button from '../../components/ui/Button.astro';
+import EmptyState from '../../components/ui/EmptyState.astro';
+import Select from '../../components/ui/Select.astro';
+import TabLinks from '../../components/ui/TabLinks.astro';
+import StatusPill from '../../components/ui/StatusPill.astro';
+import { landUseLabel } from '../../data/landUse';
+import { signalTypeLabel } from '../../lib/present';
+import { fmtDate, fmtNum, fmtApn } from '../../lib/format';
+import type { OffMarketFilters } from '../../lib/data/types';
+export const prerender = false;
+
+const PAGE_SIZE = 25;
+const sp = Astro.url.searchParams;
+const page = Math.max(1, Number(sp.get('page') ?? 1) || 1);
+const kindParam = sp.get('kind');
+const kind: OffMarketFilters['kind'] = kindParam === 'builder_bait' || kindParam === 'tired_landlord' ? kindParam : undefined;
+const sortParam = sp.get('sort');
+const sort: OffMarketFilters['sort'] = sortParam === 'score' || sortParam === 'address' ? sortParam : 'lot';
+const result = await Astro.locals.data.getOffMarket({ kind, sort }, page, PAGE_SIZE);
+const pages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
+const q = (n: number) => { const x = new URLSearchParams(sp); x.set('page', String(n)); return `/off-market?${x}`; };
+const back = `/off-market${Astro.url.search}`;
+const origin = Astro.url.origin;
+const KIND_LABEL: Record<string, string> = { builder_bait: 'Builder bait', tired_landlord: 'Tired landlord' };
+---
+<AppShell title="Off-market" active="off-market">
+  <PageHeader eyebrow={`${fmtNum(result.total)} ${result.total === 1 ? 'property' : 'properties'}`} title="Off-market inventory" description="Properties that may sell before they list. Property facts only: owner, equity and sale details are never shown here or on a share link." />
+  <Stack gap={6}>
+    <TabLinks label="Inventory type" active={kind ?? 'all'} tabs={[
+      { id: 'all', label: 'All', href: '/off-market' },
+      { id: 'builder_bait', label: 'Builder bait', href: '/off-market?kind=builder_bait' },
+      { id: 'tired_landlord', label: 'Tired landlord', href: '/off-market?kind=tired_landlord' },
+    ]} />
+
+    <form method="get" class="flex flex-wrap items-end gap-3" aria-label="Sort inventory">
+      {kind && <input type="hidden" name="kind" value={kind} />}
+      <Select label="Sort by" name="sort" value={sort} class="w-48" options={[{ value: 'lot', label: 'Lot size' }, { value: 'score', label: 'Score' }, { value: 'address', label: 'Address' }]} />
+      <Button type="submit" variant="secondary">Sort</Button>
+    </form>
+
+    {result.items.length === 0
+      ? <Card><EmptyState title="Nothing in this view" description="Builder-bait and tired-landlord matches appear here when the recipes find them." /></Card>
+      : <>
+          <form id="share-form" method="post" action="/actions/share-bulk" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 py-3">
+            <input type="hidden" name="back" value={back} />
+            <label class="flex items-center gap-2 text-sm font-medium text-ink"><input type="checkbox" data-bulk-all class="h-4 w-4 rounded border-line-strong accent-[var(--color-accent)]" /><span data-bulk-label>Select all</span></label>
+            <Button type="submit" variant="primary" size="sm" icon="share" id="create-links">Create share links</Button>
+          </form>
+          <Card padded={false}>
+            <ul class="divide-y divide-line">
+              {result.items.map((p) => {
+                const facts = [p.lot_sqft ? `${fmtNum(Math.round(p.lot_sqft))} sq ft lot` : null, p.zoning, p.year_built ? `Built ${p.year_built}` : null, landUseLabel(p.land_use)].filter(Boolean).join(' · ');
+                return (
+                  <li class="flex items-start gap-3 px-4 py-4 sm:px-5" data-offmarket-row={p.apn}>
+                    <input type="checkbox" name="apn" value={p.apn} form="share-form" data-bulk-item aria-label={`Select ${p.situs_address ?? p.apn}`} class="mt-1 h-4 w-4 shrink-0 rounded border-line-strong accent-[var(--color-accent)]" />
+                    <div class="min-w-0 flex-1">
+                      <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <a href={`/leads/${p.apn}`} class="truncate text-sm font-semibold text-ink hover:text-accent">{p.situs_address ?? fmtApn(p.apn)}</a>
+                        <span class="t-meta text-ink-muted">{p.neighborhood}</span>
+                        {p.has_share_link && <StatusPill tone="good">Link active</StatusPill>}
+                      </div>
+                      {facts && <p class="mt-0.5 text-sm text-ink-muted">{facts}</p>}
+                      <ul class="mt-2 flex flex-wrap gap-1.5">
+                        {p.kinds.map((k) => <li class="rounded-md bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">{KIND_LABEL[k] ?? k}</li>)}
+                        {p.upzoning.map((u) => <li class="rounded-md bg-sunken px-2 py-0.5 text-xs font-medium text-ink-muted">{signalTypeLabel(u)}<span class="est-tag">est.</span></li>)}
+                      </ul>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+          <nav aria-label="Pagination" class="flex items-center justify-between gap-3 text-sm">
+            <span class="text-ink-muted">Page {page} of {pages}</span>
+            <span class="flex gap-2">{page > 1 && <Button href={q(page - 1)} size="sm">Previous</Button>}{page < pages && <Button href={q(page + 1)} size="sm">Next</Button>}</span>
+          </nav>
+        </>}
+
+    <section id="links" aria-labelledby="links-h" class="flex flex-col gap-3">
+      <div><h2 id="links-h" class="t-h2">Share links</h2><p class="text-sm text-ink-muted">Send these to investors or builders. Each page shows property facts only and can be revoked any time.</p></div>
+      {result.links.length === 0
+        ? <Card><p class="text-sm text-ink-muted">No active share links. Select properties above and create links.</p></Card>
+        : <Card padded={false}>
+            <ul class="divide-y divide-line">
+              {result.links.map((l) => (
+                <li class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-5" data-share-link>
+                  <div class="min-w-0 sm:w-64"><p class="truncate text-sm font-medium">{l.situs_address ?? fmtApn(l.apn)}</p><p class="t-meta truncate text-ink-muted">{l.neighborhood} · {fmtDate(l.created_at)}</p></div>
+                  <input readonly value={`${origin}/share/${l.token}`} aria-label="Share link" onfocus="this.select()" class="h-9 min-w-0 flex-1 rounded-md border border-line bg-canvas px-2 text-xs text-ink" />
+                  <form method="post" action="/actions/share-revoke"><input type="hidden" name="token" value={l.token} /><input type="hidden" name="back" value={`${back}#links`} /><button type="submit" class="text-sm font-medium text-critical hover:underline" data-revoke>Revoke</button></form>
+                </li>
+              ))}
+            </ul>
+          </Card>}
+    </section>
+  </Stack>
+</AppShell>
+<script>
+  const all = document.querySelector<HTMLInputElement>('[data-bulk-all]');
+  const items = () => Array.from(document.querySelectorAll<HTMLInputElement>('[data-bulk-item]'));
+  const label = document.querySelector<HTMLElement>('[data-bulk-label]');
+  const sync = () => {
+    const n = items().filter((i) => i.checked).length;
+    if (label) label.textContent = n > 0 ? `${n} selected` : 'Select all';
+    if (all) { all.checked = n > 0 && n === items().length; all.indeterminate = n > 0 && n < items().length; }
+  };
+  all?.addEventListener('change', () => { items().forEach((i) => (i.checked = all.checked)); sync(); });
+  document.addEventListener('change', (e) => { if ((e.target as HTMLElement).matches('[data-bulk-item]')) sync(); });
+</script>

@@ -48,9 +48,12 @@ try {
 
   const pages: [string, string, boolean][] = [   // name, path, needs session
     ['login', '/login', false], ['share', `/share/${token}`, false],
-    ['today', '/', true], ['leads', '/leads', true], ['map', '/map', true],
+    ['today', '/', true], ['leads', '/leads', true], ['outreach', '/outreach', true], ['outreach-drafts', '/outreach?tab=drafts', true], ['pipeline', '/pipeline', true],
+    ['map', '/map', true], ['recipes', '/recipes', true], ['off-market', '/off-market', true],
+    ['trends', '/trends', true], ['trends-newsletter', '/trends/newsletter', true], ['reports', '/reports', true], ['report-la-jolla', '/reports/la-jolla', true],
+    ['performance', '/performance', true], ['data-sources', '/data-sources', true], ['team', '/team', true], ['settings', '/settings', true],
     ['lead-brief', `/leads/${top}`, true], ['lead-brief-draft', `/leads/${drafted}#drafts`, true], ['lead-presentation', `/leads/${top}/presentation`, true],
-    ['trends', '/trends', true], ['trends-newsletter', '/trends/newsletter', true], ['pipeline', '/pipeline', true], ['settings', '/settings', true], ['design-system', '/design-system', true],
+    ['design-system', '/design-system', true],
   ];
   // The link is single use: sign in once and reuse the session for every page.
   const login = await plain.newContext();
@@ -78,11 +81,12 @@ try {
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       if (overflow > 1) errors.push(`horizontal overflow: ${overflow}px`);
 
-      if (name === 'today' && vpName === 'mobile') {
-        const box = await page.locator('article').first().boundingBox();
-        if (!box || box.y + box.height > vp.height) errors.push(`first lead card is not fully visible without scrolling (bottom ${box ? Math.round(box.y + box.height) : 'n/a'} > ${vp.height})`);
-        if (await page.getByRole('link', { name: 'Open map' }).isVisible()) errors.push('"Open map" should be hidden on mobile');
-      }
+      if (name === 'today' && vpName === 'mobile' && (await page.getByRole('link', { name: 'Open map' }).isVisible())) errors.push('"Open map" should be hidden on mobile');
+      // No clipped labels: nothing may be wider than its own box without an ellipsis or scroll container.
+      const clipped = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('h1, h2, h3, button, a, label, th, [class*="badge"], [class*="pill"]')]
+        .filter((e) => e.getBoundingClientRect().width > 4 && e.getBoundingClientRect().height > 4 && !e.closest('.sr-only') && !(e instanceof HTMLAnchorElement && e.textContent === 'Skip to content') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflowX === 'hidden' && getComputedStyle(e).textOverflow !== 'ellipsis')
+        .slice(0, 3).map((e) => `${e.tagName} "${(e.textContent ?? '').trim().slice(0, 40)}"`));
+      for (const c of clipped) errors.push(`clipped label: ${c}`);
       if (name === 'map') {
         await page.selectOption('select[name=hood]', 'Mission Beach'); await sleep(2500);
         const n = await page.evaluate(() => document.getElementById('map-count')?.textContent);

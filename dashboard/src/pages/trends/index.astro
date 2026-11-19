@@ -7,10 +7,11 @@ import TabPanel from '../../components/ui/TabPanel.astro';
 import Tabs from '../../components/ui/Tabs.astro';
 import Grid from '../../components/ui/Grid.astro';
 import TrendCard from '../../components/ui/TrendCard.astro';
+import { slugify } from '../../lib/format';
 const config = await Astro.locals.data.getConfig();
 const areas = ['All', ...config.territory.neighborhoods];
 const trends = await Promise.all(areas.map((a) => Astro.locals.data.getTrends(a)));
-const slug = (a: string) => a.toLowerCase().replace(/\s+/g, '-');
+const slug = slugify;
 ---
 <AppShell title="Trends" active="trends">
   <PageHeader eyebrow="Month over month · last 12 months" title="Neighborhood trends" description="What is moving in each neighborhood, with a plain-language takeaway for every chart.">

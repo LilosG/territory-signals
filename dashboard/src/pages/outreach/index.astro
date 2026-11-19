@@ -1,0 +1,78 @@
+---
+import AppShell from '../../components/ui/AppShell.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import Stack from '../../components/ui/Stack.astro';
+import Card from '../../components/ui/Card.astro';
+import Button from '../../components/ui/Button.astro';
+import EmptyState from '../../components/ui/EmptyState.astro';
+import TabLinks from '../../components/ui/TabLinks.astro';
+import OutreachQueueRow from '../../components/ui/OutreachQueueRow.astro';
+import type { OutreachTab } from '../../lib/data/types';
+export const prerender = false;
+
+const TABS: { id: OutreachTab; label: string }[] = [
+  { id: 'drafts', label: 'Drafts' }, { id: 'awaiting_approval', label: 'Awaiting approval' }, { id: 'approved', label: 'Approved' }, { id: 'call_tasks', label: 'Call tasks' },
+];
+const PAGE_SIZE = 25;
+const sp = Astro.url.searchParams;
+const tab = (TABS.find((t) => t.id === sp.get('tab'))?.id ?? 'awaiting_approval') as OutreachTab;
+const page = Math.max(1, Number(sp.get('page') ?? 1) || 1);
+const result = await Astro.locals.data.getOutreach(tab, page, PAGE_SIZE);
+const c = result.counts;
+const counts: Record<OutreachTab, number> = { drafts: c.drafts, awaiting_approval: c.awaiting_approval, approved: c.approved, call_tasks: c.call_tasks };
+const pages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
+const link = (n: number) => `/outreach?tab=${tab}&page=${n}`;
+const bulk = tab === 'drafts' || tab === 'awaiting_approval';
+const back = `/outreach?tab=${tab}${page > 1 ? `&page=${page}` : ''}`;
+const approvable = result.items.filter((o) => o.blocked.length === 0).length;
+const empty = {
+  drafts: ['No drafts', 'New drafts appear here after the weekly draft run.'],
+  awaiting_approval: ['All clear', 'No drafts are waiting for approval.'],
+  approved: ['Nothing approved yet', 'Approved drafts appear here. Outreach is in preview mode: nothing is sent.'],
+  call_tasks: ['No calls due', 'Calls are placed by the team. Nothing is dialed automatically.'],
+}[tab];
+---
+<AppShell title="Outreach" active="outreach">
+  <PageHeader eyebrow="Preview mode · nothing is sent" title="Outreach" description="Review drafts, approve them in bulk, and see what is blocked and why. A person approves everything." />
+  <Stack gap={5}>
+    <TabLinks label="Outreach" active={tab} tabs={TABS.map((t) => ({ ...t, href: `/outreach?tab=${t.id}`, count: counts[t.id] }))} />
+
+    {result.items.length === 0
+      ? <Card><EmptyState title={empty[0]!} description={empty[1]} /></Card>
+      : <>
+          {bulk && (
+            <form id="bulk-form" method="post" action="/actions/approve-bulk" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 py-3" data-bulk-bar>
+              <input type="hidden" name="back" value={back} />
+              <label class="flex items-center gap-2 text-sm font-medium text-ink">
+                <input type="checkbox" data-bulk-all class="h-4 w-4 rounded border-line-strong accent-[var(--color-accent)]" disabled={approvable === 0} />
+                <span data-bulk-label>Select all ready ({approvable})</span>
+              </label>
+              <Button type="submit" variant="primary" size="sm" icon="check" id="approve-selected">Approve selected</Button>
+            </form>
+          )}
+          <Card padded={false}>
+            <ul class="divide-y divide-line">{result.items.map((o) => <OutreachQueueRow item={o} selectable={bulk} />)}</ul>
+          </Card>
+          <nav aria-label="Pagination" class="flex items-center justify-between gap-3 text-sm">
+            <span class="text-ink-muted">Page {page} of {pages} · {result.total} {result.total === 1 ? 'item' : 'items'}</span>
+            <span class="flex gap-2">
+              {page > 1 && <Button href={link(page - 1)} size="sm">Previous</Button>}
+              {page < pages && <Button href={link(page + 1)} size="sm">Next</Button>}
+            </span>
+          </nav>
+        </>}
+  </Stack>
+</AppShell>
+<script>
+  const all = document.querySelector<HTMLInputElement>('[data-bulk-all]');
+  const items = () => Array.from(document.querySelectorAll<HTMLInputElement>('[data-bulk-item]:not(:disabled)'));
+  const label = document.querySelector<HTMLElement>('[data-bulk-label]');
+  const total = items().length;
+  const sync = () => {
+    const n = items().filter((i) => i.checked).length;
+    if (label) label.textContent = n > 0 ? `${n} selected` : `Select all ready (${total})`;
+    if (all) { all.checked = n > 0 && n === total; all.indeterminate = n > 0 && n < total; }
+  };
+  all?.addEventListener('change', () => { items().forEach((i) => (i.checked = all.checked)); sync(); });
+  document.addEventListener('change', (e) => { if ((e.target as HTMLElement).matches('[data-bulk-item]')) sync(); });
+</script>

@@ -1,0 +1,27 @@
+---
+import AppShell from '../../components/ui/AppShell.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import Card from '../../components/ui/Card.astro';
+import EmptyState from '../../components/ui/EmptyState.astro';
+export const prerender = false;
+const team = await Astro.locals.data.getTeam();
+const ROLE = { owner: 'Owner', agent: 'Agent', assistant: 'Assistant' } as const;
+const ROLE_NOTE = { owner: 'Full access', agent: 'Works leads and approves outreach', assistant: 'Prepares drafts and tasks' } as const;
+const initials = (n: string | null, e: string) => (n ?? e).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((x) => x[0]!.toUpperCase()).join('');
+---
+<AppShell title="Team" active="team">
+  <PageHeader eyebrow="Read-only" title="Team" description="Only these people can sign in. To add or change someone, ask your administrator." />
+  <Card padded={false}>
+    {team.length === 0
+      ? <EmptyState title="No team members yet" description="People appear here once they are added by your administrator." />
+      : <ul class="divide-y divide-line">
+          {team.map((m) => (
+            <li class="flex items-center gap-4 px-5 py-4" data-team-member>
+              <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent-soft text-sm font-semibold text-accent" aria-hidden="true">{initials(m.name, m.email)}</span>
+              <div class="min-w-0 flex-1"><p class="truncate text-sm font-semibold">{m.name ?? m.email}</p>{m.name && <p class="t-meta truncate text-ink-muted">{m.email}</p>}</div>
+              <div class="text-right"><p class="text-sm font-medium">{ROLE[m.role]}</p><p class="t-meta text-ink-muted max-sm:hidden">{ROLE_NOTE[m.role]}</p></div>
+            </li>
+          ))}
+        </ul>}
+  </Card>
+</AppShell>

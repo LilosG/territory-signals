@@ -206,7 +206,7 @@ export interface ShareLink { token: string; apn: string; created_by: string; cre
 
 export type ScoreBand = 'low' | 'watch' | 'warm' | 'hot';
 
-export interface Recipe { key: string; name: string; description: string; enabled: boolean }
+export interface Recipe { key: string; name: string; description: string; enabled: boolean; requires_data?: string[] }
 
 export interface ClientConfig {
   client_id: string;
@@ -222,20 +222,26 @@ export interface ClientConfig {
 /** Where outreach stands for a lead, from the outreach table. Derived, never typed in by hand. */
 export type LeadStatus = 'new' | 'draft_ready' | 'awaiting_approval' | 'approved' | 'sent';
 
+export interface TopComponent { key: string; facts: Record<string, unknown> | null; points: number; signal_date: IsoDate | null; is_sample: boolean; is_estimate: boolean }
+
 export interface LeadSummary {
   parcel: { apn: string; situs_address: string | null; neighborhood: string | null };
   score: { score: number; reason_text: string | null; recipe_matches: string[]; primary_recipe: string | null; model_version: string; scored_at: IsoTimestamp; uses_sample_data: boolean };
-  owner: { owner_name: string | null; is_sample: boolean; last_sale_date: IsoDate | null; est_equity: number | null } | null;
+  owner: { owner_name: string | null; is_sample: boolean; last_sale_date: IsoDate | null; est_equity: number | null; absentee: boolean | null; out_of_state: boolean | null } | null;
   /** Whole years since the current owner's tenure started (owners.last_sale_date). */
   years_owned: number | null;
-  signal_count: number;
-  top_signal_types: string[];
+  lot_sqft: number | null;
+  zoning: string | null;
+  /** Most recent selling-relevant event (approved permit outside "other", removed STR license). */
   latest_signal_date: IsoDate | null;
+  /** The three largest signal components, for the card headline. */
+  top_components: TopComponent[];
   status: LeadStatus;
   /** True if the score or the owner row shown for this lead is sample data. */
   is_sample: boolean;
 }
 
+export type LeadSort = 'score' | 'recent' | 'lot' | 'address';
 export interface LeadFilters {
   recipe?: string;
   signalGroup?: string;
@@ -243,6 +249,10 @@ export interface LeadFilters {
   minScore?: number;
   maxScore?: number;
   search?: string;
+  status?: LeadStatus;
+  /** Saved view "New this week": a selling-relevant event dated in the last 7 days. */
+  isNew?: boolean;
+  sort?: LeadSort;
 }
 export interface LeadPage { items: LeadSummary[]; total: number; page: number; pageSize: number }
 
@@ -253,9 +263,14 @@ export interface LeadDetail {
   owner: Owner | null;
   years_owned: number | null;
   sales: SaleHistory[];
+  /** Dated selling events (permits outside "other", STR removals), newest first. Collapsed by the page. */
   signals: Signal[];
-  /** Live signals on the parcel; `signals` holds the latest 25 of them. */
+  /** Live events on the parcel; `signals` holds the latest 80 of them. */
   signal_total: number;
+  /** Tax default and ownership transfer: shown only in the brief's labeled sensitive section. */
+  sensitive_signals: Signal[];
+  /** Latest snapshot of property traits: upzoning estimates, active STR license, fire zone. */
+  trait_signals: Signal[];
   outreach: Outreach[];
   stage_events: StageEvent[];
   share_links: ShareLink[];
@@ -288,17 +303,71 @@ export interface SharePage {
   agent_phone: string | null;
 }
 
-export interface FeedSignal extends Signal { situs_address: string | null; neighborhood: string | null }
+/** One selling-relevant event, same-day events of one kind on a parcel merged into one with a count. */
+export interface SignalEvent {
+  apn: string; situs_address: string | null; neighborhood: string | null;
+  type: string; group: string; date: IsoDate; count: number;
+  is_sample: boolean; is_estimate: boolean; source_key: string; source_record_id: string;
+  details: Record<string, unknown> | null;
+}
+
+export interface NavCounts { leads: number; drafts: number; awaiting_approval: number; approved: number; call_tasks: number; off_market: number }
+
+export interface StatSeries {
+  metric: 'signals' | 'drafts' | 'outcomes' | 'active_leads';
+  days: { day: IsoDate; n: number }[];
+  this_week: number;
+  last_week: number;
+}
+export interface RecipeWeek { key: string; label: string; parcels: number; new_this_week: number }
+
+/** A row of the outreach queue. */
+export interface OutreachItem {
+  id: Uuid; apn: string; channel: OutreachChannel; status: OutreachStatus; recipe: string | null;
+  content: string | null; blocked_reason: string | null; blocked: string[]; uses_sample_data: boolean;
+  situs_address: string | null; neighborhood: string | null; score: number | null; assigned_name: string | null;
+  created_at: IsoTimestamp; due_date: IsoDate | null; approved_by: string | null;
+}
+export type OutreachTab = 'drafts' | 'awaiting_approval' | 'approved' | 'call_tasks';
+export interface OutreachPage { tab: OutreachTab; items: OutreachItem[]; total: number; page: number; pageSize: number; counts: NavCounts }
+
 export interface TodayFeed {
   as_of: IsoTimestamp;
+  territory: string | null;
   coverage: Coverage;
+  stats: StatSeries[];
+  leads_total: number;
   top_leads: LeadSummary[];
-  new_signals: FeedSignal[];
-  new_signals_total: number;
-  approvals_waiting: (Outreach & { situs_address: string | null })[];
-  approvals_total: number;
-  call_tasks_due: (Outreach & { situs_address: string | null; score: number | null; reason_text: string | null; assigned_agent: string | null })[];
+  recipe_strip: RecipeWeek[];
+  approvals: OutreachItem[]; approvals_total: number;
+  call_tasks: OutreachItem[]; call_tasks_total: number;
+  new_signals: SignalEvent[]; new_signals_total: number;
 }
+
+export interface RecipeCard {
+  key: string; name: string; description: string; enabled: boolean;
+  parcels: number; new_this_week: number; strong: number;
+  top: { apn: string; score: number; situs_address: string | null; neighborhood: string | null }[];
+  /** Why an enabled or disabled recipe has no matches; null when it has some. */
+  idle_reason: string | null;
+  is_sample: boolean;
+}
+
+export interface OffMarketRow {
+  apn: string; situs_address: string | null; neighborhood: string | null; lot_sqft: number | null; zoning: string | null;
+  year_built: number | null; land_use: string | null; kinds: string[]; upzoning: string[]; has_share_link: boolean;
+}
+export interface ActiveShareLink { token: string; apn: string; situs_address: string | null; neighborhood: string | null; created_by: string; created_at: IsoTimestamp }
+export interface OffMarketPage { items: OffMarketRow[]; total: number; page: number; pageSize: number; links: ActiveShareLink[] }
+export interface OffMarketFilters { kind?: 'builder_bait' | 'tired_landlord'; sort?: 'lot' | 'score' | 'address' }
+
+export interface SearchHit { apn: string; situs_address: string | null; neighborhood: string | null; score: number }
+
+export interface CoverageWeek { week: IsoDate; signals: number; sources_live: number; parcels_monitored: number }
+export interface Performance { by_agent: FunnelRow[]; by_recipe: FunnelRow[]; overall: FunnelRow; has_events: boolean; coverage: CoverageWeek[]; backtest: Backtest | null; is_sample: boolean }
+
+export type SourceState = 'live' | 'running' | 'not_connected' | 'sample' | 'failed';
+export interface SourceCard { key: string; label: string; description: string; state: SourceState; last_run: IsoTimestamp | null; rows_fetched: number | null; rows_matched: number | null; note: string | null }
 
 export interface TrendPoint { month: string; value: number }
 export interface TrendSeries { key: string; label: string; points: TrendPoint[] }
@@ -313,12 +382,18 @@ export interface TrendMetric {
   /** True when any row behind this chart is sample data. */
   is_sample: boolean;
   takeaway: string; // computed deterministically
+  /** Series hidden by default behind a toggle (the "other" permit group). */
+  optional_series?: TrendSeries[];
+  optional_label?: string;
+  /** Set when the chart would mislead (all rows are sample data, or there is nothing yet): a designed empty state is shown instead. */
+  empty_state?: string;
 }
 export interface Trends { area: string; months: string[]; metrics: TrendMetric[]; is_sample: boolean }
 
 export interface FunnelStage { key: 'signal' | 'contacted' | 'conversation' | 'appointment' | 'listing'; label: string; count: number }
 export interface FunnelRow { label: string; stages: FunnelStage[] }
-export interface Pipeline { by_agent: FunnelRow[]; by_recipe: FunnelRow[]; overall: FunnelRow; has_events: boolean; is_sample: boolean }
+export interface RecentOutcome { apn: string; situs_address: string | null; neighborhood: string | null; stage: string; by: string | null; note: string | null; occurred_at: IsoTimestamp }
+export interface Pipeline { by_agent: FunnelRow[]; by_recipe: FunnelRow[]; overall: FunnelRow; has_events: boolean; recent: RecentOutcome[]; is_sample: boolean }
 
 /** `null` from the supabase provider until owner sale history exists (Phase 6). */
 export interface Backtest {

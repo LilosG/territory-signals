@@ -1,8 +1,8 @@
 ---
-import type { TodayFeed } from '../../lib/data/types';
+import type { OutreachItem } from '../../lib/data/types';
 import Icon from './Icon.astro';
 import Button from './Button.astro';
-export interface Props { item: TodayFeed['approvals_waiting'][number] }
+export interface Props { item: OutreachItem }
 const { item: o } = Astro.props;
 const kind = o.channel === 'mail' ? { icon: 'letter', label: 'Letter' } : { icon: 'mail', label: 'Email' };
 ---

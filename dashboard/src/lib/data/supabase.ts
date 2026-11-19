@@ -1,12 +1,13 @@
 import { titleAddress } from '../format';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadClientConfig } from '../config';
-import { RECIPE_LABELS, SOURCE_LABEL, STAGES, bandOf } from './catalog';
+import { EVENT_TYPES, INTERNAL_SOURCES, RECIPE_LABELS, SENSITIVE_TYPES, SOURCE_CATALOG, STAGES, TRAIT_TYPES, bandOf } from './catalog';
 import type { DataProvider, MarkSample, SharePageReader } from './provider';
 import { buildTrends, leadStatus, scoreItems, yearsSince, type TrendRows } from './shared';
 import type {
-  Backtest, ClientConfig, Coverage, CoverageSource, FeedSignal, FunnelRow, LeadDetail, LeadFilters, LeadPage, LeadSummary,
-  MapData, Outreach, Pipeline, SharePage, SourceRun, TodayFeed, Trends,
+  Backtest, ClientConfig, Coverage, FunnelRow, LeadDetail, LeadFilters, LeadPage, LeadSummary, MapData, NavCounts, OffMarketPage,
+  Outreach, OutreachItem, OutreachPage, Performance, Pipeline, RecentOutcome, RecipeCard, SearchHit, SharePage,
+  SignalEvent, SourceCard, StatSeries, TeamMember, TodayFeed, Trends,
 } from './types';
 
 type Row = Record<string, any>;
@@ -19,6 +20,7 @@ const count = (res: { count: number | null; error: { message: string } | null },
   if (res.error) throw new Error(`${what}: ${res.error.message}`);
   return res.count ?? 0;
 };
+const num = (v: unknown) => Number(v ?? 0);
 
 // Whether any displayed score is sample data. Cached briefly so every page does not pay for it.
 let sampleCache: { at: number; value: boolean } | null = null;
@@ -30,28 +32,55 @@ function toLead(r: Row, now: Date): LeadSummary {
   return {
     parcel: { apn: r.apn, situs_address: titleAddress(r.situs_address) || null, neighborhood: r.neighborhood },
     score: { score: r.score, reason_text: r.reason_text, recipe_matches: r.recipe_matches ?? [], primary_recipe: r.primary_recipe, model_version: r.model_version, scored_at: r.scored_at, uses_sample_data: r.uses_sample_data },
-    owner: r.owner_name !== null || r.owner_as_of ? { owner_name: r.owner_name, is_sample: !!r.owner_is_sample, last_sale_date: r.last_sale_date, est_equity: r.est_equity } : null,
+    owner: r.owner_name !== null || r.owner_as_of ? { owner_name: r.owner_name, is_sample: !!r.owner_is_sample, last_sale_date: r.last_sale_date, est_equity: r.est_equity, absentee: r.absentee ?? null, out_of_state: r.out_of_state ?? null } : null,
     years_owned: yearsSince(r.last_sale_date, now),
-    signal_count: Number(r.signal_count ?? 0),
-    top_signal_types: r.signal_types ?? [],
-    latest_signal_date: r.latest_signal_date,
+    lot_sqft: r.lot_sqft != null ? Number(r.lot_sqft) : null,
+    zoning: r.zoning ?? null,
+    latest_signal_date: r.latest_event_date ?? null,
+    top_components: (r.top_components ?? []).map((c: Row) => ({ key: c.key, facts: c.facts ?? null, points: num(c.points), signal_date: c.signal_date ?? null, is_sample: !!c.is_sample, is_estimate: !!c.is_estimate })),
     status: r.outreach_status === 'draft' ? 'draft_ready' : (r.outreach_status ?? 'new'),
     is_sample: !!r.uses_sample_data || !!r.owner_is_sample,
   };
 }
 
-const rpcArgs = (f: LeadFilters = {}) => ({
-  p_recipe: f.recipe || null, p_group: f.signalGroup || null, p_hood: f.neighborhood || null,
-  p_min: f.minScore ?? null, p_max: f.maxScore ?? null, p_search: f.search || null,
+function toOutreachItem(r: Row): OutreachItem {
+  return {
+    id: r.id, apn: r.apn, channel: r.channel, status: r.status, recipe: r.recipe, content: r.content,
+    blocked_reason: r.blocked_reason, blocked: String(r.blocked_reason ?? '').split(';').map((x) => x.trim()).filter(Boolean),
+    uses_sample_data: !!r.uses_sample_data, situs_address: titleAddress(r.situs_address) || null, neighborhood: r.neighborhood,
+    score: r.score ?? null, assigned_name: r.assigned_name ?? null, created_at: r.created_at, due_date: r.due_date ?? null, approved_by: r.approved_by ?? null,
+  };
+}
+
+/** Daily rows from today_stats -> a series with this week's and last week's totals. */
+function toSeries(rows: Row[], metric: StatSeries['metric']): StatSeries {
+  const days = rows.filter((r) => r.metric === metric).map((r) => ({ day: String(r.day), n: num(r.n) })).sort((a, b) => a.day.localeCompare(b.day));
+  const sum = (xs: { n: number }[]) => xs.reduce((a, b) => a + b.n, 0);
+  return { metric, days, this_week: sum(days.slice(-7)), last_week: sum(days.slice(-14, -7)) };
+}
+
+const FUNNEL_KEYS = ['signal', 'contacted', 'conversation', 'appointment', 'listing'] as const;
+const funnelRow = (label: string, r: Row | undefined): FunnelRow => ({
+  label,
+  stages: STAGES.filter((s) => (FUNNEL_KEYS as readonly string[]).includes(s.key))
+    .map((s) => ({ key: s.key as FunnelRow['stages'][number]['key'], label: s.label, count: num(r?.[s.key]) })),
 });
 
-/** All reads go through `db`, the signed-in user's client, so row level security applies. */
-export function supabaseProvider(db: SupabaseClient, mark: MarkSample): DataProvider {
+const FRIENDLY_NOT_CONNECTED = /awaiting manual|manual download|not configured|not connected/i;
+
+/** All reads go through `db`, the signed-in user's client, so row level security applies. `territory` limits everything to one neighborhood. */
+export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory: string | null = null): DataProvider {
   const now = () => new Date();
+  const hood = territory;
+  /** Territory-aware filters: the switcher wins over a neighborhood chosen on the page. */
+  const rpcArgs = (f: LeadFilters = {}) => ({
+    p_recipe: f.recipe || null, p_group: f.signalGroup || null, p_hood: hood ?? (f.neighborhood || null),
+    p_min: f.minScore ?? null, p_max: f.maxScore ?? null, p_search: f.search || null,
+  });
 
   async function anySample(): Promise<boolean> {
     if (sampleCache && Date.now() - sampleCache.at < 60_000) return sampleCache.value;
-    const res = await db.from('latest_scores').select('apn').eq('uses_sample_data', true).limit(1);
+    const res = await db.from('scored_parcels').select('apn').eq('uses_sample_data', true).limit(1);
     const value = (must(res, 'sample check') as Row[]).length > 0;
     sampleCache = { at: Date.now(), value };
     return value;
@@ -63,62 +92,73 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample): DataProv
     return new Map(rows.map((r) => [r.apn, { ...r, situs_address: titleAddress(r.situs_address) || null }]));
   }
 
+  const navCounts = async (): Promise<NavCounts> => {
+    const c = must(await db.rpc('nav_counts', { p_hood: hood }), 'nav_counts') as Row;
+    return { leads: num(c.leads), drafts: num(c.drafts), awaiting_approval: num(c.awaiting_approval), approved: num(c.approved), call_tasks: num(c.call_tasks), off_market: num(c.off_market) };
+  };
+
   const provider: DataProvider = {
     name: 'supabase',
+    territory: hood,
+
+    getNavCounts: navCounts,
 
     async getLeads(filters = {}, page = 1, pageSize = 25) {
-      const rows = must(await db.rpc('leads_page', { ...rpcArgs(filters), p_limit: pageSize, p_offset: (page - 1) * pageSize }), 'leads_page') as Row[];
+      const rows = must(await db.rpc('leads_list', {
+        ...rpcArgs(filters),
+        p_status: filters.status ?? null, p_new: !!filters.isNew, p_sort: filters.sort ?? 'score',
+        p_limit: pageSize, p_offset: (page - 1) * pageSize,
+      }), 'leads_list') as Row[];
       const t = now();
       const items = rows.map((r) => toLead(r, t));
       if (items.some((l) => l.is_sample)) mark();
-      return { items, total: Number(rows[0]?.total ?? 0), page, pageSize } satisfies LeadPage;
+      return { items, total: num(rows[0]?.total), page, pageSize } satisfies LeadPage;
     },
 
     async getTodayFeed(): Promise<TodayFeed> {
-      const since = new Date(Date.now() - 36 * 3600_000).toISOString();
-      const [coverage, leads, newSig, approvals, calls] = await Promise.all([
+      const cfg = loadClientConfig();
+      const [coverage, leads, stats, recipes, counts, approvals, calls, signals] = await Promise.all([
         provider.getCoverage(),
-        provider.getLeads({}, 1, 10),
-        db.from('signals').select('*', { count: 'exact' }).is('superseded_by', null).gte('detected_at', since)
-          .order('signal_date', { ascending: false, nullsFirst: false }).limit(8),
-        db.from('outreach').select('*', { count: 'exact' }).eq('status', 'awaiting_approval').order('created_at', { ascending: false }).limit(7),
-        db.from('outreach').select('*').eq('channel', 'call_task').eq('status', 'approved').is('sent_at', null).limit(10),
+        provider.getLeads({ minScore: 30 }, 1, 8),
+        db.rpc('today_stats', { p_hood: hood }),
+        db.rpc('recipe_summary', { p_hood: hood }),
+        navCounts(),
+        (() => { let q = db.from('outreach_queue').select('*').eq('status', 'awaiting_approval').neq('channel', 'call_task').order('created_at', { ascending: false }).limit(5); if (hood) q = q.eq('neighborhood', hood); return q; })(),
+        (() => { let q = db.from('outreach_queue').select('*').eq('channel', 'call_task').in('status', ['draft', 'awaiting_approval', 'approved']).order('created_at', { ascending: false }).limit(5); if (hood) q = q.eq('neighborhood', hood); return q; })(),
+        db.rpc('recent_signals', { p_hood: hood, p_days: 14, p_limit: 5 }),
       ]);
-      const sigRows = must(newSig, 'new signals') as Row[];
+      const statRows = must(stats, 'today_stats') as Row[];
+      const byRecipe = new Map((must(recipes, 'recipe_summary') as Row[]).map((r) => [r.recipe, r]));
+      const sigRows = must(signals, 'recent_signals') as Row[];
       const apRows = must(approvals, 'approvals') as Row[];
       const callRows = must(calls, 'call tasks') as Row[];
-      const apns = [...new Set([...sigRows, ...apRows, ...callRows].map((r) => r.apn))];
-      const [addr, scoreRows, team] = await Promise.all([
-        addresses(apns),
-        callRows.length ? db.from('latest_scores').select('apn,score,reason_text').in('apn', callRows.map((r) => r.apn)) : Promise.resolve({ data: [], error: null }),
-        db.from('team_members').select('email,name'),
-      ]);
-      const scoreBy = new Map((must(scoreRows as any, 'scores') as Row[]).map((r) => [r.apn, r]));
-      const names = new Map((must(team, 'team') as Row[]).map((r) => [String(r.email).toLowerCase(), r.name]));
       if (apRows.some((r) => r.uses_sample_data) || callRows.some((r) => r.uses_sample_data)) mark();
+      const new_signals: SignalEvent[] = sigRows.map((r) => ({
+        apn: r.apn, situs_address: titleAddress(r.situs_address) || null, neighborhood: r.neighborhood, type: r.signal_type, group: r.signal_group,
+        date: r.signal_date, count: num(r.n), is_sample: !!r.is_sample, is_estimate: !!r.is_estimate, source_key: r.source_key, source_record_id: r.source_record_id, details: r.details,
+      }));
       return {
-        as_of: new Date().toISOString(),
-        coverage,
-        top_leads: leads.items,
-        new_signals: sigRows.map((s): FeedSignal => ({ ...(s as FeedSignal), situs_address: addr.get(s.apn)?.situs_address ?? null, neighborhood: addr.get(s.apn)?.neighborhood ?? null })),
-        new_signals_total: count(newSig, 'new signals'),
-        approvals_waiting: apRows.map((o) => ({ ...(o as Outreach), situs_address: addr.get(o.apn)?.situs_address ?? null })),
-        approvals_total: count(approvals, 'approvals'),
-        call_tasks_due: callRows.map((o) => ({
-          ...(o as Outreach), situs_address: addr.get(o.apn)?.situs_address ?? null,
-          score: scoreBy.get(o.apn)?.score ?? null, reason_text: scoreBy.get(o.apn)?.reason_text ?? null,
-          assigned_agent: o.assigned_to ? (names.get(String(o.assigned_to).toLowerCase()) ?? o.assigned_to) : null,
-        })),
+        as_of: new Date().toISOString(), territory: hood, coverage,
+        stats: (['signals', 'active_leads', 'drafts', 'outcomes'] as const).map((m) => toSeries(statRows, m)),
+        leads_total: counts.leads, top_leads: leads.items,
+        recipe_strip: cfg.recipes.filter((r) => r.enabled).map((r) => ({ key: r.key, label: r.name, parcels: num(byRecipe.get(r.key)?.parcels), new_this_week: num(byRecipe.get(r.key)?.new_this_week) })),
+        approvals: apRows.map(toOutreachItem), approvals_total: counts.awaiting_approval,
+        call_tasks: callRows.map(toOutreachItem), call_tasks_total: counts.call_tasks,
+        new_signals, new_signals_total: sigRows.length ? num(sigRows[0]!.total) : 0,
       };
     },
 
     async getLead(apn): Promise<LeadDetail | null> {
-      const [parcel, score, owner, sales, signals, outreach, events, links] = await Promise.all([
+      const [parcel, score, owner, sales, events, context, outreach, stages, links] = await Promise.all([
         db.from('parcels').select(PARCEL_COLS).eq('apn', apn).maybeSingle(),
         db.from('latest_scores').select('*').eq('apn', apn).maybeSingle(),
         db.from('latest_owners').select('*').eq('apn', apn).maybeSingle(),
         db.from('sales_history').select('*').eq('apn', apn).order('sale_date', { ascending: false }).limit(25),
-        db.from('signals').select('*', { count: 'exact' }).eq('apn', apn).is('superseded_by', null).order('signal_date', { ascending: false, nullsFirst: false }).limit(25),
+        // Selling events only: never the "other" permit group, never snapshots or sensitive context.
+        db.from('signals').select('*', { count: 'exact' }).eq('apn', apn).is('superseded_by', null).in('signal_type', [...EVENT_TYPES]).neq('signal_group', 'other')
+          .order('signal_date', { ascending: false, nullsFirst: false }).limit(80),
+        db.from('signals').select('*').eq('apn', apn).is('superseded_by', null).in('signal_type', [...SENSITIVE_TYPES, ...TRAIT_TYPES])
+          .order('signal_date', { ascending: false, nullsFirst: false }).limit(40),
         db.from('outreach').select('*').eq('apn', apn).order('created_at', { ascending: false }),
         db.from('stage_events').select('*').eq('apn', apn).order('occurred_at', { ascending: false }).limit(50),
         db.from('share_links').select('*').eq('apn', apn).is('revoked_at', null).order('created_at', { ascending: false }),
@@ -129,6 +169,12 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample): DataProv
       const o = must(owner, 'owner') as Row | null;
       const sl = must(sales, 'sales') as Row[];
       const out = must(outreach, 'outreach') as Outreach[];
+      const ctx = must(context, 'signal context') as LeadDetail['signals'];
+      const latestOf = (types: readonly string[]) => {
+        const seen = new Set<string>(); const keep: LeadDetail['signals'] = [];
+        for (const s of ctx) if (types.includes(s.signal_type) && !seen.has(s.signal_type)) { seen.add(s.signal_type); keep.push(s); }
+        return keep;
+      };
       const isSample = !!sc.uses_sample_data || !!o?.is_sample || sl.some((s) => s.is_sample);
       if (isSample) mark();
       return {
@@ -138,10 +184,12 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample): DataProv
         owner: o as LeadDetail['owner'],
         years_owned: yearsSince(o?.last_sale_date, now()),
         sales: sl as LeadDetail['sales'],
-        signals: must(signals, 'signals') as LeadDetail['signals'],
-        signal_total: count(signals, 'signals'),
+        signals: must(events, 'signals') as LeadDetail['signals'],
+        signal_total: count(events, 'signals'),
+        sensitive_signals: ctx.filter((s) => (SENSITIVE_TYPES as readonly string[]).includes(s.signal_type)),
+        trait_signals: latestOf(TRAIT_TYPES),
         outreach: out,
-        stage_events: must(events, 'stage events') as LeadDetail['stage_events'],
+        stage_events: must(stages, 'stage events') as LeadDetail['stage_events'],
         share_links: must(links, 'share links') as LeadDetail['share_links'],
         status: leadStatus(out),
         is_sample: isSample,
@@ -175,56 +223,152 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample): DataProv
     },
 
     async getPipeline(): Promise<Pipeline> {
-      const [rec, agent, overall, team] = await Promise.all([
-        db.from('funnel_by_recipe').select('*'), db.from('funnel_by_agent').select('*'),
-        db.from('funnel_overall').select('*').maybeSingle(), db.from('team_members').select('email,name'),
+      const [overall, recent] = await Promise.all([
+        db.rpc('funnel_by', { p_dim: 'all', p_hood: hood }),
+        db.from('stage_events').select('apn,stage,team_member_email,note,occurred_at').eq('source', 'dashboard').order('occurred_at', { ascending: false }).limit(40),
+      ]);
+      const o = (must(overall, 'funnel_by') as Row[])[0];
+      const evs = must(recent, 'stage_events') as Row[];
+      const addr = await addresses([...new Set(evs.map((e) => e.apn))]);
+      const names = new Map((must(await db.from('team_members').select('email,name'), 'team') as Row[]).map((r) => [String(r.email).toLowerCase(), r.name]));
+      const recentOut: RecentOutcome[] = evs.filter((e) => !hood || addr.get(e.apn)?.neighborhood === hood).slice(0, 10).map((e) => ({
+        apn: e.apn, situs_address: addr.get(e.apn)?.situs_address ?? null, neighborhood: addr.get(e.apn)?.neighborhood ?? null,
+        stage: e.stage, by: e.team_member_email ? (names.get(String(e.team_member_email).toLowerCase()) ?? e.team_member_email) : null, note: e.note, occurred_at: e.occurred_at,
+      }));
+      const is_sample = (await anySample()) && num(o?.signal) > 0;
+      if (is_sample) mark();
+      return { overall: funnelRow('All leads', o), has_events: num(o?.signal) > 0, recent: recentOut, by_agent: [], by_recipe: [], is_sample };
+    },
+
+    async getPerformance(): Promise<Performance> {
+      const [overall, rec, agent, cov, team] = await Promise.all([
+        db.rpc('funnel_by', { p_dim: 'all', p_hood: hood }), db.rpc('funnel_by', { p_dim: 'recipe', p_hood: hood }),
+        db.rpc('funnel_by', { p_dim: 'agent', p_hood: hood }), db.rpc('coverage_weekly', { p_weeks: 12, p_hood: hood }),
+        db.from('team_members').select('email,name'),
       ]);
       const names = new Map((must(team, 'team') as Row[]).map((r) => [String(r.email).toLowerCase(), r.name]));
-      const row = (label: string, r: Row): FunnelRow => ({
-        label, stages: STAGES.filter((s) => ['signal', 'contacted', 'conversation', 'appointment', 'listing'].includes(s.key))
-          .map((s) => ({ key: s.key as FunnelRow['stages'][number]['key'], label: s.label, count: Number(r?.[s.key] ?? 0) })),
-      });
-      const o = must(overall, 'funnel_overall') as Row | null;
-      const hasEvents = Number(o?.signal ?? 0) > 0;
-      if (Number(o?.sample_parcels ?? 0) > 0) mark();
+      const o = (must(overall, 'funnel_by') as Row[])[0];
+      const sample = await anySample();
+      if (sample && num(o?.signal) > 0) mark();
       return {
-        overall: row('All leads', o ?? {}), has_events: hasEvents, is_sample: Number(o?.sample_parcels ?? 0) > 0,
-        by_recipe: (must(rec, 'funnel_by_recipe') as Row[]).map((r) => row(RECIPE_LABELS[r.recipe] ?? r.recipe, r)).sort((a, b) => b.stages[0]!.count - a.stages[0]!.count),
-        by_agent: (must(agent, 'funnel_by_agent') as Row[]).map((r) => row(r.team_member_email === 'unassigned' ? 'Unassigned' : (names.get(String(r.team_member_email).toLowerCase()) ?? r.team_member_email), r)),
+        overall: funnelRow('All leads', o), has_events: num(o?.signal) > 0, is_sample: sample && num(o?.signal) > 0,
+        by_recipe: (must(rec, 'funnel_by recipe') as Row[]).map((r) => funnelRow(RECIPE_LABELS[r.label] ?? r.label, r)).sort((a, b) => b.stages[0]!.count - a.stages[0]!.count),
+        by_agent: (must(agent, 'funnel_by agent') as Row[]).map((r) => funnelRow(r.label === 'unassigned' ? 'Unassigned' : (names.get(String(r.label).toLowerCase()) ?? r.label), r)),
+        coverage: (must(cov, 'coverage_weekly') as Row[]).map((r) => ({ week: r.week, signals: num(r.signals), sources_live: num(r.sources_live), parcels_monitored: num(r.parcels_monitored) })),
+        // Real backtests need owner sale history (Phase 6). Never show fixture numbers as live.
+        backtest: null,
       };
     },
 
-    // Real backtests need owner sale history (Phase 6). Never show fixture numbers as live.
     async getBacktest(): Promise<Backtest | null> { return null; },
 
     async getCoverage(): Promise<Coverage> {
       const since = new Date(Date.now() - 7 * DAY).toISOString();
       const [parcels, signals, runs, sample] = await Promise.all([
-        db.from('parcels').select('apn', { count: 'exact', head: true }),
-        db.from('signals').select('id', { count: 'exact', head: true }).is('superseded_by', null).gte('detected_at', since),
-        db.from('source_runs').select('*').order('started_at', { ascending: false }).limit(500),
+        (() => { let q = db.from('parcels').select('apn', { count: 'exact', head: true }); if (hood) q = q.eq('neighborhood', hood); return q; })(),
+        db.from('signals').select('id', { count: 'exact', head: true }).is('superseded_by', null).gte('detected_at', since).neq('signal_group', 'other'),
+        db.from('source_latest').select('*'),
         anySample(),
       ]);
-      const latest = new Map<string, Row>();
-      for (const r of must(runs, 'source_runs') as Row[]) if (!latest.has(r.source_key)) latest.set(r.source_key, r);
-      const finished = [...latest.values()].filter((r) => r.status === 'success' && r.finished_at).map((r) => r.finished_at as string).sort();
+      const latest = (must(runs, 'sources') as Row[]).filter((r) => !INTERNAL_SOURCES.has(r.source_key));
+      const finished = latest.filter((r) => r.status === 'success' && r.finished_at).map((r) => r.finished_at as string).sort();
       return {
-        parcels_monitored: count(parcels, 'parcels'), sources_live: [...latest.values()].filter((r) => r.status === 'success').length,
-        sources_total: latest.size, last_pull: finished.at(-1) ?? null, signals_this_week: count(signals, 'signals'), is_sample: sample,
+        parcels_monitored: count(parcels, 'parcels'), sources_live: latest.filter((r) => r.status === 'success').length,
+        sources_total: SOURCE_CATALOG.length, last_pull: finished.at(-1) ?? null, signals_this_week: count(signals, 'signals'), is_sample: sample,
       };
     },
 
     async getConfig(): Promise<ClientConfig> { return loadClientConfig(); },
 
-    async getSources(): Promise<CoverageSource[]> {
-      const runs = must(await db.from('source_runs').select('*').order('started_at', { ascending: false }).limit(500), 'source_runs') as SourceRun[];
-      const latest = new Map<string, SourceRun>();
-      for (const r of runs) if (!latest.has(r.source_key)) latest.set(r.source_key, r);
-      return [...latest.values()].map((r) => ({ source_key: r.source_key, label: SOURCE_LABEL(r.source_key), last_run: r, status: r.status }))
-        .sort((a, b) => a.label.localeCompare(b.label));
+    async getSources(): Promise<SourceCard[]> {
+      const rows = must(await db.from('source_latest').select('*'), 'sources') as Row[];
+      const by = new Map(rows.map((r) => [r.source_key, r]));
+      const cfg = loadClientConfig();
+      return SOURCE_CATALOG.map((c): SourceCard => {
+        if (c.key === 'owner_data') {
+          const sample = cfg.owner_data_provider === 'sample';
+          return { key: c.key, label: c.label, description: c.description, state: sample ? 'sample' : 'live', last_run: null, rows_fetched: null, rows_matched: null,
+            note: sample ? 'Sample records are in use until the owner data provider is connected (Phase 6).' : null };
+        }
+        const r = by.get(c.key);
+        if (!r) return { key: c.key, label: c.label, description: c.description, state: 'not_connected', last_run: null, rows_fetched: null, rows_matched: null, note: 'Not connected yet.' };
+        const waiting = r.status === 'failed' && FRIENDLY_NOT_CONNECTED.test(String(r.error_message ?? ''));
+        const state = waiting ? 'not_connected' : r.status === 'success' ? 'live' : r.status === 'running' ? 'running' : 'failed';
+        return {
+          key: c.key, label: c.label, description: c.description, state, last_run: r.finished_at ?? r.started_at,
+          rows_fetched: r.rows_fetched, rows_matched: r.rows_matched,
+          note: waiting ? 'Waiting for the file to be added.' : state === 'failed' ? 'The last update did not finish. It will be retried on the next run.' : null,
+        };
+      });
+    },
+
+    async getTeam(): Promise<TeamMember[]> {
+      return must(await db.from('team_members').select('id,email,name,role,created_at').order('role').order('email'), 'team') as TeamMember[];
+    },
+
+    async getOutreach(tab, page = 1, pageSize = 25): Promise<OutreachPage> {
+      let q = db.from('outreach_queue').select('*', { count: 'exact' });
+      if (tab === 'call_tasks') q = q.eq('channel', 'call_task').in('status', ['draft', 'awaiting_approval', 'approved']);
+      else q = q.neq('channel', 'call_task').eq('status', tab === 'drafts' ? 'draft' : tab);
+      if (hood) q = q.eq('neighborhood', hood);
+      const [res, counts] = await Promise.all([
+        q.order('score', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false }).range((page - 1) * pageSize, page * pageSize - 1),
+        navCounts(),
+      ]);
+      const rows = must(res, 'outreach') as Row[];
+      if (rows.some((r) => r.uses_sample_data)) mark();
+      return { tab, items: rows.map(toOutreachItem), total: count(res, 'outreach'), page, pageSize, counts };
+    },
+
+    async getRecipes(): Promise<RecipeCard[]> {
+      const cfg = loadClientConfig();
+      const [sum, top, sample] = await Promise.all([db.rpc('recipe_summary', { p_hood: hood }), db.rpc('recipe_top_leads', { p_hood: hood, p_n: 5 }), anySample()]);
+      const by = new Map((must(sum, 'recipe_summary') as Row[]).map((r) => [r.recipe, r]));
+      const tops = (must(top, 'recipe_top_leads') as Row[]);
+      if (sample) mark();
+      return cfg.recipes.map((r): RecipeCard => {
+        const s = by.get(r.key);
+        const parcels = num(s?.parcels);
+        return {
+          key: r.key, name: r.name, description: r.description, enabled: r.enabled, parcels, new_this_week: num(s?.new_this_week), strong: num(s?.strong),
+          top: tops.filter((t) => t.recipe === r.key).sort((a, b) => a.rank - b.rank).map((t) => ({ apn: t.apn, score: t.score, situs_address: titleAddress(t.situs_address) || null, neighborhood: t.neighborhood })),
+          idle_reason: parcels > 0 ? null : idleReason(r.key, r.enabled, r.requires_data ?? []),
+          is_sample: sample,
+        };
+      });
+    },
+
+    async getOffMarket(filters = {}, page = 1, pageSize = 25): Promise<OffMarketPage> {
+      const [inv, links] = await Promise.all([
+        db.rpc('off_market_inventory', { p_hood: hood, p_kind: filters.kind ?? null, p_sort: filters.sort ?? 'lot', p_limit: pageSize, p_offset: (page - 1) * pageSize }),
+        (() => { let q = db.from('share_links_active').select('*').order('created_at', { ascending: false }).limit(50); if (hood) q = q.eq('neighborhood', hood); return q; })(),
+      ]);
+      const rows = must(inv, 'off_market_inventory') as Row[];
+      return {
+        total: num(rows[0]?.total), page, pageSize,
+        items: rows.map((r) => ({
+          apn: r.apn, situs_address: titleAddress(r.situs_address) || null, neighborhood: r.neighborhood, lot_sqft: r.lot_sqft != null ? Number(r.lot_sqft) : null,
+          zoning: r.zoning, year_built: r.year_built, land_use: r.land_use, kinds: r.kinds ?? [], upzoning: r.upzoning_estimates ?? [], has_share_link: !!r.has_share_link,
+        })),
+        links: (must(links, 'share links') as Row[]).map((l) => ({ token: l.token, apn: l.apn, situs_address: titleAddress(l.situs_address) || null, neighborhood: l.neighborhood, created_by: l.created_by, created_at: l.created_at })),
+      };
+    },
+
+    async searchLeads(q): Promise<SearchHit[]> {
+      if (q.trim().length < 2) return [];
+      const rows = must(await db.rpc('search_leads', { p_q: q.slice(0, 80), p_hood: hood, p_limit: 8 }), 'search_leads') as Row[];
+      return rows.map((r) => ({ apn: r.apn, situs_address: titleAddress(r.situs_address) || null, neighborhood: r.neighborhood, score: r.score }));
     },
   };
   return provider;
+}
+
+/** Why a recipe has no matches, in plain words. */
+function idleReason(key: string, enabled: boolean, requires: string[]): string {
+  if (!enabled) return key === 'quiet_inheritance' ? 'Switched off until owner recorder data is connected (Phase 6).' : 'Switched off for this team.';
+  if (requires.includes('fire_zones')) return 'Waiting for the fire hazard zone file to be added.';
+  if (key === 'str_exit') return 'Waiting for the second weekly license snapshot: a removed license can only be seen by comparing two.';
+  return 'No properties match this recipe right now.';
 }
 
 /** The public share page reads through a SECURITY DEFINER function that returns property facts only. */

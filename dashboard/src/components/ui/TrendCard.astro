@@ -9,12 +9,22 @@ export interface Props { metric: TrendMetric; months: string[]; idPrefix: string
 const { metric: m, months, idPrefix, compact = false } = Astro.props;
 const grouped = !!m.categories;
 const kind = grouped ? 'groupedBar' : m.key === 'permits' ? 'stackedBar' : m.key === 'turnover' || m.key === 'str_lost' ? 'bar' : 'line';
-const option = { months: grouped ? m.categories : months.map(fmtMonth), unit: m.unit, estimate: m.is_estimate, series: m.series.map((s) => ({ name: s.label, data: s.points.map((p) => p.value) })) };
+const toSeries = (xs: TrendMetric['series']) => xs.map((s) => ({ name: s.label, data: s.points.map((p) => p.value) }));
+const option = { months: grouped ? m.categories : months.map(fmtMonth), unit: m.unit, estimate: m.is_estimate, series: toSeries(m.series), optional: toSeries(m.optional_series ?? []) };
+const id = `${idPrefix}-${m.key}`;
+const h = compact ? 200 : grouped ? 270 : 250;
 ---
 <Card as="article">
   <header class="flex flex-wrap items-center gap-2">
-    <h3 class="text-base font-semibold">{m.title}</h3>{m.is_estimate && <EstimateBadge />}{m.is_sample && <SampleDataBadge />}
+    <h3 class="t-h2">{m.title}</h3>{m.is_estimate && <EstimateBadge />}{m.is_sample && !m.empty_state && <SampleDataBadge />}
   </header>
   <p class="mt-1 text-sm text-ink">{m.takeaway}</p>
-  <Chart id={`${idPrefix}-${m.key}`} option={option} kind={kind} height={compact ? 200 : grouped ? 270 : 250} label={grouped ? `${m.title}, by neighborhood` : `${m.title}, monthly, last 12 months`} class="mt-4" />
+  {m.empty_state
+    ? <div data-empty-chart style={`min-height:${h}px`} class="mt-4 grid place-items-center rounded-lg border border-dashed border-line-strong bg-canvas px-6 text-center"><p class="max-w-xs text-sm text-ink-muted">{m.empty_state}</p></div>
+    : <>
+        {m.optional_series?.length ? (
+          <label class="mt-3 inline-flex items-center gap-2 text-sm text-ink-muted"><input type="checkbox" data-chart-toggle={id} class="h-4 w-4 rounded border-line-strong accent-[var(--color-accent)]" />{m.optional_label ?? 'Include more'}</label>
+        ) : null}
+        <Chart id={id} option={option} kind={kind} height={h} label={grouped ? `${m.title}, by neighborhood` : `${m.title}, monthly, last 12 months`} class="mt-4" />
+      </>}
 </Card>

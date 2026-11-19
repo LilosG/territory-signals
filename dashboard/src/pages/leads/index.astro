@@ -6,9 +6,10 @@ import LeadCard from '../../components/ui/LeadCard.astro';
 import EmptyState from '../../components/ui/EmptyState.astro';
 import Select from '../../components/ui/Select.astro';
 import Button from '../../components/ui/Button.astro';
-import { SIGNAL_GROUPS } from '../../lib/data';
+import { SIGNAL_GROUPS, SENSITIVE_RECIPES, LEAD_STATUS } from '../../lib/data';
 import { filtersFrom } from '../../lib/filters';
 import { fmtNum } from '../../lib/format';
+import { isNewLead } from '../../lib/present';
 export const prerender = false;
 
 const PAGE_SIZE = 20;
@@ -17,27 +18,50 @@ const page = Math.max(1, Number(sp.get('page') ?? 1) || 1);
 const filters = filtersFrom(sp);
 const config = await Astro.locals.data.getConfig();
 const result = await Astro.locals.data.getLeads(filters, page, PAGE_SIZE);
-const recipeNames = Object.fromEntries(config.recipes.map((r) => [r.key, r.name]));
 const pages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
 const link = (n: number) => { const q = new URLSearchParams(sp); q.set('page', String(n)); return `/leads?${q}`; };
+
+// Saved views are plain filter presets, so they are bookmarkable links.
+const VIEWS = [
+  { key: 'all', label: 'All', href: '/leads' },
+  { key: 'hot', label: 'Hot', href: '/leads?min=80' },
+  { key: 'new', label: 'New this week', href: '/leads?new=1' },
+  { key: 'builder', label: 'Builder bait', href: '/leads?recipe=builder_bait' },
+];
+const keys = [...sp.keys()].filter((k) => k !== 'page' && sp.get(k));
+const only = (k: string, v: string) => keys.length === 1 && sp.get(k) === v;
+const activeView = keys.length === 0 ? 'all' : only('min', '80') ? 'hot' : only('new', '1') ? 'new' : only('recipe', 'builder_bait') ? 'builder' : null;
+const statusOptions = [{ value: '', label: 'Any status' }, ...Object.entries(LEAD_STATUS).map(([value, v]) => ({ value, label: v.label }))];
+const now = new Date();
 ---
-<AppShell title="Leads" active="today">
-  <PageHeader eyebrow={`${fmtNum(result.total)} scored properties`} title="All leads" description="Ranked by score. Filters run in the database; each page loads only the leads it shows." />
+<AppShell title="Leads" active="leads">
+  <PageHeader eyebrow={`${fmtNum(result.total)} ${result.total === 1 ? 'property' : 'properties'}`} title="Leads" description="Ranked by score unless you sort differently. Filters run in the database." />
   <Stack gap={6}>
+    <nav aria-label="Saved views" class="flex flex-wrap gap-2">
+      {VIEWS.map((v) => (
+        <a href={v.href} data-view={v.key} aria-current={activeView === v.key ? 'page' : undefined}
+          class="inline-flex h-8 items-center rounded-full border border-line-strong bg-surface px-3.5 text-sm font-medium text-ink-muted hover:bg-sunken hover:text-ink aria-[current=page]:border-accent aria-[current=page]:bg-accent aria-[current=page]:text-accent-fg">{v.label}</a>
+      ))}
+    </nav>
+
     <form method="get" role="search" aria-label="Lead filters" class="flex flex-wrap items-end gap-3">
       <label class="flex flex-col gap-1 text-xs font-medium text-ink-muted">Address or APN
         <input type="search" name="q" value={sp.get('q') ?? ''} class="h-10 w-48 rounded-md border border-line-strong bg-surface px-3 text-sm font-normal text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30" />
       </label>
-      <Select label="Recipe" name="recipe" value={sp.get('recipe') ?? ''} class="w-48" options={[{ value: '', label: 'All recipes' }, ...config.recipes.filter((r) => r.enabled).map((r) => ({ value: r.key, label: r.name }))]} />
-      <Select label="Signal group" name="group" value={sp.get('group') ?? ''} class="w-44" options={[{ value: '', label: 'All signal groups' }, ...Object.entries(SIGNAL_GROUPS).map(([k, v]) => ({ value: k, label: v }))]} />
-      <Select label="Neighborhood" name="hood" value={sp.get('hood') ?? ''} class="w-44" options={[{ value: '', label: 'All neighborhoods' }, ...config.territory.neighborhoods.map((n) => ({ value: n, label: n }))]} />
+      <Select label="Recipe" name="recipe" value={sp.get('recipe') ?? ''} class="w-48" options={[{ value: '', label: 'All recipes' }, ...config.recipes.filter((r) => r.enabled && !SENSITIVE_RECIPES.has(r.key)).map((r) => ({ value: r.key, label: r.name }))]} />
+      <Select label="Signal group" name="group" value={sp.get('group') ?? ''} class="w-44" options={[{ value: '', label: 'All signal groups' }, ...Object.entries(SIGNAL_GROUPS).filter(([k]) => k !== 'other').map(([k, v]) => ({ value: k, label: v }))]} />
+      {!Astro.locals.territory && <Select label="Neighborhood" name="hood" value={sp.get('hood') ?? ''} class="w-44" options={[{ value: '', label: 'All neighborhoods' }, ...config.territory.neighborhoods.map((n) => ({ value: n, label: n }))]} />}
       <Select label="Score" name="range" value={sp.get('range') ?? ''} class="w-40" options={[{ value: '', label: 'All scores' }, { value: '80-100', label: '80–100 · Hot' }, { value: '60-79', label: '60–79 · Warm' }, { value: '40-59', label: '40–59 · Watch' }, { value: '0-39', label: '0–39 · Low' }]} />
+      <Select label="Status" name="status" value={sp.get('status') ?? ''} class="w-44" options={statusOptions} />
+      <Select label="Sort by" name="sort" value={sp.get('sort') ?? 'score'} class="w-44" options={[{ value: 'score', label: 'Score, high to low' }, { value: 'recent', label: 'Most recent event' }, { value: 'lot', label: 'Lot size' }, { value: 'address', label: 'Address' }]} />
+      {sp.get('new') === '1' && <input type="hidden" name="new" value="1" />}
       <Button type="submit" variant="primary">Apply</Button>
+      {keys.length > 0 && <Button href="/leads" variant="ghost">Clear</Button>}
     </form>
 
     {result.items.length === 0
-      ? <EmptyState title="No leads match" description="Try removing a filter." />
-      : <Stack as="ul" gap={3}>{result.items.map((l, i) => <li><LeadCard lead={l} recipeNames={recipeNames} rank={(page - 1) * PAGE_SIZE + i + 1} /></li>)}</Stack>}
+      ? <EmptyState title="No leads match" description="Try removing a filter or choosing another saved view." />
+      : <Stack as="ul" gap={3}>{result.items.map((l, i) => <li><LeadCard lead={l} rank={(page - 1) * PAGE_SIZE + i + 1} isNew={isNewLead(l, now)} /></li>)}</Stack>}
 
     <nav aria-label="Pagination" class="flex items-center justify-between gap-3 text-sm">
       <span class="text-ink-muted">Page {page} of {pages}</span>

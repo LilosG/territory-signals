@@ -29,6 +29,15 @@ const uid = `tabs-${tabs.map((t) => t.id).join('-')}`;
       });
       if (focus) t.focus();
     };
+    // Opening a link like /leads/123#drafts selects the tab that holds that element.
+    const fromHash = () => {
+      const target = location.hash.length > 1 ? document.getElementById(decodeURIComponent(location.hash.slice(1))) : null;
+      const panel = target?.closest<HTMLElement>('[data-tab-panel]');
+      const tab = panel && root.contains(panel) ? tabs.find((x) => x.dataset.tab === panel.dataset.tabPanel) : null;
+      if (tab) { select(tab); target?.scrollIntoView(); }
+    };
+    fromHash();
+    window.addEventListener('hashchange', fromHash);
     tabs.forEach((t, i) => {
       t.addEventListener('click', () => select(t));
       t.addEventListener('keydown', (e) => {

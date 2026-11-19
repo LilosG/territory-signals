@@ -2,6 +2,8 @@ import { defineMiddleware } from 'astro:middleware';
 import { createProvider, providerName } from './lib/data';
 import { takeFlash } from './lib/flash';
 import { serverClient } from './lib/supabase';
+import { loadClientConfig } from './lib/config';
+import { TERRITORY_COOKIE } from './lib/territory';
 
 /** Reachable without a session. Everything else redirects to /login. */
 const isPublic = (p: string) => p === '/login' || p.startsWith('/auth/') || p.startsWith('/share/') || p.startsWith('/_astro/') || p === '/favicon.ico';
@@ -16,10 +18,12 @@ export const onRequest = defineMiddleware(async ({ url, request, cookies, locals
   // Taken here (before any HTML streams) so the cookie can be cleared. Only page navigations consume it.
   locals.flash = request.method === 'GET' && !url.pathname.startsWith('/api/') ? takeFlash(cookies) : null;
   const mark = () => { locals.sample.used = true; };
+  const cookieHood = cookies.get(TERRITORY_COOKIE)?.value ?? '';
+  locals.territory = loadClientConfig().territory.neighborhoods.includes(cookieHood) ? cookieHood : null;
 
   // Fixtures mode: a local demo with no database and no login.
   if (providerName() === 'fixtures') {
-    locals.supabase = null; locals.user = { email: 'demo@example.com' }; locals.data = createProvider(null, mark);
+    locals.supabase = null; locals.user = { email: 'demo@example.com' }; locals.data = createProvider(null, mark, locals.territory);
     return next();
   }
 
@@ -39,7 +43,7 @@ export const onRequest = defineMiddleware(async ({ url, request, cookies, locals
     if (!member) await supabase.auth.signOut();
   }
   locals.user = user && member ? { email: user.email ?? '' } : null;
-  locals.data = createProvider(supabase, mark);
+  locals.data = createProvider(supabase, mark, locals.territory);
 
   if (!locals.user && !isPublic(url.pathname)) return redirect(user && !member ? '/login?error=not-team' : '/login');
   return next();
