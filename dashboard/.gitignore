@@ -1,8 +1,9 @@
 node_modules
 dist
 .astro
-.vercel
 .env
 e2e/.auth
 test-results
 playwright-report
+.wrangler
+.dev.vars

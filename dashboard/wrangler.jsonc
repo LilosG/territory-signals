@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kaiser-team-signals",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist"
+  },
+  "observability": { "enabled": true },
+  // Runtime (non-secret) vars. PUBLIC_ vars are inlined at build time from dashboard/.env.production, not from here.
+  "vars": { "DATA_PROVIDER": "supabase" }
+}
