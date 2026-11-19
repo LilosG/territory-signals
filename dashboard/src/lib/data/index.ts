@@ -11,10 +11,10 @@ export * from './catalog';
 export const providerName = (): 'supabase' | 'fixtures' =>
   ((import.meta.env.DATA_PROVIDER as string | undefined) ?? 'supabase') === 'fixtures' ? 'fixtures' : 'supabase';
 
-export function createProvider(db: SupabaseClient | null, mark: MarkSample): DataProvider {
-  if (providerName() === 'fixtures') return fixturesProvider(mark);
+export function createProvider(db: SupabaseClient | null, mark: MarkSample, territory: string | null = null): DataProvider {
+  if (providerName() === 'fixtures') return fixturesProvider(mark, territory);
   if (!db) throw new Error('The supabase provider needs a signed-in session client.');
-  return supabaseProvider(db, mark);
+  return supabaseProvider(db, mark, territory);
 }
 
 export function createShareReader(anon: SupabaseClient | null): SharePageReader {

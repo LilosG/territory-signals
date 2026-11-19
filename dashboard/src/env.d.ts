@@ -10,6 +10,8 @@ declare global {
       data: DataProvider;
       /** Set by the data providers when anything shown on the page is sample data. Read by AppShell for the banner. */
       sample: { used: boolean };
+      /** Selected neighborhood from the territory switcher (cookie), or null for all. */
+      territory: string | null;
       /** One-time message from the previous action (read from a short-lived cookie by the middleware). */
       flash: { kind: 'ok' | 'error'; text: string } | null;
     }

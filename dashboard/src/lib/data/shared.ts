@@ -83,26 +83,35 @@ export function buildTrends(area: string, hoods: string[], now: Date, rows: Tren
 
   const tDir = direction(last3(tSeries), prev3(tSeries));
   const metrics: TrendMetric[] = [];
+  // Sales are sample records until owner sale history is added (Phase 6): a chart of them would mislead.
+  const allSample = (xs: { sample_rows: number }[], n: (x: any) => number) => xs.length > 0 && xs.every((x) => x.sample_rows >= n(x));
   metrics.push(mk('turnover', [line('sales', 'Sales', tSeries)],
     turnover.length === 0 ? 'No sales on record for this period.'
-      : `Sales over the last 3 months are ${tDir.dir} versus the 3 months before (${last3(tSeries)} vs ${prev3(tSeries)}).`, sampleIn(turnover)));
+      : `Sales over the last 3 months are ${tDir.dir} versus the 3 months before (${last3(tSeries)} vs ${prev3(tSeries)}).`, sampleIn(turnover),
+    (turnover.length === 0 || allSample(turnover, (x) => x.sales)) ? { empty_state: 'Connects when owner sale history is added in Phase 6' } : {}));
 
-  const pSeries = groupTotals.map(({ g }) => line(g, SIGNAL_GROUPS[g] ?? g, monthly(permits.filter((r) => r.signal_group === g).map((r) => ({ month: r.month, n: r.signals })))));
+  const mainGroups = groupTotals.filter(({ g }) => g !== 'other');
+  const pSeries = mainGroups.map(({ g }) => line(g, SIGNAL_GROUPS[g] ?? g, monthly(permits.filter((r) => r.signal_group === g).map((r) => ({ month: r.month, n: r.signals })))));
+  const otherRows = permits.filter((r) => r.signal_group === 'other');
+  const otherSeries = otherRows.length ? [line('other', SIGNAL_GROUPS.other ?? 'Other permits', monthly(otherRows.map((r) => ({ month: r.month, n: r.signals }))))] : [];
   const pTotal = months.map((_, i) => sum(pSeries.map((s) => s.points[i]!.value)));
   const pDir = direction(last3(pTotal), prev3(pTotal));
   const pLead = pSeries.map((s) => ({ s, n: sum(s.points.map((p) => p.value)) })).sort((a, b) => b.n - a.n)[0];
   metrics.push(mk('permits', pSeries.length ? pSeries : [line('none', 'Permits', months.map(() => 0))],
-    pLead && pLead.n ? `${pLead.s.label} is the largest permit group; total permits are ${pDir.dir} over the last 3 months.` : 'No permits were approved in this period.',
-    sampleIn(permits)));
+    pLead && pLead.n ? `${pLead.s.label} is the largest permit group; permits that matter for selling are ${pDir.dir} over the last 3 months.` : 'No permits that matter for selling were approved in this period.',
+    sampleIn(permits.filter((r) => r.signal_group !== 'other')),
+    otherSeries.length ? { optional_series: otherSeries, optional_label: 'Include other permits' } : {}));
 
   const sSeries = monthly(str.map((r) => ({ month: r.month, n: r.signals })));
   metrics.push(mk('str_lost', [line('removed', 'Licenses removed', sSeries)],
     sum(sSeries) === 0 ? 'No short-term rental licenses have been removed in this period. Removals appear once a second license snapshot exists.'
-      : `${last3(sSeries)} licenses removed in the last 3 months, ${direction(last3(sSeries), prev3(sSeries)).dir} versus the prior 3.`, sampleIn(str)));
+      : `${last3(sSeries)} licenses removed in the last 3 months, ${direction(last3(sSeries), prev3(sSeries)).dir} versus the prior 3.`, sampleIn(str),
+    sum(sSeries) === 0 ? { empty_state: 'Appears after the second weekly license snapshot' } : {}));
 
   const xSeries = monthly(tax.map((r) => ({ month: r.month, n: r.signals })));
   metrics.push(mk('tax_default', [line('tax', 'Parcels', xSeries)],
-    sum(xSeries) === 0 ? 'No tax-default notices in this period.' : `${sum(xSeries)} parcels appeared on the county tax-default list in the last 12 months.`, sampleIn(tax)));
+    sum(xSeries) === 0 ? 'No tax-default notices in this period.' : `${sum(xSeries)} parcels appeared on the county tax-default list in the last 12 months.`, sampleIn(tax),
+    sum(xSeries) === 0 ? { empty_state: 'No tax-default notices in this period' } : {}));
 
   const up = hoods.map((h) => rows.upzoning.find((r) => r.neighborhood === h) ?? { neighborhood: h, sb9: 0, sb79_quarter_mile: 0, sb79_half_mile: 0, sample_rows: 0 });
   const upDefs: [string, (r: UpzoningRow) => number][] = [['SB 9 estimate', (r) => r.sb9], ['SB 79 within 1/4 mile', (r) => r.sb79_quarter_mile], ['SB 79 within 1/2 mile', (r) => r.sb79_half_mile]];
@@ -124,7 +133,7 @@ export function buildTrends(area: string, hoods: string[], now: Date, rows: Tren
   const byHood = hoods.map((h) => ({ h, n: sum(enabled.map((r) => rcount(r.key, h))) })).sort((a, b) => b.n - a.n)[0]!;
   metrics.push(mk('recipes', rDefs.map((d) => ({ key: d.label, label: d.label, points: hoods.map((h) => ({ month: h, value: d.count(h) })) })),
     ranked[0] && ranked[0].total ? `${ranked[0].r.label} is the most-matched recipe (${ranked[0].total} parcels).${hoods.length > 1 ? ` ${byHood.h} has the most matches (${byHood.n}).` : ''}` : 'No parcels match a recipe yet.',
-    sampleIn(rr), { categories: hoods }));
+    sampleIn(rr), { categories: hoods, ...(allSample(rr, (x) => x.parcels) ? { empty_state: 'Connects when real owner data is added in Phase 6' } : {}) }));
 
   return { area, months, metrics, is_sample: metrics.some((m) => m.is_sample) };
 }

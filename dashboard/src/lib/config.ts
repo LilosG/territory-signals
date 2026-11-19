@@ -34,7 +34,7 @@ export function loadClientConfig(): ClientConfig {
     outreach: raw.outreach,
     team_profile: { display_name: raw.team_profile.display_name, brokerage: raw.team_profile.brokerage ?? '', office_address: raw.team_profile.office_address ?? '' },
     // Names come from the catalog; on/off comes from this client's config file.
-    recipes: RECIPES.map((r) => ({ key: r.key, name: r.label, description: r.short_description, enabled: raw.recipes[r.key]?.enabled ?? r.enabled })),
+    recipes: RECIPES.map((r) => ({ key: r.key, name: r.label, description: r.short_description, enabled: raw.recipes[r.key]?.enabled ?? r.enabled, requires_data: r.requires_data })),
     team_members: (raw.team_members ?? []).map((m) => ({ email: m.email.toLowerCase(), name: m.name, role: m.role, phone: m.phone })),
   };
   return cached;
