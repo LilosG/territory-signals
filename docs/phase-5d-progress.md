@@ -1,6 +1,6 @@
 # Phase 5D progress
 
-Branch: `phase-5d-product-polish`. Chunk 1 is done (`astro check` 0 errors, `astro build` passes). Next: Chunk 2.
+Branch: `phase-5d-product-polish`. Chunks 1 and 2 are done (`astro check` 0 errors, `astro build` passes). Next: Chunk 3.
 
 ## 1. What is done
 
@@ -52,6 +52,27 @@ Requirements copied from the original prompt:
 > 4. Plain labels for every code: land use codes get labels (add a mapping file in dashboard/src/data/ from the confirmed codes in BACKLOG/land_use_profile; unknown codes show "Residential (code 13)"), empty fields are hidden rather than shown as "—", transfer doc types show "Ownership transfer" (no death wording on screen), prices that don't exist are omitted.
 > 5. Charts: any chart whose data is entirely sample or empty shows a designed empty state ("Connects when owner sale history is added in Phase 6" / "Appears after the second weekly license snapshot") instead of a misleading chart. The permit chart excludes the "other" group by default, with a toggle to include it.
 > 7. Map: default filter shows parcels scoring 30+ (toggle "Show all parcels"), clusters colored by the highest score inside them and sized by count, individual points sized and colored by score band. The list and map stay in sync with filters and the territory switcher.
+
+## Chunk 2 status: DONE
+
+Pages (all in `dashboard/src/pages/`, using the Chunk 1 data layer and visual system):
+- **Today** (`index.astro`): greeting + territory, four `StatCard` tiles (week-over-week delta from `weekDelta`, 14-day `Spark`), "This week by recipe" strip (`RecipeTile`, links to filtered Leads), compact lead cards with a gold "New" marker (`isNewLead`: event in last 7 days), right rail (`RailCard`: Approvals, Call tasks, New signals, 5 each + "View all").
+- **Leads**: saved views (All, Hot = 80+, New this week, Builder bait) as plain filter links, sort (score, most recent, lot, address), status filter, recipe filter without distress recipes, Clear.
+- **Outreach** (`/outreach`, tabs via `TabLinks` with live counts, `?tab=`): bulk select + "Approve selected" (posts to `approve-bulk`), blocked drafts cannot be selected and say what is missing (`blockedHelp`, now in `present.ts`, plain words, no config keys).
+- **Recipes** (`/recipes`): card per enabled recipe (description, parcels, new this week, strong, top 5, link to filtered Leads, idle reason). Distress recipes (financial_pressure, quiet_inheritance) are left off; they appear only in the lead brief.
+- **Off-market** (`/off-market`): builder bait / tired landlord tabs, property facts only, select + "Create share links" (`share-bulk`), active share links list with copy field and Revoke.
+- **Reports** (`/reports`, `/reports/[area]`): newsletter link plus one printable market report per neighborhood (`PrintShell`), sample sections badged. `/trends/newsletter` back link now goes to Reports.
+- **Performance** (`/performance`): funnels (overall, by agent, by recipe), backtest panel with Phase 6 empty state, coverage over time (parcels monitored, sources live, signals per week).
+- **Pipeline**: reworked to overall funnel and recent outcomes (by-agent/recipe and backtest moved to Performance).
+- **Data sources** (`/data-sources`): friendly cards from `getSources`; "Not connected yet" is neutral, red only for a connected source whose last update failed. **Team** (`/team`): read-only from the database. **Settings**: team and sources moved out, links to both.
+- **Lead brief**: hero (ScoreRing, address, primary recipe, status, one sample badge, headline), key facts row, tabs Overview, Signals, Owner and property, Outreach, Activity. Same-day permits collapse into one event ("6 permits approved Nov 10, 2026") that expands; "other" group never shown; tax default and ownership transfer only in a labeled "Sensitive records" card; empty fields hidden; land use labels; "Ownership transfer" wording. `Tabs` now opens the tab holding a `#hash` target (so `#drafts` and `#share` links work).
+- **TrendCard/Chart**: designed empty states (`empty_state`) and the "Include other permits" toggle (`optional_series`) were not wired in Chunk 1; done here.
+
+Smoke test (fixtures mode, `.env.local` with `DATA_PROVIDER=fixtures`, removed afterwards): every page returns 200 at 1440 and 390, no horizontal overflow, no console errors. Not tested against the live database yet (Chunk 3).
+
+New helpers: `lib/present.ts` (`isNewLead`, `weekDelta`, `sparkPoints`, `blockedHelp`, `detailHeadline`, `isSensitiveComponent`), `lib/format.ts` (`slugify`). New components: `Spark`, `StatCard`, `RecipeTile`, `RailCard`, `TabLinks`, `OutreachQueueRow`, `FactRows`.
+
+Left for Chunk 3: e2e spec and screenshots script still target the old design; no Playwright coverage of the new pages yet; query timings and the Python timing test; docs (DEPLOY.md, ARCHITECTURE.md); `db push --remote` and deploy. Fixtures show zero on the Today stat tiles (fixture signal dates are old), so the sparklines are only meaningful against the real database.
 
 ## Chunk 2: all pages (Today, Leads, Outreach, Recipes, Off-market, Reports, Performance, Data sources, Team, and reworked Pipeline, Settings and lead brief)
 

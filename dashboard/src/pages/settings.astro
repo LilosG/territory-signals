@@ -7,24 +7,20 @@ import Stack from '../components/ui/Stack.astro';
 import Grid from '../components/ui/Grid.astro';
 import FactList from '../components/ui/FactList.astro';
 import DataTable from '../components/ui/DataTable.astro';
-import StatusPill from '../components/ui/StatusPill.astro';
-import { fmtDateTime, fmtNum } from '../lib/format';
+import { fmtNum } from '../lib/format';
 export const prerender = false;
-const [config, sources] = await Promise.all([Astro.locals.data.getConfig(), Astro.locals.data.getSources()]);
+const config = await Astro.locals.data.getConfig();
 if (config.owner_data_provider === 'sample') Astro.locals.sample.used = true;
-const tone = { live: 'good', failed: 'critical', running: 'warning', not_connected: 'neutral', sample: 'neutral' } as const;
-const word = { live: 'Live', failed: 'Failed', running: 'Running', not_connected: 'Not connected yet', sample: 'Sample' } as const;
 const tp = config.team_profile;
 ---
 <AppShell title="Settings" active="settings">
-  <PageHeader eyebrow="Read-only" title="Settings" description="The client configuration this deployment runs on. Changes are made in the config file, not here." />
+  <PageHeader eyebrow="Read-only" title="Settings" description="How this workspace is set up. Changes are made by your administrator, not here." />
   <Stack gap={10}>
     <Grid split="even" gap={6}>
       <Card as="section" aria-labelledby="client-h">
         <h2 id="client-h" class="mb-4 text-base font-semibold">Client</h2>
         <FactList items={[
-          { label: 'Client', value: config.display_name }, { label: 'Client id', value: config.client_id },
-          { label: 'Planning areas', value: config.territory.planning_areas.join(', ') }, { label: 'ZIP codes', value: config.territory.zips.join(', ') },
+          { label: 'Client', value: config.display_name }, { label: 'Planning areas', value: config.territory.planning_areas.join(', ') }, { label: 'ZIP codes', value: config.territory.zips.join(', ') },
           { label: 'Owner data provider', value: config.owner_data_provider, sample: config.owner_data_provider === 'sample' },
           { label: 'Brokerage', value: tp.brokerage || 'Not set' }, { label: 'Office address', value: tp.office_address || 'Not set' },
         ]} />
@@ -42,28 +38,15 @@ const tp = config.team_profile;
       </Card>
     </Grid>
 
-    <Section title="Team" description="Only these emails can sign in. Add people in the client config, then run the team seed.">
-      {config.team_members.length === 0
-        ? <Card><p class="text-sm text-ink-muted">No team members are listed in the client config. Owners added with ADMIN_EMAIL can still sign in.</p></Card>
-        : <DataTable caption="Team" columns={[{ key: 'n', label: 'Name' }, { key: 'e', label: 'Email', hideOnMobile: true }, { key: 'r', label: 'Role', align: 'right' }]}
-            rows={config.team_members.map((m) => ({ cells: { n: { v: m.name }, e: { v: m.email }, r: { v: m.role } } }))} />}
-    </Section>
-
     <Section title="Recipes" description="Which scoring recipes are switched on for this client.">
       <DataTable caption="Recipes" columns={[{ key: 'n', label: 'Recipe' }, { key: 'd', label: 'Rule', hideOnMobile: true }, { key: 's', label: 'Status', align: 'right' }]}
         rows={config.recipes.map((r) => ({ cells: { n: { v: r.name }, d: { v: r.description }, s: { v: r.enabled ? 'On' : 'Off' } } }))} />
     </Section>
 
-    <Section title="Data sources" description="The latest update for each source.">
-      <DataTable caption="Data sources" defaultSort={{ key: 'src', dir: 'asc' }}
-        columns={[{ key: 'src', label: 'Source', sortable: true }, { key: 'st', label: 'Status', sortable: true }, { key: 'when', label: 'Last run', sortable: true, hideOnMobile: true }, { key: 'fetched', label: 'Fetched', align: 'right', type: 'number', sortable: true, hideOnMobile: true }, { key: 'matched', label: 'Matched', align: 'right', type: 'number', sortable: true }]}
-        rows={sources.map((s) => ({ cells: {
-          src: { v: s.label }, st: { v: word[s.state] },
-          when: { v: s.last_run ?? '', display: s.last_run ? fmtDateTime(s.last_run) : 'Not run yet' },
-          fetched: { v: s.rows_fetched ?? 0, display: fmtNum(s.rows_fetched) }, matched: { v: s.rows_matched ?? 0, display: fmtNum(s.rows_matched) },
-        } }))} />
-      <ul class="flex flex-wrap gap-2 text-xs text-ink-muted">
-        {sources.filter((s) => s.state !== 'live').map((s) => <li><StatusPill tone={tone[s.state]}>{s.label}: {word[s.state]}{s.note ? ` · ${s.note}` : ''}</StatusPill></li>)}
+    <Section title="More">
+      <ul class="flex flex-wrap gap-3 text-sm">
+        <li><a href="/data-sources" class="font-medium text-accent hover:underline">Data sources →</a></li>
+        <li><a href="/team" class="font-medium text-accent hover:underline">Team →</a></li>
       </ul>
     </Section>
   </Stack>

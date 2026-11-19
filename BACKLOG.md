@@ -117,3 +117,9 @@ Added during Phase 5D:
 - [ ] **"New this week" definition.** A lead is "new this week" when it has a selling-relevant event dated within the last 7 days (an approved permit outside the "other" group, or a removed short-term rental license). Tax default and ownership transfer never count. Revisit if the team wants "newly scored" instead.
 - [ ] **Bulk actions are capped at 50 and run one database call per item** (`approve-bulk`, `share-bulk`). Fine for a team's queue; move to a set-based function if queues grow.
 - [ ] **Map default of 30+** is applied in `/api/map` and `/api/leads` (query param `all=1` turns it off). The 5 MB payload item above shrinks a lot with it; re-measure on the cloud project.
+
+## Phase 5D Chunk 2 notes
+- Recipes page leaves out the distress recipes (financial_pressure, quiet_inheritance) on purpose; decide whether the team wants a labeled, permissioned view for them.
+- Today stat tiles use the last 14 days of signals, drafts, outcomes and active leads; fixtures data is older than that so tiles read zero in demo mode.
+- Outreach "Approve selected" runs one database check per draft (capped at 50); a single batch function would be faster if queues grow.
+- Reports are print-to-PDF pages; no generated PDF files yet.

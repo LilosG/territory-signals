@@ -1,0 +1,13 @@
+---
+/** Server-rendered tabs: each tab is a link, so the URL (and a reload) keeps the selection. Counts are live. */
+export interface Props { label: string; tabs: { id: string; label: string; href: string; count?: number }[]; active: string }
+const { label, tabs, active } = Astro.props;
+---
+<nav aria-label={label} class="flex gap-1 overflow-x-auto border-b border-line">
+  {tabs.map((t) => (
+    <a href={t.href} data-tab-link={t.id} aria-current={t.id === active ? 'page' : undefined}
+      class="-mb-px inline-flex items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3.5 py-2.5 text-sm font-medium text-ink-muted hover:text-ink aria-[current=page]:border-accent aria-[current=page]:text-ink">
+      {t.label}{t.count != null && <span class="rounded-full bg-sunken px-2 py-px text-xs tabular-nums text-ink-muted">{t.count}</span>}
+    </a>
+  ))}
+</nav>

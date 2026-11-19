@@ -19,12 +19,14 @@ const { id, option, height = 260, label, kind = 'line', class: cls } = Astro.pro
   document.querySelectorAll<HTMLElement>('[data-chart]').forEach((el) => {
     const id = el.dataset.chart!;
     const spec = JSON.parse(document.querySelector(`[data-chart-data="${id}"]`)!.textContent!) as {
-      months: string[]; unit: string; series: { name: string; data: number[] }[]; estimate?: boolean;
+      months: string[]; unit: string; series: { name: string; data: number[] }[]; optional?: { name: string; data: number[] }[]; estimate?: boolean;
     };
     const kind = el.dataset.kind;
-    const multi = spec.series.length > 1;
     const grouped = kind === 'groupedBar';
     const chart = init(el, undefined, { renderer: 'canvas' });
+    const draw = (withOptional: boolean) => {
+    const all = withOptional ? [...spec.series, ...(spec.optional ?? [])] : spec.series;
+    const multi = all.length > 1;
     chart.setOption({
       ...t.base,
       legend: multi ? { top: 0, left: 0, right: 0, itemGap: 14, icon: 'roundRect', itemWidth: 10, itemHeight: 10, textStyle: { color: t.muted, fontSize: 12 } } : undefined,
@@ -32,10 +34,13 @@ const { id, option, height = 260, label, kind = 'line', class: cls } = Astro.pro
       tooltip: { ...t.base.tooltip, trigger: 'axis', valueFormatter: (v: number) => `${v} ${spec.unit}` },
       xAxis: { ...t.base.xAxis, type: 'category', data: spec.months, boundaryGap: kind !== 'line', axisLabel: { ...t.base.xAxis.axisLabel, interval: grouped ? 0 : 'auto' } },
       yAxis: { ...t.base.yAxis, type: 'value', minInterval: 1 },
-      series: spec.series.map((s, i) => kind === 'line'
+      series: all.map((s, i) => kind === 'line'
         ? { name: s.name, type: 'line', data: s.data, smooth: 0.25, symbol: 'circle', symbolSize: 5, showSymbol: false, lineStyle: { width: 2.25, type: spec.estimate ? 'dashed' : 'solid', color: t.palette[i % t.palette.length] }, itemStyle: { color: t.palette[i % t.palette.length] }, areaStyle: multi ? undefined : { color: t.accent, opacity: 0.06 } }
         : { name: s.name, type: 'bar', stack: kind === 'stackedBar' ? 'total' : undefined, data: s.data, barMaxWidth: grouped ? 28 : 22, barGap: grouped ? '12%' : undefined, label: grouped ? { show: true, position: 'top', fontSize: 11, color: t.ink, formatter: (x: { value: number }) => String(x.value) } : undefined, itemStyle: { color: t.palette[i % t.palette.length], borderRadius: kind === 'stackedBar' ? 0 : [3, 3, 0, 0] } }),
-    });
+    }, true);
+    };
+    draw(false);
+    document.querySelector<HTMLInputElement>(`[data-chart-toggle="${id}"]`)?.addEventListener('change', (e) => draw((e.target as HTMLInputElement).checked));
     charts.push(chart);
   });
   const resize = () => charts.forEach((c) => c.resize());

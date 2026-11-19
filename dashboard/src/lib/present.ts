@@ -4,7 +4,7 @@
  * database are rephrased.
  */
 import { COMPONENTS, SENSITIVE_RECIPES, SIGNAL_TYPES, signalLabel } from './data/catalog';
-import type { LeadSummary, Signal, SignalEvent, TopComponent } from './data/types';
+import type { LeadDetail, LeadSummary, Signal, SignalEvent, TopComponent } from './data/types';
 import { fmtDate, fmtNum, fmtUsdCompact, sentenceCase } from './format';
 
 /* ── reason text ── */
@@ -138,3 +138,51 @@ export const isTransferDoc = (t: string | null | undefined) => TRANSFER_DOCS.has
 
 /* ── money and equity ── */
 export const fmtUsdOrNull = (n: number | null | undefined) => (n == null ? null : fmtUsdCompact(n));
+
+/* ── "new" and trends ── */
+/** True when the lead's latest selling-relevant event is within the last 7 days of `now`. */
+export function isNewLead(l: LeadSummary, now: Date = new Date()): boolean {
+  if (!l.latest_signal_date) return false;
+  const days = (now.getTime() - new Date(l.latest_signal_date).getTime()) / 86_400_000;
+  return days >= 0 && days <= 7;
+}
+
+/** Week-over-week change as a computed number and short label ("+12%", "new", "no change"). Deterministic, no AI. */
+export function weekDelta(thisWeek: number, lastWeek: number): { dir: 'up' | 'down' | 'flat'; label: string } {
+  if (thisWeek === lastWeek) return { dir: 'flat', label: 'No change' };
+  if (lastWeek === 0) return { dir: 'up', label: `+${fmtNum(thisWeek)} vs last week` };
+  const pct = Math.round(((thisWeek - lastWeek) / lastWeek) * 100);
+  return { dir: pct > 0 ? 'up' : 'down', label: `${pct > 0 ? '+' : ''}${pct}% vs last week` };
+}
+
+/** SVG polyline points for a sparkline in a w x h box. */
+export function sparkPoints(values: number[], w: number, h: number, pad = 2): string {
+  if (values.length === 0) return '';
+  const max = Math.max(1, ...values);
+  const step = values.length > 1 ? (w - pad * 2) / (values.length - 1) : 0;
+  return values.map((v, i) => `${(pad + i * step).toFixed(1)},${(h - pad - (v / max) * (h - pad * 2)).toFixed(1)}`).join(' ');
+}
+
+/* ── blocked drafts ── */
+/** What is missing, in words a person can act on. Reasons come from the draft generator. */
+export function blockedHelp(reason: string): string {
+  return reason === 'missing agent name or DRE license' ? 'Add the agent’s name and DRE license number to the team profile (ask your administrator), then prepare the drafts again.'
+    : reason === 'missing office address' ? 'Add the office address to the team profile (ask your administrator), then prepare the drafts again.'
+    : reason === 'sample data' ? 'This draft uses sample owner data. It can be approved once real owner data is connected (Phase 6).'
+    : 'Resolve this with your administrator, then prepare the drafts again.';
+}
+
+/* ── lead brief ── */
+/** One-line headline for the brief hero: the largest non-sensitive signal component, from its stored facts only. */
+export function detailHeadline(lead: LeadDetail): Marked | null {
+  const date = (id: string | null | undefined) => lead.signals.find((s) => s.id === id)?.signal_date ?? null;
+  const top = (lead.score.components ?? [])
+    .filter((c) => c.kind === 'signal' && c.contribution > 0 && !c.key.startsWith('tax_default') && c.key !== 'owner:ownership_transfer')
+    .sort((a, b) => b.contribution - a.contribution)[0];
+  if (top) return componentLine({ key: top.key, facts: top.facts ?? null, points: top.contribution, signal_date: date(top.signal_id), is_sample: top.is_sample, is_estimate: top.is_estimate });
+  const first = reasonParts(publicReason(lead.score.reason_text))[0];
+  return first ? { text: first.text.replace(/[.,]$/, ''), sample: first.sample, estimate: first.estimate } : null;
+}
+
+/** Score components that describe tax default or ownership transfer: shown only in the brief's labeled sensitive section. */
+export const isSensitiveComponent = (key: string) => key.startsWith('tax_default') || key === 'owner:ownership_transfer';

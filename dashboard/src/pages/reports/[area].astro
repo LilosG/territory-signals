@@ -1,0 +1,40 @@
+---
+export const prerender = false;
+import PrintShell from '../../components/ui/PrintShell.astro';
+import Stack from '../../components/ui/Stack.astro';
+import Section from '../../components/ui/Section.astro';
+import TrendCard from '../../components/ui/TrendCard.astro';
+import SampleDataBadge from '../../components/ui/SampleDataBadge.astro';
+import { brand } from '../../config/brand';
+import { slugify } from '../../lib/format';
+const config = await Astro.locals.data.getConfig();
+const area = config.territory.neighborhoods.find((n) => slugify(n) === Astro.params.area);
+if (!area) return new Response('Not found', { status: 404 });
+const t = await Astro.locals.data.getTrends(area);
+const month = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+---
+<PrintShell title={`${area} market report`} backHref="/reports" backLabel="Back to reports">
+  <Stack gap={8}>
+    <header>
+      <p class="eyebrow">{brand.name} · Neighborhood market report</p>
+      <h1 class="t-display mt-2">{area}</h1>
+      <p class="mt-2 text-base text-ink-muted">Twelve months to {month}.</p>
+    </header>
+    <Section title="At a glance">
+      <ul class="flex flex-col gap-3">
+        {t.metrics.map((m) => (
+          <li class="border-l-2 border-gold pl-4">
+            <p class="flex flex-wrap items-center gap-2 text-sm font-medium">{m.title}{m.is_sample && !m.empty_state && <SampleDataBadge />}{m.is_estimate && <span class="est-tag">estimated</span>}</p>
+            <p class="text-sm text-ink-muted">{m.takeaway}</p>
+          </li>
+        ))}
+      </ul>
+    </Section>
+    <Section title="The detail">
+      <div class="grid gap-6 print:grid-cols-1">
+        {t.metrics.map((m) => <TrendCard metric={m} months={t.months} idPrefix={`rep-${slugify(area)}`} compact />)}
+      </div>
+    </Section>
+    <p class="text-xs text-ink-muted">Figures come from public records the team monitors. Estimates are in-house screens, not official determinations.</p>
+  </Stack>
+</PrintShell>

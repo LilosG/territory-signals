@@ -1,0 +1,37 @@
+---
+import type { OutreachItem } from '../../lib/data/types';
+import { RECIPE_LABELS } from '../../lib/data/catalog';
+import { blockedHelp } from '../../lib/present';
+import { fmtDate } from '../../lib/format';
+import ScoreRing from './ScoreRing.astro';
+import SampleDataBadge from './SampleDataBadge.astro';
+import Button from './Button.astro';
+/** One draft in the outreach queue. Blocked drafts cannot be selected and say exactly what is missing. */
+export interface Props { item: OutreachItem; selectable: boolean }
+const { item: o, selectable } = Astro.props;
+const chan = { mail: 'Letter', email: 'Email', call_task: 'Call task' }[o.channel];
+const meta = [o.neighborhood, chan, o.recipe ? (RECIPE_LABELS[o.recipe] ?? o.recipe) : null, o.due_date ? `Due ${fmtDate(o.due_date)}` : null, o.assigned_name ? `Assigned to ${o.assigned_name}` : null].filter(Boolean).join(' · ');
+const blocked = o.blocked.length > 0;
+const preview = (o.content ?? '').replace(/\s+/g, ' ').trim().slice(0, 160);
+---
+<li class="flex items-start gap-3 px-4 py-4 sm:px-5" data-outreach-row={o.id}>
+  {selectable
+    ? <input type="checkbox" name="id" value={o.id} form="bulk-form" disabled={blocked} data-bulk-item aria-label={`Select ${o.situs_address ?? 'draft'}`} class="mt-3 h-4 w-4 shrink-0 rounded border-line-strong accent-[var(--color-accent)] disabled:opacity-40" />
+    : <span class="w-4 shrink-0" aria-hidden="true"></span>}
+  {o.score != null && <ScoreRing score={o.score} size="sm" class="mt-0.5" />}
+  <div class="min-w-0 flex-1">
+    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+      <a href={`/leads/${o.apn}#drafts`} class="truncate text-sm font-semibold text-ink hover:text-accent">{o.situs_address ?? o.apn}</a>
+      {o.uses_sample_data && <SampleDataBadge />}
+    </div>
+    <p class="t-meta truncate text-ink-muted" title={meta}>{meta}</p>
+    {preview && <p class="mt-1 line-clamp-2 text-sm text-ink-muted">{preview}</p>}
+    {blocked && (
+      <div role="note" data-blocked class="mt-2 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm">
+        <p class="font-medium text-warning">Can’t be approved yet</p>
+        <ul class="mt-0.5 list-disc pl-5 text-ink">{o.blocked.map((r) => <li>{blockedHelp(r)}</li>)}</ul>
+      </div>
+    )}
+  </div>
+  <Button size="sm" variant="secondary" href={`/leads/${o.apn}#drafts`} class="shrink-0 max-sm:hidden">Review</Button>
+</li>

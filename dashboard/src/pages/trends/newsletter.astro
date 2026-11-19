@@ -10,7 +10,7 @@ const all = await Astro.locals.data.getTrends('All');
 const byArea = await Promise.all(config.territory.neighborhoods.map((a) => Astro.locals.data.getTrends(a)));
 const pick = (t: typeof all, k: string) => t.metrics.find((m) => m.key === k)!;
 ---
-<PrintShell title="Neighborhood update" backHref="/trends" backLabel="Back to trends">
+<PrintShell title="Neighborhood update" backHref="/reports" backLabel="Back to reports">
   <Stack gap={10}>
     <header>
       <p class="eyebrow">{brand.name} · Market update</p>

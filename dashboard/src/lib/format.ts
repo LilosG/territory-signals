@@ -53,3 +53,4 @@ export function titleAddress(s: string | null | undefined): string {
     return w.toLowerCase().replace(/(^|[-'’/])([a-z])/g, (_m, sep: string, c: string) => sep + c.toUpperCase()).replace(/^Mc([a-z])/, (_m, c: string) => `Mc${c.toUpperCase()}`);
   }).join(' ');
 }
+export const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

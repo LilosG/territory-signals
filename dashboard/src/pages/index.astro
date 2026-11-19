@@ -1,65 +1,66 @@
 ---
 import AppShell from '../components/ui/AppShell.astro';
 import PageHeader from '../components/ui/PageHeader.astro';
-import CoverageStrip from '../components/ui/CoverageStrip.astro';
 import Section from '../components/ui/Section.astro';
 import Grid from '../components/ui/Grid.astro';
 import Stack from '../components/ui/Stack.astro';
-import Card from '../components/ui/Card.astro';
 import LeadCard from '../components/ui/LeadCard.astro';
 import EmptyState from '../components/ui/EmptyState.astro';
 import Button from '../components/ui/Button.astro';
+import StatCard from '../components/ui/StatCard.astro';
+import RecipeTile from '../components/ui/RecipeTile.astro';
+import RailCard from '../components/ui/RailCard.astro';
 import SignalFeedItem from '../components/ui/SignalFeedItem.astro';
 import ApprovalRow from '../components/ui/ApprovalRow.astro';
 import CallTaskRow from '../components/ui/CallTaskRow.astro';
 import { fmtDate } from '../lib/format';
+import { isNewLead } from '../lib/present';
 
 export const prerender = false;
 const feed = await Astro.locals.data.getTodayFeed();
+const hour = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Los_Angeles' }).format(new Date())) % 24;
+const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+const where = feed.territory ?? 'All territory';
+const stat = (m: string) => feed.stats.find((s) => s.metric === m);
+const asOf = new Date(feed.as_of);
 ---
 <AppShell title="Today" active="today">
-  <PageHeader eyebrow={fmtDate(feed.as_of.slice(0, 10))} title="Good morning" description="Your top ten leads and what changed overnight.">
+  <PageHeader eyebrow={fmtDate(feed.as_of.slice(0, 10))} title={`${greeting} · ${where}`} description="Your best leads and what changed this week.">
     <Button href="/map" variant="secondary" icon="map" class="max-sm:hidden">Open map</Button>
   </PageHeader>
 
-  <Stack gap={10}>
-    <CoverageStrip coverage={feed.coverage} />
+  <Stack gap={8}>
+    <Grid cols={4} gap={4} class="[&>*]:min-w-0">
+      <StatCard label="New signals" series={stat('signals')} />
+      <StatCard label="Drafts prepared" series={stat('drafts')} />
+      <StatCard label="Outcomes logged" series={stat('outcomes')} />
+      <StatCard label="Active leads" series={stat('active_leads')} />
+    </Grid>
+
+    <Section title="This week by recipe" description="Parcels matching each recipe, and how many became a match this week.">
+      {feed.recipe_strip.length === 0
+        ? <p class="text-sm text-ink-muted">No recipes are switched on.</p>
+        : <ul class="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">{feed.recipe_strip.map((r) => <li><RecipeTile recipe={r} /></li>)}</ul>}
+    </Section>
 
     <Grid split="main-aside" gap={8}>
-      <Section title="Top 10 leads" description="Ranked by score. Scores are computed from stored records, never by AI.">
-        <Stack as="ul" gap={3}>
-          {feed.top_leads.map((l, i) => <li><LeadCard lead={l} rank={i + 1} /></li>)}
-        </Stack>
-        <p class="mt-4 text-sm"><a href="/leads" class="font-medium text-accent hover:underline">See all leads →</a></p>
+      <Section title="Top leads" description="Ranked by score. Scores are computed from stored records, never by AI.">
+        {feed.top_leads.length === 0
+          ? <EmptyState title="No leads here yet" description="Nothing scores in this territory yet." />
+          : <Stack as="ul" gap={3}>{feed.top_leads.map((l, i) => <li><LeadCard lead={l} rank={i + 1} isNew={isNewLead(l, asOf)} /></li>)}</Stack>}
+        <p class="t-meta"><a href="/leads" class="text-accent hover:underline">See all {feed.leads_total} leads →</a></p>
       </Section>
 
-      <Stack gap={8}>
-        <Section title="New since yesterday">
-          <Card padded={false}>
-            {feed.new_signals.length === 0
-              ? <EmptyState title="Nothing new" description="No new signals were detected overnight." />
-              : <ul class="divide-y divide-line">{feed.new_signals.map((s) => <SignalFeedItem signal={s} />)}</ul>}
-            {feed.new_signals_total > feed.new_signals.length && <p class="border-t border-line px-5 py-3 text-xs text-ink-muted">+ {feed.new_signals_total - feed.new_signals.length} more new signals</p>}
-          </Card>
-        </Section>
-
-        <Section title={`Approvals waiting · ${feed.approvals_total}`} description="Drafts need a human approval before anything is sent.">
-          <Card padded={false}>
-            {feed.approvals.length === 0
-              ? <EmptyState title="All clear" description="No drafts are waiting for approval." />
-              : <ul class="divide-y divide-line">{feed.approvals.map((o) => <ApprovalRow item={o} />)}</ul>}
-            {feed.approvals_total > feed.approvals.length && <p class="border-t border-line px-5 py-3 text-xs text-ink-muted">+ {feed.approvals_total - feed.approvals.length} more waiting</p>}
-          </Card>
-        </Section>
-
-        <Section title="Call tasks due">
-          <Card padded={false}>
-            {feed.call_tasks.length === 0
-              ? <EmptyState title="No calls due" />
-              : <ul class="divide-y divide-line">{feed.call_tasks.map((o) => <CallTaskRow task={o} />)}</ul>}
-            <p class="border-t border-line px-5 py-3 text-xs text-ink-muted">Calls are placed manually by the team. Nothing is dialed automatically.</p>
-          </Card>
-        </Section>
+      <Stack gap={6}>
+        <RailCard title="Approvals" count={feed.approvals_total} shown={feed.approvals.length} href="/outreach?tab=awaiting_approval" empty="No drafts are waiting for approval.">
+          {feed.approvals.slice(0, 5).map((o) => <ApprovalRow item={o} />)}
+        </RailCard>
+        <RailCard title="Call tasks" count={feed.call_tasks_total} shown={feed.call_tasks.length} href="/outreach?tab=call_tasks" empty="No calls due. Calls are placed by the team; nothing is dialed automatically.">
+          {feed.call_tasks.slice(0, 5).map((o) => <CallTaskRow task={o} />)}
+        </RailCard>
+        <RailCard title="New signals" count={feed.new_signals_total} shown={feed.new_signals.length} href="/leads?new=1" empty="Nothing new this week.">
+          {feed.new_signals.slice(0, 5).map((s) => <SignalFeedItem signal={s} />)}
+        </RailCard>
       </Stack>
     </Grid>
   </Stack>

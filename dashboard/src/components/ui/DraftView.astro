@@ -2,6 +2,7 @@
 import type { Outreach } from '../../lib/data/types';
 import { COMPONENTS, RECIPE_LABELS } from '../../lib/data/catalog';
 import { fmtDateTime, titleAddress } from '../../lib/format';
+import { blockedHelp as help } from '../../lib/present';
 import SourceLink from './SourceLink.astro';
 import SampleDataBadge from './SampleDataBadge.astro';
 import Button from './Button.astro';
@@ -16,12 +17,6 @@ const status: Record<Outreach['status'], { label: string; cls: string }> = {
 };
 const editable = draft.status === 'draft' || draft.status === 'awaiting_approval';
 const reasons = (draft.blocked_reason ?? '').split(';').map((r) => r.trim()).filter(Boolean);
-/** What is missing, in words a person can act on. Reasons come from the generator (D11 and the office-address rule). */
-const help = (r: string) =>
-  r === 'missing agent name or DRE license' ? 'Add the agent name and DRE license number under team_members in the client config, then regenerate drafts.'
-  : r === 'missing office address' ? 'Add team_profile.office_address in the client config, then regenerate drafts.'
-  : r === 'sample data' ? 'This draft uses sample owner data. It can be approved once real owner data is connected (Phase 6).'
-  : 'Resolve this in the client config or data, then regenerate drafts.';
 const PARCEL_FIELDS: Record<string, string> = { neighborhood: 'Neighborhood', situs_address: 'Street address' };
 const facts = (draft.source_facts ?? []).map((f) => ({
   text: f.kind === 'component' ? `${COMPONENTS[f.key ?? '']?.label ?? f.key}${f.is_estimate ? ' (estimated)' : ''}${f.is_sample ? ' (sample data)' : ''}`

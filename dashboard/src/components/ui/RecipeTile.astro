@@ -1,0 +1,12 @@
+---
+import type { RecipeWeek } from '../../lib/data/types';
+import { fmtNum } from '../../lib/format';
+/** Compact recipe tile for the Today strip. Links to the leads list filtered to that recipe. */
+export interface Props { recipe: RecipeWeek }
+const { recipe: r } = Astro.props;
+---
+<a href={`/leads?recipe=${encodeURIComponent(r.key)}`} class="card-hover flex min-w-[9.5rem] flex-col gap-1 rounded-lg border border-line bg-surface px-4 py-3">
+  <span class="t-meta truncate text-ink-muted">{r.label}</span>
+  <span class="text-xl font-semibold tabular-nums text-ink">{fmtNum(r.parcels)}</span>
+  <span class="text-xs text-ink-muted">{r.new_this_week > 0 ? <span class="new-marker">+{fmtNum(r.new_this_week)} new</span> : 'None new'}</span>
+</a>

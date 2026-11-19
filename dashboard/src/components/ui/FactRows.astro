@@ -1,0 +1,14 @@
+---
+import Fact from './Fact.astro';
+/** Label/value rows. Empty values are not passed in (hidden, never "—"). Sample facts are marked with the dotted underline; one panel badge is the caller's job. */
+export interface Row { label: string; text: string; sample?: boolean; estimate?: boolean }
+export interface Props { rows: Row[]; class?: string }
+---
+<dl class:list={['divide-y divide-line', Astro.props.class]}>
+  {Astro.props.rows.map((r) => (
+    <div class="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
+      <dt class="text-sm text-ink-muted">{r.label}</dt>
+      <dd class="text-right text-sm font-medium tabular-nums"><Fact text={r.text} sample={r.sample} estimate={r.estimate} /></dd>
+    </div>
+  ))}
+</dl>

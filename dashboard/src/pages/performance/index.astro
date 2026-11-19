@@ -1,0 +1,71 @@
+---
+import AppShell from '../../components/ui/AppShell.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import Card from '../../components/ui/Card.astro';
+import Grid from '../../components/ui/Grid.astro';
+import Section from '../../components/ui/Section.astro';
+import Stack from '../../components/ui/Stack.astro';
+import FunnelBars from '../../components/ui/FunnelBars.astro';
+import StatTile from '../../components/ui/StatTile.astro';
+import SampleDataBadge from '../../components/ui/SampleDataBadge.astro';
+import EmptyState from '../../components/ui/EmptyState.astro';
+import Chart from '../../components/ui/Chart.astro';
+import { fmtDate, fmtNum, fmtPct } from '../../lib/format';
+export const prerender = false;
+const [perf, bt] = await Promise.all([Astro.locals.data.getPerformance(), Astro.locals.data.getBacktest()]);
+const weeks = perf.coverage.map((w) => fmtDate(w.week).replace(/, \d{4}$/, ''));
+const cov = (key: 'signals' | 'sources_live' | 'parcels_monitored') => perf.coverage.map((w) => w[key]);
+const charts = [
+  { id: 'perf-parcels', title: 'Parcels monitored', kind: 'line' as const, unit: 'parcels', name: 'Parcels', data: cov('parcels_monitored') },
+  { id: 'perf-sources', title: 'Sources live', kind: 'line' as const, unit: 'sources', name: 'Sources', data: cov('sources_live') },
+  { id: 'perf-signals', title: 'Signals per week', kind: 'bar' as const, unit: 'signals', name: 'Signals', data: cov('signals') },
+];
+const hasCoverage = perf.coverage.length > 1 && perf.coverage.some((w) => w.parcels_monitored > 0 || w.signals > 0);
+---
+<AppShell title="Performance" active="performance">
+  <PageHeader eyebrow="Results" title="Performance" description="How flagged properties move from signal to listing, how well past sales would have been caught, and how much ground we cover." />
+  <Stack gap={10}>
+    <Section title="Funnel" description="Parcels that reached each stage. Each stage shows the share that advanced from the one before.">
+      {!perf.has_events
+        ? <Card><EmptyState title="No outcomes recorded yet" description="Open a lead and record an outcome (contacted, conversation, appointment, listing). The funnels fill in as the team logs results." /></Card>
+        : <Stack gap={6}>
+            <Card><div class="mb-4 flex items-center gap-2"><h3 class="t-h2">Overall</h3>{perf.is_sample && <SampleDataBadge />}</div><FunnelBars caption="Overall funnel" rows={[perf.overall]} /></Card>
+            <Grid split="even" gap={6}>
+              <Card><h3 class="t-h2 mb-4">By agent</h3><FunnelBars caption="Funnel by agent" rows={perf.by_agent} /></Card>
+              <Card><h3 class="t-h2 mb-1">By recipe</h3><p class="mb-4 text-sm text-ink-muted">Each parcel counts once, under its primary recipe.</p><FunnelBars caption="Funnel by recipe" rows={perf.by_recipe} /></Card>
+            </Grid>
+          </Stack>}
+    </Section>
+
+    <Section title="Backtest" description="Would we have seen past sales coming?">
+      <Card as="div" id="backtest">
+        {bt
+          ? <>
+              <div class="mb-1 flex items-center gap-2">{bt.is_sample && <SampleDataBadge label="Sample until Phase 6" />}<span class="t-meta text-ink-muted">{fmtDate(bt.window.from)} – {fmtDate(bt.window.to)}</span></div>
+              <dl class="mt-4 grid grid-cols-2 gap-6 sm:grid-cols-4">
+                <StatTile emphasis label="Flagged before listing" value={fmtPct(bt.share_flagged)} hint={`of past sales · ${bt.flagged_before_listing} of ${bt.past_sales_considered}`} smallSample={bt.flagged_before_listing < 5} />
+                <StatTile emphasis label="Average days early" value={String(bt.avg_days_early)} hint="days" />
+                <StatTile label="Median days early" value={String(bt.median_days_early)} hint="days" />
+                <StatTile label="Past sales considered" value={String(bt.past_sales_considered)} hint="sales" />
+              </dl>
+              <p class="mt-5 border-t border-line pt-4 text-xs text-ink-muted">{bt.note}</p>
+            </>
+          : <EmptyState title="Connects when owner sale history is added in Phase 6" description="A backtest needs real past sales. No backtest numbers are shown until then." />}
+      </Card>
+    </Section>
+
+    <Section title="Coverage over time" description="How much the system watches, week by week.">
+      {!hasCoverage
+        ? <Card><EmptyState title="Appears after the second weekly snapshot" description="Coverage is charted once there are at least two weeks of history." /></Card>
+        : <Grid cols={3} gap={4}>
+            {charts.map((c) => (
+              <Card as="article">
+                <h3 class="t-h2">{c.title}</h3>
+                <p class="mt-0.5 text-sm text-ink-muted tabular-nums">Latest: {fmtNum(c.data.at(-1) ?? 0)}</p>
+                <Chart id={c.id} kind={c.kind} height={200} label={`${c.title} by week`} class="mt-3" option={{ months: weeks, unit: c.unit, series: [{ name: c.name, data: c.data }] }} />
+              </Card>
+            ))}
+          </Grid>}
+    </Section>
+  </Stack>
+</AppShell>
