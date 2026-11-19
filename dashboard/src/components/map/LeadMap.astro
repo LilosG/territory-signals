@@ -77,6 +77,10 @@ const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
   const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
   const query = () => { const v = new FormData(form); const q = new URLSearchParams(); for (const [k, x] of v) if (x) q.set(k, String(x)); return q; };
 
+  // MapLibre 6 loads its web worker as a separate module next to its own bundle; Vite does not emit it. The build
+  // copies it to /maplibre/ (scripts/copy-maplibre-worker.mjs), so point MapLibre there in production builds.
+  if (import.meta.env.PROD) maplibregl.setWorkerUrl('/maplibre/maplibre-gl-worker.mjs');
+
   const bounds = new maplibregl.LngLatBounds();
   const extend = (c: unknown): void => { if (Array.isArray(c) && typeof c[0] === 'number') bounds.extend(c as [number, number]); else (c as unknown[]).forEach(extend); };
   for (const f of payload.areas.features) extend((f.geometry as GeoJSON.Polygon).coordinates);
@@ -87,6 +91,7 @@ const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
     bounds, fitBoundsOptions: { padding: { top: 40, bottom: 64, left: panelLeft(), right: 56 } },
     attributionControl: { compact: true }, cooperativeGestures: false,
   });
+  (window as unknown as { __leadMap: maplibregl.Map }).__leadMap = map; // for the e2e test
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
   const bandBadge = (s: number, band: Band) => {
@@ -135,6 +140,7 @@ const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
   async function loadPoints() {
     const res = await fetch(`/api/map?${query()}`); if (!res.ok) return;
     const fc = (await res.json()) as GeoJSON.FeatureCollection & { sample?: boolean };
+    for (const f of fc.features) f.properties!.band = bandOf(f.properties!.score as number); // band comes from the catalog, in the browser
     sampleTag.hidden = !fc.sample;
     (map.getSource('leads') as maplibregl.GeoJSONSource | undefined)?.setData(fc);
     if (!firstFit && fc.features.length) {

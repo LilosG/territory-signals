@@ -10,7 +10,7 @@ from typing import Any, Callable, Optional
 
 from psycopg.types.json import Jsonb
 
-from territory.db import connect
+from territory.db import connect, refresh_dashboard_aggregates
 from territory.reports import write_match_report
 from territory.sources.base import (
     AwaitingManualDownload, RunContext, SignalCandidate, SourceAdapter,
@@ -68,6 +68,7 @@ def tracked_run(source_key: str, work: Callable[[Any, str], WorkResult]) -> RunO
             "rows_matched=%s, rows_unmatched=%s where id=%s",
             (result.rows_fetched, result.rows_matched, result.rows_unmatched, run_id))
         work_conn.commit()
+        refresh_dashboard_aggregates()   # /trends reads pre-computed tables
         return RunOutcome(source_key, run_id, "success", result.rows_fetched,
                           result.rows_matched, result.rows_unmatched,
                           result.signals_written, None, result.extra)

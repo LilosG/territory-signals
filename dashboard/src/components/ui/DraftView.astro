@@ -1,7 +1,7 @@
 ---
 import type { Outreach } from '../../lib/data/types';
 import { COMPONENTS, RECIPE_LABELS } from '../../lib/data/catalog';
-import { fmtDateTime } from '../../lib/format';
+import { fmtDateTime, titleAddress } from '../../lib/format';
 import SourceLink from './SourceLink.astro';
 import SampleDataBadge from './SampleDataBadge.astro';
 import Button from './Button.astro';
@@ -25,7 +25,7 @@ const help = (r: string) =>
 const PARCEL_FIELDS: Record<string, string> = { neighborhood: 'Neighborhood', situs_address: 'Street address' };
 const facts = (draft.source_facts ?? []).map((f) => ({
   text: f.kind === 'component' ? `${COMPONENTS[f.key ?? '']?.label ?? f.key}${f.is_estimate ? ' (estimated)' : ''}${f.is_sample ? ' (sample data)' : ''}`
-    : f.kind === 'parcel_field' ? `${PARCEL_FIELDS[f.parcel_field ?? ''] ?? f.parcel_field}: ${String(f.value)}`
+    : f.kind === 'parcel_field' ? `${PARCEL_FIELDS[f.parcel_field ?? ''] ?? f.parcel_field}: ${f.parcel_field === 'situs_address' ? titleAddress(String(f.value)) : String(f.value)}`
     : `${f.owner_field ?? f.kind}: ${String(f.value ?? '')}`,
   source_key: f.source_key ?? (f.kind === 'parcel_field' ? 'parcels' : 'sample_owner'),
   source_record_id: f.source_record_id ?? f.apn ?? '',

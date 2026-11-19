@@ -87,12 +87,27 @@ Added in the Phase 5A corrections:
 Added during Phase 5B:
 
 - [ ] **Recipe-to-signal mapping is not in the catalog:** the old dashboard hid signal chips a recipe already implied. `catalog.generated.json` has no such mapping, so lead cards show recipe tags and signal chips side by side. Add `components` per recipe to `export_catalog` if the redundancy matters.
-- [ ] **npm audit:** 0 findings, but `package.json` pins `overrides: { "path-to-regexp": "6.3.0" }` because `@astrojs/vercel` -> `@vercel/routing-utils` pulls 6.1.0 (high). Remove the override once the adapter ships a fixed dependency.
+- [x] **npm audit (resolved in 5C):** the `path-to-regexp` override existed only for `@astrojs/vercel`; the adapter is now `@astrojs/cloudflare`. The override is still in `package.json`; remove it once `npm audit` is confirmed clean without it.
 - [ ] **`typescript` stays on 5.9.3:** TypeScript 7 is released but `@astrojs/check` / Volar are not verified against it yet.
-- [ ] **Client config is read from the filesystem** (`config/clients/<CLIENT_ID>.yaml`, relative to the dashboard folder, or `CLIENT_CONFIG_PATH`). The deploy step must ship that file (or set the path) next to the Vercel build.
-- [ ] **Email rate limit locally:** the local Supabase auth allows only a few sign-in emails per hour; the e2e login test skips itself when limited. Production needs real SMTP (not in scope here).
+- [x] **Client config (resolved in 5C):** `config/clients/*.yaml` is now bundled into the Worker at build time (`import.meta.glob`), because Workers has no filesystem. Changing a client config therefore needs a rebuild and redeploy. `CLIENT_CONFIG_PATH` was removed.
+- [ ] **Email rate limit locally:** the local Supabase auth allows only a few sign-in emails per hour; the e2e login test skips itself when limited. Production now uses Gmail SMTP (Phase 5C); see `DEPLOY.md`.
 - [ ] **Share page has no address by design;** agent phone comes from `team_members[].phone` in the client config (empty until Mike supplies it).
 - [ ] **No first-run funnel data:** the funnel stays empty until outcomes are recorded. `record_stage` writes a `signal` stage entry (source system) the first time a parcel gets an outcome.
 - [ ] **"New since yesterday" is every signal on a first load:** all 75k signals were detected in the first pipeline run, so the feed shows the most recently dated ones. It becomes a true daily delta after the second run.
-- [ ] **Map loads all scored parcels (about 26k points, ~3 MB JSON)** per filter change, as specified. If it feels slow on Vercel, switch to vector tiles or bbox queries.
+- [ ] **Map loads all scored parcels (about 26k points, ~3 MB JSON)** per filter change, as specified. If it feels slow on Cloudflare Workers, switch to vector tiles or bbox queries.
 - [ ] **Pipeline "By recipe"** counts each parcel under its primary recipe only (the funnel view); parcels with no primary recipe are in the overall funnel but not in a recipe row.
+
+
+Added during Phase 5C:
+
+- [ ] **Move pipelines to the Hetzner VPS on a weekly schedule.** Today the pipelines run from Mike's laptop against the local database; refreshing the cloud data is a manual dump and restore (see `DEPLOY.md`). The VPS job should write straight to the cloud project with `SUPABASE_DB_URL`.
+- [ ] **Custom domain on Cloudflare** instead of `kaiser-team-signals.mike-1d7.workers.dev`. When it changes, update the Supabase Auth site URL and redirect URLs too.
+- [ ] **Workers Paid plan for production.** The free plan has a 10 ms CPU limit per request; heavy pages (map, trends) may exceed it. See the smoke-test findings in `DEPLOY.md`.
+- [ ] **Supabase plan check.** The cloud project is on the free plan: free projects pause after about a week of inactivity, and the database limit is 500 MB (the data is about 350 MB, so there is little room for growth, raw records especially). Upgrade to Pro before real use.
+- [ ] **Gmail SMTP is a stopgap.** Gmail caps sending (about 500 per day) and ties production auth email to one mailbox's app password. Move to a transactional provider (Resend, Postmark) with a verified domain.
+- [ ] **`CLAUDE.md` still says "Vercel (dashboard)"** in its Stack section. It was outside Phase 5C's allowed paths; change it to Cloudflare Workers.
+- [ ] **Production builds use `scripts/build-prod.mjs`.** The Cloudflare adapter reads `dashboard/.env` ahead of `.env.production`, so the script swaps the local `.env` out during the build. Revisit if the adapter's env loading changes.
+- [ ] **Cloud copy of `team_members`** came across in the data copy (1 row); the production list is managed with `seed_team` (see `DEPLOY.md`).
+- [ ] **Dashboard queries are heavy for a small instance.** Found in Phase 5C: `latest_scores` (a `DISTINCT ON` over all 131k score rows) made `leads_page` take 12-14 s on the cloud project, past the 8 s `authenticated` statement timeout (HTTP 500 on `/`). Fixed in migration `20261119000000_latest_scores_perf.sql` (index + one probe per parcel). Still the slowest on the cloud project (as the signed-in role): `leads_page` with the signal-group filter (~4 s), `trend_upzoning_by_hood` (~1.7 s), `trend_signals_monthly` (~1.6 s), `map_points` (~1.2 s). Consider a `latest_scores` table maintained by the scoring pipeline, and computing `total` separately from the page in `leads_page`.
+- Refresh of the trend tables is automatic after pipeline loads (done). Still manual after a raw `pg_dump` restore.
+- [ ] **`/api/map` payload is ~5 MB raw (about 26k features).** It is built in SQL and compressed by Cloudflare, but a score threshold, bounding-box queries or vector tiles would cut it. Also trim the `neighborhood` / `primary_recipe` properties the map does not use.

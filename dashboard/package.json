@@ -4,8 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "dev": "node scripts/copy-maplibre-worker.mjs && astro dev",
+    "build": "node scripts/copy-maplibre-worker.mjs && astro build",
+    "build:prod": "node scripts/build-prod.mjs",
+    "deploy": "npm run build:prod && wrangler deploy",
     "preview": "astro preview",
     "check": "astro check",
     "fixtures": "tsx scripts/generate-fixtures.ts",

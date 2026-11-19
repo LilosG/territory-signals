@@ -70,7 +70,7 @@ Run from `pipelines/`: `python -m territory.export_catalog` (names), `python -m 
 
 
 ## Dashboard (Phase 5B)
-Astro 7, server output (`@astrojs/vercel`), Tailwind 4, MapLibre 6, ECharts 6. Run notes are in `dashboard/README.md`.
+Astro 7, server output (`@astrojs/cloudflare`, hosted on Cloudflare Workers; see `DEPLOY.md`), Tailwind 4, MapLibre 6, ECharts 6. Run notes are in `dashboard/README.md`.
 
 - **Names.** `src/lib/data/catalog.ts` reads only `src/data/catalog.generated.json` (signals, groups, permit types, recipes, components with max points, score bands, stages, model_version). The only hand-written lists are external source links and outreach status labels. Fixtures and live data share that vocabulary (`scripts/generate-fixtures.ts`).
 - **Data layer.** `DataProvider` (`lib/data/provider.ts`) has two implementations selected by `DATA_PROVIDER` (default `supabase`): `supabase.ts` (user session via `@supabase/ssr`; RLS applies) and `fixtures.ts`. Providers call `mark()` whenever data shown is sample (`uses_sample_data` / `is_sample`); `AppShell` shows the sample banner from that on every page.

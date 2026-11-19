@@ -16,7 +16,7 @@ from datetime import date
 from psycopg.types.json import Jsonb
 
 from territory.config import load_client
-from territory.db import connect
+from territory.db import connect, refresh_dashboard_aggregates
 from territory.owner_data.attom import AttomOwnerProvider
 from territory.owner_data.sample import SampleOwnerProvider
 from territory.scoring_engine import load_scoring_config, norm_doc_type
@@ -99,6 +99,7 @@ def main(argv=None) -> int:
     client = load_client(args.client)
     with connect() as conn:
         res = load_owner_layer(conn, client, args.as_of or date.today())
+    refresh_dashboard_aggregates()
     print(res)
     return 0
 

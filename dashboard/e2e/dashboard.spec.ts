@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { SECRET_OWNER, stack, TEST_APN, TEST_EMAIL } from './env';
 
 const brief = `/leads/${TEST_APN}`;
@@ -20,26 +20,60 @@ test.describe('signed out', () => {
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   });
 
-  test('login with a real magic link from the local mail viewer', async ({ page, request }) => {
+  /** Requests a sign-in email from the login page and returns the link and 6-digit code from the local mail viewer. */
+  async function requestEmail(page: Page, request: APIRequestContext): Promise<{ link: string; code: string } | null> {
     const mail = stack().mail;
+    await request.delete(`${mail}/api/v1/search?query=${encodeURIComponent(`to:${TEST_EMAIL}`)}`); // start from an empty inbox
     await page.goto('/login');
     await page.getByLabel('Email').fill(TEST_EMAIL);
     await page.getByRole('button', { name: 'Email me a sign-in link' }).click();
-    const limited = await page.getByText('Too many sign-in emails').isVisible();
-    test.skip(limited, 'Local Supabase limits sign-in emails per hour; rerun later');
+    if (await page.getByText('Too many sign-in emails').isVisible()) return null;
     await expect(page.getByText('Check your email.')).toBeVisible();
-
-    let link = '';
+    let out = { link: '', code: '' };
     await expect.poll(async () => {
       const list = await (await request.get(`${mail}/api/v1/search?query=${encodeURIComponent(`to:${TEST_EMAIL}`)}`)).json() as { messages?: { ID: string }[] };
       const id = list.messages?.[0]?.ID; if (!id) return '';
       const msg = await (await request.get(`${mail}/api/v1/message/${id}`)).json() as { HTML: string; Text: string };
-      link = (msg.HTML.match(/href="([^"]+\/auth\/v1\/verify[^"]+)"/)?.[1] ?? msg.Text.match(/(http\S+\/auth\/v1\/verify\S+)/)?.[1] ?? '').replace(/&amp;/g, '&');
-      return link;
-    }, { timeout: 20_000 }).not.toBe('');
-    await page.goto(link);
+      const link = (msg.HTML.match(/href="([^"]+\/auth\/callback\?token_hash=[^"]+)"/)?.[1] ?? '').replace(/&amp;/g, '&');
+      const code = msg.Text.match(/\b(\d{6})\b/)?.[1] ?? msg.HTML.match(/>\s*(\d{6})\s*</)?.[1] ?? '';
+      out = { link, code };
+      return link && code ? 'ok' : '';
+    }, { timeout: 20_000 }).toBe('ok');
+    return out;
+  }
+
+  test('login with the emailed link (token_hash flow, no browser-bound verifier)', async ({ page, request }) => {
+    const mail = await requestEmail(page, request);
+    test.skip(!mail, 'Local Supabase limits sign-in emails per hour; rerun later');
+    expect(mail!.link).toMatch(/\/auth\/callback\?token_hash=.+&type=email$/);
+    // Open it in a brand-new browser context: the link must not depend on cookies from the requesting browser.
+    const other = await page.context().browser()!.newContext({ baseURL: 'http://127.0.0.1:3000' });
+    const page2 = await other.newPage();
+    await page2.goto(mail!.link);
+    await expect(page2).toHaveURL(/127\.0\.0\.1:3000\/$/);
+    await expect(page2.getByRole('heading', { name: 'Good morning' })).toBeVisible();
+    await other.close();
+  });
+
+  test('login with the 6-digit code from the email', async ({ page, request }) => {
+    const mail = await requestEmail(page, request);
+    test.skip(!mail, 'Local Supabase limits sign-in emails per hour; rerun later');
+    await page.getByLabel('Enter your 6-digit code').fill('000000');
+    await page.getByRole('button', { name: 'Sign in with code' }).click();
+    await expect(page.getByText('That code is wrong or has expired.')).toBeVisible();
+    await page.getByLabel('Enter your 6-digit code').fill(mail!.code);
+    await page.getByRole('button', { name: 'Sign in with code' }).click();
     await expect(page).toHaveURL(/127\.0\.0\.1:3000\/$/);
     await expect(page.getByRole('heading', { name: 'Good morning' })).toBeVisible();
+  });
+
+  test('an invalid or reused link redirects to /login with a friendly message, never a 500', async ({ page }) => {
+    for (const path of ['/auth/callback?token_hash=not-a-real-token&type=email', '/auth/callback?code=not-a-real-code', '/auth/callback']) {
+      const res = await page.goto(path);
+      expect(res!.status(), path).toBeLessThan(500);
+      await expect(page).toHaveURL(/\/login\?error=link$/);
+      await expect(page.getByText('That link expired or was opened in a different browser. Request a new one or use your code.')).toBeVisible();
+    }
   });
 
   test('an email that is not on the team gets no account and no email', async ({ page, request }) => {
@@ -73,7 +107,7 @@ test('the map endpoint returns compact GeoJSON for all scored parcels', async ({
   const fc = await res.json();
   expect(fc.type).toBe('FeatureCollection');
   expect(fc.features.length).toBeGreaterThan(20_000);
-  expect(Object.keys(fc.features[0].properties).sort()).toEqual(['apn', 'band', 'neighborhood', 'primary_recipe', 'score']);
+  expect(Object.keys(fc.features[0].properties).sort()).toEqual(['apn', 'neighborhood', 'primary_recipe', 'score']);
   const lj = await (await request.get('/api/map?hood=Mission%20Beach&range=60-100')).json();
   expect(lj.features.length).toBeLessThan(fc.features.length);
   expect(lj.features.every((f: { properties: { neighborhood: string; score: number } }) => f.properties.neighborhood === 'Mission Beach' && f.properties.score >= 60)).toBe(true);
@@ -165,4 +199,45 @@ test('create a share link, open it signed out (property facts only), then revoke
   expect(gone!.status()).toBe(404);
   await expect(pub.getByText('This link is no longer available')).toBeVisible();
   await anon.close();
+});
+
+test('map page: the MapLibre worker and /api/map load, and points are rendered', async ({ page, request }) => {
+  const bad: string[] = [];
+  page.on('response', (r) => { if (new URL(r.url()).origin === 'http://127.0.0.1:3000' && r.status() >= 400) bad.push(`${r.status()} ${r.url()}`); });
+  // The worker file must be served as a static module (it was a 404 in production: blank map).
+  const w = await request.get('/maplibre/maplibre-gl-worker.mjs');
+  expect(w.status()).toBe(200);
+  expect(w.headers()['content-type']).toMatch(/javascript/);
+  const points = page.waitForResponse((r) => r.url().includes('/api/map'));
+  await page.goto('/map');
+  const res = await points;
+  expect(res.status()).toBe(200);
+  expect(res.headers()['content-type']).toContain('geo+json');
+  await expect(page.locator('#lead-map canvas.maplibregl-canvas')).toBeVisible();
+  await expect(page.locator('#map-count')).toContainText('parcels');
+  // Parcel points (or clusters) are actually in the map, which only happens when the worker ran.
+  await expect.poll(() => page.evaluate(() => {
+    const m = (window as unknown as { __leadMap?: { querySourceFeatures: (s: string) => unknown[] } }).__leadMap;
+    return m ? m.querySourceFeatures('leads').length : 0;
+  }), { timeout: 30_000 }).toBeGreaterThan(0);
+  expect(bad).toEqual([]);
+});
+
+test('street addresses are shown in title case, never ALL CAPS', async ({ page, request }) => {
+  await page.goto('/leads');
+  const first = await page.locator('h3').first().innerText();
+  expect(first).toMatch(/^\d+ /);
+  expect(first).not.toMatch(/[A-Z]{3,}/); // "6275 Cardeno Dr", not "6275 CARDENO DR"
+  const api = await (await request.get('/api/leads?size=25')).json() as { items: { parcel: { situs_address: string | null } }[] };
+  for (const l of api.items) expect(l.parcel.situs_address ?? '').not.toMatch(/\b[A-Z]{3,}\b/);
+});
+
+test('every signed-in page loads without a server error or console error', async ({ page }) => {
+  const errors = noConsoleErrors(page);
+  for (const path of ['/', '/leads', brief, `${brief}/presentation`, '/map', '/trends', '/trends/newsletter', '/pipeline', '/settings']) {
+    const res = await page.goto(path);
+    expect(res!.status(), path).toBe(200);
+    await expect(page).toHaveURL(new RegExp(`${path.replace(/[/]/g, '\\/')}$`));
+  }
+  expect(errors.filter((e) => !/tiles\.openfreemap|net::ERR|Failed to load resource/.test(e))).toEqual([]);
 });

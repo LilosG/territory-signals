@@ -21,7 +21,7 @@ from dateutil.relativedelta import relativedelta
 from psycopg.types.json import Jsonb
 
 from territory.config import load_client
-from territory.db import connect
+from territory.db import connect, refresh_dashboard_aggregates
 from territory.reports import REPORT_DIR
 from territory.scoring_engine import (
     Owner, Sig, norm_doc_type, latest_snapshot_dates, load_scoring_config, percentile, resolve_tenure, score_parcel,
@@ -267,6 +267,7 @@ def main(argv=None) -> int:
             print(write_land_use_profile(conn, cfg))
             return 0
         s = run_score(conn, cfg, args.as_of or date.today(), report_dir=REPORT_DIR)
+    refresh_dashboard_aggregates()
     print(f"model {s['model_version']} as of {s['as_of']}: scored {s['scored']} of "
           f"{s['residential_parcels']} residential parcels ({s['non_residential_parcels']} non-residential "
           f"not scored); suppressed {dict(s['suppressed'])}; fire data loaded: {bool(s['loaded_data'])}")
