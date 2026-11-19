@@ -17,7 +17,6 @@ const page = Math.max(1, Number(sp.get('page') ?? 1) || 1);
 const filters = filtersFrom(sp);
 const config = await Astro.locals.data.getConfig();
 const result = await Astro.locals.data.getLeads(filters, page, PAGE_SIZE);
-const recipeNames = Object.fromEntries(config.recipes.map((r) => [r.key, r.name]));
 const pages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
 const link = (n: number) => { const q = new URLSearchParams(sp); q.set('page', String(n)); return `/leads?${q}`; };
 ---
@@ -37,7 +36,7 @@ const link = (n: number) => { const q = new URLSearchParams(sp); q.set('page', S
 
     {result.items.length === 0
       ? <EmptyState title="No leads match" description="Try removing a filter." />
-      : <Stack as="ul" gap={3}>{result.items.map((l, i) => <li><LeadCard lead={l} recipeNames={recipeNames} rank={(page - 1) * PAGE_SIZE + i + 1} /></li>)}</Stack>}
+      : <Stack as="ul" gap={3}>{result.items.map((l, i) => <li><LeadCard lead={l} rank={(page - 1) * PAGE_SIZE + i + 1} /></li>)}</Stack>}
 
     <nav aria-label="Pagination" class="flex items-center justify-between gap-3 text-sm">
       <span class="text-ink-muted">Page {page} of {pages}</span>

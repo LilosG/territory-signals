@@ -1,6 +1,6 @@
 # Phase 5D progress
 
-Branch: `phase-5d-product-polish`. Last commit: "Phase 5D: WIP data layer" (the dashboard does not typecheck yet).
+Branch: `phase-5d-product-polish`. Chunk 1 is done (`astro check` 0 errors, `astro build` passes). Next: Chunk 2.
 
 ## 1. What is done
 
@@ -9,7 +9,22 @@ Branch: `phase-5d-product-polish`. Last commit: "Phase 5D: WIP data layer" (the 
 - **Helpers**: `data/landUse.ts` (land use labels, unknown -> "Residential (code N)"), `lib/present.ts` (reason-text sample/estimate parts, distress phrase stripping, lead headline and chips, same-day permit collapsing, "Ownership transfer" label), `lib/ring.ts` (ScoreRing SVG), `lib/nav.ts` (sidebar groups and count badges).
 - **Known loose ends**: nothing else is wired up. Pages, components, API routes and actions still use the old data-layer methods (`getTodayFeed` shape, `getSources`, `LeadSummary.signal_count`, `LeadDetail.signals`, etc.) and will fail `astro check` until Chunk 1 and 2 are done. "New this week" is defined as a selling-relevant event dated within 7 days (permits outside "other", STR removals); note this in BACKLOG.md.
 
-## Chunk 1: data layer completion plus visual system (astro check must pass)
+## Chunk 1 status: DONE
+
+Done in Chunk 1:
+- `astro check` passes with 0 errors; `fixtures.ts` already typechecked.
+- **Actions** (`pages/actions/[action].ts`): `territory` (sets/clears the `ts_territory` cookie, validated against the client config, works in fixtures mode), `approve-bulk` (field `id`, repeated; each goes through `approve_outreach`, blocked drafts are skipped and named in the message), `share-bulk` (field `apn`, repeated; calls `create_share_link`). Both capped at 50.
+- **API**: new `/api/search?q=` (min 2 chars, 8 hits, territory-limited); `/api/leads` and `/api/map` follow the territory cookie and default to score 30+ (`all=1` shows all); `lib/filters.ts` now parses `sort`, `status`, `new=1`, `min`, `max`.
+- **Visual system**: `tokens.css` (muted gold, navy sidebar tokens, 12px radius), `global.css` (type roles `t-display`/`t-h1`/`t-h2`/`t-body`/`t-meta`, `.card-hover`, `.sample-fact`, `.est-tag`, `.new-marker`, `.skeleton`, `.side-link`/`.side-badge`), cards have no resting shadow.
+- **Components**: `ScoreRing` (replaced `ScoreBadge`, which is deleted; used on cards, lists, table, map list/drawer, brief), `Skeleton`, `Fact` (dotted underline for sample, "est." tag for estimates), rebuilt `LeadCard` (headline, up to 3 chips, status pill, expandable reason, one sample badge, no distress chips), `ApprovalRow`/`CallTaskRow`/`SignalFeedItem` on the new types, new icons.
+- **AppShell**: navy sidebar with brand block, territory switcher (hidden form, auto-submits), search field, grouped nav with live count badges, user and sign out at the bottom; phone bottom bar plus a "More" sheet with the full nav and territory; Cmd/Ctrl+K search dialog (arrow keys, Enter opens the first hit).
+- **Map**: "Show all parcels" toggle (default 30+), neighborhood select replaced by a territory tag when a territory is selected, ScoreRing in the list and drawer. Clusters were already max-score colored and count sized.
+- Smoke test in fixtures mode: `/`, `/leads`, `/map`, `/design-system`, `/api/search`, `/api/map` return 200; no horizontal overflow at 1440 and 390; Cmd+K returns results; no console errors.
+- BACKLOG.md has the 5D notes.
+
+Left for Chunk 2/3 (not done on purpose): the pages still use their old layouts (Today, Leads, brief, Pipeline, Settings, Trends); the nav links to `/outreach`, `/recipes`, `/off-market`, `/reports`, `/performance`, `/data-sources`, `/team` which do not exist yet (404). Existing e2e spec and screenshots script not yet updated for the new design. Bulk actions have no UI yet (Outreach and Off-market pages in Chunk 2). Data sources still shown in settings.astro (new SourceCard shape).
+
+## Chunk 1 requirements (original)
 
 Finish: `fixtures.ts` typecheck, middleware territory cookie (done in code, needs the `/actions/territory` POST that sets it), API routes and actions (`/api/search`, territory-aware `/api/leads` and `/api/map`, bulk approve, bulk share-link create), and the visual system below. Allowed paths: dashboard/, supabase/migrations/ (new files only), tests/ (new tests), BACKLOG.md, DEPLOY.md, ARCHITECTURE.md (dashboard section).
 

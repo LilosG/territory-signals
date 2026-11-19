@@ -22,6 +22,20 @@
   --color-accent-soft: var(--brand-accent-soft, #e9edf5);
   --color-accent-fg: var(--brand-accent-fg, #ffffff);
 
+  /* Muted gold: used sparingly for highlights and "new" markers. Text uses gold-strong (4.9:1 on white). */
+  --color-gold: #b8944a;
+  --color-gold-strong: #86671c;
+  --color-gold-soft: #f6efdc;
+
+  /* Sidebar: deep navy, white text at 80% */
+  --color-side: #0e1c38;
+  --color-side-raised: #14264b;
+  --color-side-ink: rgb(255 255 255 / 0.8);
+  --color-side-faint: rgb(255 255 255 / 0.62);
+  --color-side-line: rgb(255 255 255 / 0.12);
+  --color-side-hover: rgb(255 255 255 / 0.07);
+  --color-side-active: rgb(255 255 255 / 0.14);
+
   /* Semantic */
   --color-good: #1d6f48;
   --color-good-soft: #e5f2ea;
@@ -58,7 +72,8 @@
   /* Radius */
   --radius-sm: 6px;
   --radius-md: 10px;
-  --radius-lg: 16px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-full: 9999px;
 
   /* Elevation: restrained */

@@ -4,10 +4,9 @@ import { loadClientConfig } from '../config';
 import { EVENT_TYPES, INTERNAL_SOURCES, RECIPE_LABELS, SENSITIVE_TYPES, SOURCE_CATALOG, STAGES, TRAIT_TYPES, bandOf } from './catalog';
 import type { DataProvider, MarkSample, SharePageReader } from './provider';
 import { buildTrends, leadStatus, scoreItems, yearsSince, type TrendRows } from './shared';
-import { collapseSignals } from '../present';
 import type {
   Backtest, ClientConfig, Coverage, FunnelRow, LeadDetail, LeadFilters, LeadPage, LeadSummary, MapData, NavCounts, OffMarketPage,
-  Outreach, OutreachItem, OutreachPage, OutreachTab, Performance, Pipeline, RecentOutcome, RecipeCard, SearchHit, SharePage,
+  Outreach, OutreachItem, OutreachPage, Performance, Pipeline, RecentOutcome, RecipeCard, SearchHit, SharePage,
   SignalEvent, SourceCard, StatSeries, TeamMember, TodayFeed, Trends,
 } from './types';
 

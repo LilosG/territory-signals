@@ -1,0 +1,6 @@
+---
+/** A fact from reason text or a chip. Sample-derived facts get a dotted underline and a tooltip; estimates keep a small "est." tag. */
+export interface Props { text: string; sample?: boolean; estimate?: boolean; class?: string }
+const { text, sample = false, estimate = false, class: cls } = Astro.props;
+---
+<span class:list={[sample && 'sample-fact', cls]} title={sample ? 'Based on sample data, not a real record' : undefined}>{text}</span>{estimate && <span class="est-tag" title="Estimated by an in-house screen; not official">est.</span>}

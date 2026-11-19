@@ -1,0 +1,8 @@
+---
+/** Loading placeholder. `lines` renders text-like bars; otherwise one block sized by class (e.g. h-24 w-full). */
+export interface Props { lines?: number; class?: string }
+const { lines, class: cls } = Astro.props;
+---
+{lines
+  ? <div class:list={['flex flex-col gap-2', cls]} aria-hidden="true">{Array.from({ length: lines }, (_, i) => <div class:list={['skeleton h-3.5', i === lines - 1 ? 'w-2/3' : 'w-full']}></div>)}</div>
+  : <div class:list={['skeleton', cls ?? 'h-24 w-full']} aria-hidden="true"></div>}

@@ -16,8 +16,6 @@ import { fmtDate } from '../lib/format';
 
 export const prerender = false;
 const feed = await Astro.locals.data.getTodayFeed();
-const config = await Astro.locals.data.getConfig();
-const recipeNames = Object.fromEntries(config.recipes.map((r) => [r.key, r.name]));
 ---
 <AppShell title="Today" active="today">
   <PageHeader eyebrow={fmtDate(feed.as_of.slice(0, 10))} title="Good morning" description="Your top ten leads and what changed overnight.">
@@ -30,7 +28,7 @@ const recipeNames = Object.fromEntries(config.recipes.map((r) => [r.key, r.name]
     <Grid split="main-aside" gap={8}>
       <Section title="Top 10 leads" description="Ranked by score. Scores are computed from stored records, never by AI.">
         <Stack as="ul" gap={3}>
-          {feed.top_leads.map((l, i) => <li><LeadCard lead={l} recipeNames={recipeNames} rank={i + 1} /></li>)}
+          {feed.top_leads.map((l, i) => <li><LeadCard lead={l} rank={i + 1} /></li>)}
         </Stack>
         <p class="mt-4 text-sm"><a href="/leads" class="font-medium text-accent hover:underline">See all leads →</a></p>
       </Section>
@@ -47,18 +45,18 @@ const recipeNames = Object.fromEntries(config.recipes.map((r) => [r.key, r.name]
 
         <Section title={`Approvals waiting · ${feed.approvals_total}`} description="Drafts need a human approval before anything is sent.">
           <Card padded={false}>
-            {feed.approvals_waiting.length === 0
+            {feed.approvals.length === 0
               ? <EmptyState title="All clear" description="No drafts are waiting for approval." />
-              : <ul class="divide-y divide-line">{feed.approvals_waiting.map((o) => <ApprovalRow item={o} />)}</ul>}
-            {feed.approvals_total > feed.approvals_waiting.length && <p class="border-t border-line px-5 py-3 text-xs text-ink-muted">+ {feed.approvals_total - feed.approvals_waiting.length} more waiting</p>}
+              : <ul class="divide-y divide-line">{feed.approvals.map((o) => <ApprovalRow item={o} />)}</ul>}
+            {feed.approvals_total > feed.approvals.length && <p class="border-t border-line px-5 py-3 text-xs text-ink-muted">+ {feed.approvals_total - feed.approvals.length} more waiting</p>}
           </Card>
         </Section>
 
         <Section title="Call tasks due">
           <Card padded={false}>
-            {feed.call_tasks_due.length === 0
+            {feed.call_tasks.length === 0
               ? <EmptyState title="No calls due" />
-              : <ul class="divide-y divide-line">{feed.call_tasks_due.map((o) => <CallTaskRow task={o} />)}</ul>}
+              : <ul class="divide-y divide-line">{feed.call_tasks.map((o) => <CallTaskRow task={o} />)}</ul>}
             <p class="border-t border-line px-5 py-3 text-xs text-ink-muted">Calls are placed manually by the team. Nothing is dialed automatically.</p>
           </Card>
         </Section>

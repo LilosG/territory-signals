@@ -1,17 +1,14 @@
 ---
-import type { TodayFeed } from '../../lib/data/types';
-import { fmtDateTime, sentenceCase } from '../../lib/format';
-import SignalChip from './SignalChip.astro';
+import type { SignalEvent } from '../../lib/data/types';
+import { eventTitle } from '../../lib/present';
+import { fmtDate } from '../../lib/format';
 import SourceLink from './SourceLink.astro';
-export interface Props { signal: TodayFeed['new_signals'][number] }
+import EstimateBadge from './EstimateBadge.astro';
+export interface Props { signal: SignalEvent }
 const { signal: s } = Astro.props;
 ---
-<!-- Fixed four-line structure: chip, date and time, address and neighborhood, source. Lines truncate instead of wrapping. -->
-<li class="flex min-w-0 flex-col gap-1 px-5 py-4">
-  <div class="flex min-w-0 items-center gap-2 overflow-hidden"><SignalChip type={s.signal_type} estimate={s.is_estimate} /></div>
-  <p class="truncate text-xs text-ink-muted">{fmtDateTime(s.detected_at)}</p>
-  <a href={`/leads/${s.apn}`} class="block truncate text-sm font-medium hover:text-accent hover:underline underline-offset-2" title={sentenceCase(`${s.situs_address} · ${s.neighborhood}`)}>
-    {s.situs_address} <span class="font-normal text-ink-muted">· {s.neighborhood}</span>
-  </a>
-  <div class="min-w-0 truncate"><SourceLink sourceKey={s.source_key} recordId={s.source_record_id} /></div>
+<li class="flex min-w-0 flex-col gap-0.5 px-5 py-3">
+  <p class="truncate text-sm font-medium text-ink" title={eventTitle(s)}>{eventTitle(s, false)} {s.is_estimate && <EstimateBadge />}</p>
+  <a href={`/leads/${s.apn}`} class="block truncate text-sm text-ink-muted hover:text-accent hover:underline underline-offset-2">{s.situs_address}{s.neighborhood ? ` · ${s.neighborhood}` : ''}</a>
+  <p class="flex min-w-0 items-center gap-2 text-xs text-ink-faint"><span>{fmtDate(s.date)}</span><span class="min-w-0 truncate"><SourceLink sourceKey={s.source_key} recordId={s.source_record_id} /></span></p>
 </li>

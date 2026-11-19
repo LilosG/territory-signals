@@ -8,5 +8,5 @@ await Astro.locals.data.getMapData({ minScore: 101 }).catch(() => null);
 ---
 <AppShell title="Map" active="map" bleed>
   <h1 class="sr-only">Map of scored parcels</h1>
-  <LeadMap recipes={config.recipes.filter((r) => r.enabled)} neighborhoods={config.territory.neighborhoods} />
+  <LeadMap recipes={config.recipes.filter((r) => r.enabled)} neighborhoods={config.territory.neighborhoods} territory={Astro.locals.territory} />
 </AppShell>

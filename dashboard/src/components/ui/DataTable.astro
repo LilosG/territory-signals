@@ -1,5 +1,5 @@
 ---
-import ScoreBadge from './ScoreBadge.astro';
+import ScoreRing from './ScoreRing.astro';
 import Icon from './Icon.astro';
 export interface Column { key: string; label: string; type?: 'text' | 'number' | 'score' | 'date'; align?: 'left' | 'right'; sortable?: boolean; hideOnMobile?: boolean }
 export interface Cell { v: string | number | null; display?: string; href?: string }
@@ -32,7 +32,7 @@ const sortVal = (c: Cell) => (c.v ?? '');
             return (
               <td data-sort={String(sortVal(cell))} class:list={['px-4 py-3 align-middle', c.align === 'right' && 'text-right tabular-nums', c.hideOnMobile && 'max-sm:hidden', i === 0 && 'font-medium text-ink']}>
                 {c.type === 'score' && typeof cell.v === 'number'
-                  ? <ScoreBadge score={cell.v} size="sm" />
+                  ? <ScoreRing score={cell.v} size="xs" />
                   : (cell.href ?? (i === 0 ? r.href : undefined))
                     ? <a href={cell.href ?? r.href} class="text-ink hover:text-accent hover:underline underline-offset-2">{txt}</a>
                     : txt}

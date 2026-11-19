@@ -6,8 +6,8 @@ import Select from '../ui/Select.astro';
 import Drawer from '../ui/Drawer.astro';
 import areasRaw from '../../data/planning-areas.geojson?raw';
 const areas = JSON.parse(areasRaw);
-export interface Props { recipes: Recipe[]; neighborhoods: string[] }
-const { recipes, neighborhoods } = Astro.props;
+export interface Props { recipes: Recipe[]; neighborhoods: string[]; territory?: string | null }
+const { recipes, neighborhoods, territory = null } = Astro.props;
 const payload = { areas, recipes: Object.fromEntries(recipes.map((r) => [r.key, r.name])), groups: SIGNAL_GROUPS };
 const bandRange = (i: number) => { const b = SCORE_BANDS[i]!; const hi = i === 0 ? 100 : SCORE_BANDS[i - 1]!.min - 1; return { value: `${b.min}-${hi}`, label: `${b.min}–${hi} · ${b.label}`, short: i === 0 ? `${b.min}+` : `${b.min}–${hi}` }; };
 const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
@@ -17,8 +17,13 @@ const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
     <FilterBar id="map-filters" label="Map filters">
       <Select compact hideLabel label="Recipe" name="recipe" class="w-44 shrink-0" options={[{ value: '', label: 'All recipes' }, ...recipes.map((r) => ({ value: r.key, label: r.name }))]} />
       <Select compact hideLabel label="Signal group" name="group" class="w-40 shrink-0" options={[{ value: '', label: 'All signal groups' }, ...Object.entries(SIGNAL_GROUPS).map(([k, v]) => ({ value: k, label: v }))]} />
-      <Select compact hideLabel label="Neighborhood" name="hood" class="w-44 shrink-0" options={[{ value: '', label: 'All neighborhoods' }, ...neighborhoods.map((n) => ({ value: n, label: n }))]} />
+      {territory
+        ? <span class="inline-flex h-8 shrink-0 items-center rounded-md bg-accent-soft px-2.5 text-xs font-medium text-accent" title="Change the territory in the sidebar">{territory}</span>
+        : <Select compact hideLabel label="Neighborhood" name="hood" class="w-44 shrink-0" options={[{ value: '', label: 'All neighborhoods' }, ...neighborhoods.map((n) => ({ value: n, label: n }))]} />}
       <Select compact hideLabel label="Score range" name="range" class="w-40 shrink-0" options={[{ value: '', label: 'All scores' }, ...ranges.map((r) => ({ value: r.value, label: r.label }))]} />
+      <label class="flex h-8 shrink-0 cursor-pointer items-center gap-2 rounded-md border border-line-strong px-2.5 text-xs font-medium text-ink hover:bg-sunken/60">
+        <input type="checkbox" name="all" value="1" class="h-3.5 w-3.5 accent-[var(--color-accent)]" />Show all parcels
+      </label>
     </FilterBar>
   </div>
   <div class="relative min-h-0 flex-1 bg-sunken">
@@ -54,6 +59,7 @@ const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
   import * as maplibregl from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
   import { sentenceCase } from '../../lib/format';
+  import { ringSvg } from '../../lib/ring';
 
   type Band = 'low' | 'watch' | 'warm' | 'hot';
   type Lead = {
@@ -94,10 +100,7 @@ const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
   (window as unknown as { __leadMap: maplibregl.Map }).__leadMap = map; // for the e2e test
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
-  const bandBadge = (s: number, band: Band) => {
-    const tone = { low: 'bg-band-low-soft text-ink-muted border-band-low/50', watch: 'bg-band-watch-soft text-ink border-band-watch/60', warm: 'bg-band-warm-soft text-accent-strong border-band-warm/50', hot: 'bg-band-hot-soft text-accent-fg border-transparent' }[band];
-    return `<span class="inline-flex h-7 min-w-7 items-center justify-center rounded-md border px-1.5 text-sm font-semibold ${tone}">${s}</span>`;
-  };
+  const bandBadge = (s: number, band: Band, size: 'sm' | 'xl' = 'sm') => ringSvg(s, band, size);
   const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
   const sampleBadge = '<span class="inline-flex items-center rounded-full border border-warning/30 bg-warning-soft px-1.5 py-px text-2xs font-semibold uppercase tracking-wide text-warning">Sample</span>';
 
@@ -113,11 +116,11 @@ const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
   }
 
   async function preview(apn: string, lng?: number, lat?: number) {
-    const res = await fetch(`/api/leads?q=${encodeURIComponent(apn)}&size=1`); if (!res.ok) return;
+    const res = await fetch(`/api/leads?q=${encodeURIComponent(apn)}&size=1&all=1`); if (!res.ok) return;
     const l = ((await res.json()) as { items: Lead[] }).items[0]; if (!l) return;
     const band = bandOf(l.score.score);
     document.getElementById('preview-body')!.innerHTML = `
-      <div class="flex items-start gap-4">${bandBadge(l.score.score, band).replace('h-7 min-w-7 text-sm', 'h-14 min-w-14 text-2xl')}
+      <div class="flex items-start gap-4">${bandBadge(l.score.score, band, 'xl')}
         <div class="min-w-0"><p class="text-base font-semibold">${esc(l.parcel.situs_address ?? l.parcel.apn)}</p><p class="text-sm text-ink-muted">${esc(l.parcel.neighborhood ?? '')}</p></div></div>
       <p class="text-sm text-ink">${esc(sentenceCase(l.score.reason_text))}</p>
       <div class="flex flex-wrap gap-1.5">${l.score.recipe_matches.map((r) => `<span class="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-fg">${esc(sentenceCase(payload.recipes[r] ?? r))}</span>`).join('')}</div>
@@ -194,7 +197,7 @@ const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
     void loadPoints();
   });
 
-  const syncFilterUi = () => { const n = [...new FormData(form).values()].filter((v) => v !== '').length; activeCount.hidden = clearBtn.hidden = n === 0; activeCount.textContent = `${n} active`; };
+  const syncFilterUi = () => { const n = [...new FormData(form)].filter(([k, v]) => v !== '' && k !== 'all').length; activeCount.hidden = clearBtn.hidden = n === 0; activeCount.textContent = `${n} active`; };
   const apply = () => { syncFilterUi(); void loadResults(); if (map.isStyleLoaded() && map.getSource('leads')) void loadPoints(); };
   form.addEventListener('change', apply);
   clearBtn.addEventListener('click', () => { form.reset(); apply(); });

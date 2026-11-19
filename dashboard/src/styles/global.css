@@ -30,12 +30,34 @@
   @page { margin: 16mm; }
 }
 
-/* Responsive type roles. Phones use the smaller step of the scale in tokens.css (xl / base), tablets and up the larger. */
+/* Type scale (Inter): display 30/600, h1 24/600, h2 18/600, body 15/400, meta 13/500. One role per level, no one-off sizes. */
 @layer components {
-  .t-page-title { font-size: var(--text-xl); line-height: var(--text-xl--line-height); font-weight: 600; }
+  .t-display { font-size: 1.875rem; line-height: 2.25rem; font-weight: 600; letter-spacing: -0.02em; }
+  .t-page-title, .t-h1 { font-size: 1.5rem; line-height: 2rem; font-weight: 600; letter-spacing: -0.015em; }
+  .t-h2 { font-size: 1.125rem; line-height: 1.625rem; font-weight: 600; }
+  .t-body { font-size: 0.9375rem; line-height: 1.5rem; font-weight: 400; }
+  .t-meta { font-size: 0.8125rem; line-height: 1.25rem; font-weight: 500; }
   .t-lead-reason { font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: 500; }
-  @media (min-width: 40rem) {
-    .t-page-title { font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); }
-    .t-lead-reason { font-size: var(--text-lg); line-height: 1.75rem; }
-  }
+  @media (max-width: 39.99rem) { .t-display { font-size: 1.625rem; line-height: 2rem; } }
+
+  /* Cards: white, 1px hairline, 12px radius, shadow only on hover */
+  .card-hover { transition: box-shadow 150ms, border-color 150ms; }
+  .card-hover:hover, .card-hover:focus-within { box-shadow: var(--shadow-md); border-color: var(--color-line-strong); }
+
+  /* Dotted underline marks a sample-derived fact (tooltip carries the explanation) */
+  .sample-fact { text-decoration: underline dotted; text-decoration-color: var(--color-warning); text-underline-offset: 3px; cursor: help; }
+  .est-tag { font-size: 0.6875rem; font-style: italic; color: var(--color-ink-muted); margin-left: 0.25rem; }
+  .new-marker { display: inline-flex; align-items: center; border-radius: 9999px; background: var(--color-gold-soft); color: var(--color-gold-strong); font-size: 0.6875rem; font-weight: 600; padding: 0 0.375rem; letter-spacing: 0.02em; }
+
+  /* Skeleton loading */
+  .skeleton { position: relative; overflow: hidden; border-radius: var(--radius-md); background: var(--color-sunken); }
+  .skeleton::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.65), transparent); animation: skeleton-sweep 1.4s infinite; }
+  @keyframes skeleton-sweep { to { transform: translateX(100%); } }
+
+  /* Sidebar nav item */
+  .side-link { display: flex; align-items: center; gap: 0.75rem; border-radius: var(--radius-md); padding: 0.5rem 0.75rem; font-size: 0.875rem; font-weight: 500; color: var(--color-side-ink); transition: background-color 120ms, color 120ms; }
+  .side-link:hover { background: var(--color-side-hover); color: #fff; }
+  .side-link[aria-current='page'] { background: var(--color-side-active); color: #fff; }
+  .side-link:focus-visible { outline: 2px solid #fff; outline-offset: 0; }
+  .side-badge { margin-left: auto; min-width: 1.5rem; border-radius: 9999px; background: var(--color-side-active); padding: 0 0.5rem; text-align: center; font-size: 0.75rem; font-weight: 600; line-height: 1.25rem; color: #fff; font-variant-numeric: tabular-nums; }
 }

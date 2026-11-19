@@ -12,8 +12,8 @@ import { fmtDateTime, fmtNum } from '../lib/format';
 export const prerender = false;
 const [config, sources] = await Promise.all([Astro.locals.data.getConfig(), Astro.locals.data.getSources()]);
 if (config.owner_data_provider === 'sample') Astro.locals.sample.used = true;
-const tone = { success: 'good', failed: 'critical', running: 'warning', never: 'neutral' } as const;
-const word = { success: 'Live', failed: 'Failed', running: 'Running', never: 'Not connected' } as const;
+const tone = { live: 'good', failed: 'critical', running: 'warning', not_connected: 'neutral', sample: 'neutral' } as const;
+const word = { live: 'Live', failed: 'Failed', running: 'Running', not_connected: 'Not connected yet', sample: 'Sample' } as const;
 const tp = config.team_profile;
 ---
 <AppShell title="Settings" active="settings">
@@ -54,16 +54,16 @@ const tp = config.team_profile;
         rows={config.recipes.map((r) => ({ cells: { n: { v: r.name }, d: { v: r.description }, s: { v: r.enabled ? 'On' : 'Off' } } }))} />
     </Section>
 
-    <Section title="Data sources" description="Latest run for each source, from source_runs.">
+    <Section title="Data sources" description="The latest update for each source.">
       <DataTable caption="Data sources" defaultSort={{ key: 'src', dir: 'asc' }}
         columns={[{ key: 'src', label: 'Source', sortable: true }, { key: 'st', label: 'Status', sortable: true }, { key: 'when', label: 'Last run', sortable: true, hideOnMobile: true }, { key: 'fetched', label: 'Fetched', align: 'right', type: 'number', sortable: true, hideOnMobile: true }, { key: 'matched', label: 'Matched', align: 'right', type: 'number', sortable: true }]}
         rows={sources.map((s) => ({ cells: {
-          src: { v: s.label }, st: { v: word[s.status] },
-          when: { v: s.last_run?.started_at ?? '', display: fmtDateTime(s.last_run?.started_at) },
-          fetched: { v: s.last_run?.rows_fetched ?? 0, display: fmtNum(s.last_run?.rows_fetched) }, matched: { v: s.last_run?.rows_matched ?? 0, display: fmtNum(s.last_run?.rows_matched) },
+          src: { v: s.label }, st: { v: word[s.state] },
+          when: { v: s.last_run ?? '', display: s.last_run ? fmtDateTime(s.last_run) : 'Not run yet' },
+          fetched: { v: s.rows_fetched ?? 0, display: fmtNum(s.rows_fetched) }, matched: { v: s.rows_matched ?? 0, display: fmtNum(s.rows_matched) },
         } }))} />
       <ul class="flex flex-wrap gap-2 text-xs text-ink-muted">
-        {sources.filter((s) => s.status !== 'success').map((s) => <li><StatusPill tone={tone[s.status]}>{s.label}: {word[s.status]}{s.last_run?.error_message ? ` · ${s.last_run.error_message}` : ''}</StatusPill></li>)}
+        {sources.filter((s) => s.state !== 'live').map((s) => <li><StatusPill tone={tone[s.state]}>{s.label}: {word[s.state]}{s.note ? ` · ${s.note}` : ''}</StatusPill></li>)}
       </ul>
     </Section>
   </Stack>

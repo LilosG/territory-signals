@@ -1,19 +1,24 @@
 ---
 import '../../styles/global.css';
 import { brand, brandCssVars } from '../../config/brand';
+import { NAV, MOBILE_TABS, type NavKey } from '../../lib/nav';
+import { loadClientConfig } from '../../lib/config';
 import Icon from './Icon.astro';
-export interface Props { title: string; active?: 'today' | 'map' | 'trends' | 'pipeline' | 'settings' | 'system'; bleed?: boolean; description?: string }
+export interface Props { title: string; active?: NavKey; bleed?: boolean; description?: string }
 const { title, active, bleed = false, description } = Astro.props;
 const email = Astro.locals.user?.email ?? '';
 const initials = (email.split('@')[0] ?? '?').slice(0, 2).toUpperCase();
 const flash = Astro.locals.flash;
-const nav = [
-  { key: 'today', href: '/', label: 'Today', icon: 'today' },
-  { key: 'map', href: '/map', label: 'Map', icon: 'map' },
-  { key: 'trends', href: '/trends', label: 'Trends', icon: 'trends' },
-  { key: 'pipeline', href: '/pipeline', label: 'Pipeline', icon: 'pipeline' },
-  { key: 'settings', href: '/settings', label: 'Settings', icon: 'settings' },
-] as const;
+const cfg = loadClientConfig();
+const territory = Astro.locals.territory;
+const hoods = ['All', ...cfg.territory.neighborhoods];
+const recipeCount = cfg.recipes.filter((r) => r.enabled).length;
+const counts = await Astro.locals.data.getNavCounts().catch(() => null);
+const teamName = cfg.team_profile.display_name || brand.name;
+const back = Astro.url.pathname + Astro.url.search;
+const badge = (item: (typeof NAV)[number]['items'][number]) => (counts && item.count ? item.count(counts, recipeCount) : null);
+const fmtBadge = (n: number) => (n > 999 ? '999+' : String(n));
+const mobileItems = NAV.flatMap((g) => g.items).filter((i) => MOBILE_TABS.includes(i.key));
 ---
 <!doctype html>
 <html lang="en">
@@ -22,27 +27,58 @@ const nav = [
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="description" content={description ?? `${brand.name} territory intelligence`} />
-    <meta name="theme-color" content="#17294d" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2317294D'/%3E%3C/svg%3E" />
+    <meta name="theme-color" content="#0e1c38" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230E1C38'/%3E%3C/svg%3E" />
     <title>{title} · {brand.shortName}</title>
     <style set:html={brandCssVars()}></style>
   </head>
   <body class="min-h-dvh">
     <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:shadow-md">Skip to content</a>
-    <div class="lg:pl-60">
-      <aside class="no-print hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-60 lg:flex-col lg:overflow-y-auto lg:border-r lg:border-line lg:bg-surface lg:px-4 lg:py-6">
-        <a href="/" class="flex items-center gap-3 px-2 pb-8">
-          <span class="grid h-9 w-9 place-items-center rounded-md bg-accent text-sm font-semibold tracking-wide text-accent-fg">{brand.initials}</span>
-          <span class="leading-tight"><span class="block text-sm font-semibold">{brand.name}</span><span class="block text-xs text-ink-muted">{brand.tagline}</span></span>
-        </a>
-        <nav aria-label="Primary" class="flex flex-col gap-1">
-          {nav.map((n) => (
-            <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
-              class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-ink-muted transition-colors hover:bg-sunken hover:text-ink aria-[current=page]:bg-accent-soft aria-[current=page]:text-accent">
-              <Icon name={n.icon} />{n.label}
-            </a>
+    <div class="lg:pl-64">
+      <aside id="sidebar" aria-label="Sidebar" class="no-print hidden bg-side text-side-ink lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-64 lg:flex-col">
+        <div class="flex flex-col gap-3 border-b border-side-line px-4 pb-4 pt-5">
+          <a href="/" class="flex items-center gap-3 rounded-md focus-visible:outline-white">
+            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-gold text-sm font-semibold tracking-wide text-side">{brand.initials}</span>
+            <span class="min-w-0 leading-tight"><span class="block truncate text-sm font-semibold text-white">{teamName}</span><span class="block truncate text-xs text-side-faint">{brand.tagline}</span></span>
+          </a>
+          <form method="post" action="/actions/territory" id="territory-form">
+            <input type="hidden" name="back" value={back} />
+            <label for="territory" class="sr-only">Territory</label>
+            <div class="relative">
+              <select id="territory" name="territory" data-territory class="h-9 w-full appearance-none rounded-md border border-side-line bg-side-raised pl-3 pr-8 text-sm font-medium text-white hover:bg-side-hover focus-visible:outline-white">
+                {hoods.map((h) => <option value={h === 'All' ? '' : h} selected={(territory ?? 'All') === h}>{h === 'All' ? 'All territory' : h}</option>)}
+              </select>
+              <Icon name="chevrondown" size={16} class="pointer-events-none absolute right-2.5 top-2.5 text-side-faint" />
+            </div>
+            <noscript><button type="submit" class="mt-2 rounded-md bg-side-active px-3 py-1 text-xs text-white">Apply</button></noscript>
+          </form>
+          <button type="button" data-search-open class="flex h-9 w-full items-center gap-2 rounded-md border border-side-line bg-side-raised px-3 text-left text-sm text-side-faint hover:bg-side-hover focus-visible:outline-white">
+            <Icon name="search" size={16} /><span class="flex-1 truncate">Search address or APN</span><kbd class="rounded border border-side-line px-1.5 text-2xs text-side-faint">⌘K</kbd>
+          </button>
+        </div>
+        <nav aria-label="Primary" class="flex-1 overflow-y-auto px-3 py-4">
+          {NAV.map((g) => (
+            <div class="mb-5 last:mb-0">
+              <p class="px-3 pb-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-side-faint">{g.label}</p>
+              <ul class="flex flex-col gap-0.5">
+                {g.items.map((n) => {
+                  const b = badge(n);
+                  return (
+                    <li><a href={n.href} class="side-link" aria-current={active === n.key ? 'page' : undefined}>
+                      <Icon name={n.icon} size={18} class="shrink-0" /><span class="truncate">{n.label}</span>
+                      {b != null && b > 0 && <span class="side-badge" data-count={n.key}>{fmtBadge(b)}</span>}
+                    </a></li>
+                  );
+                })}
+              </ul>
+            </div>
           ))}
         </nav>
+        <div class="flex items-center gap-3 border-t border-side-line px-4 py-3">
+          <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-side-active text-xs font-semibold text-white" aria-hidden="true">{initials}</span>
+          <span class="min-w-0 flex-1 truncate text-xs text-side-ink" title={email} data-user-email>{email}</span>
+          <form method="post" action="/auth/signout"><button type="submit" class="grid h-8 w-8 place-items-center rounded-md text-side-ink hover:bg-side-hover hover:text-white focus-visible:outline-white" title="Sign out" aria-label="Sign out"><Icon name="logout" size={18} /></button></form>
+        </div>
       </aside>
 
       <div class="flex min-h-dvh min-w-0 flex-col">
@@ -54,17 +90,15 @@ const nav = [
         {flash && (
           <div role={flash.kind === 'error' ? 'alert' : 'status'} data-flash={flash.kind} class:list={['no-print border-b px-4 py-2 text-center text-sm', flash.kind === 'error' ? 'border-critical/25 bg-critical-soft text-critical' : 'border-good/25 bg-good-soft text-good']}>{flash.text}</div>
         )}
-        <header class="no-print sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-surface/90 px-4 backdrop-blur sm:px-8">
-          <div class="flex items-center gap-3 lg:hidden">
-            <span class="grid h-8 w-8 place-items-center rounded-md bg-accent text-xs font-semibold text-accent-fg">{brand.initials}</span>
+        <header class="no-print sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-surface/90 px-4 backdrop-blur sm:px-8 lg:hidden">
+          <a href="/" class="flex items-center gap-3">
+            <span class="grid h-8 w-8 place-items-center rounded-md bg-side text-xs font-semibold text-white">{brand.initials}</span>
             <span class="text-sm font-semibold">{brand.shortName}</span>
-          </div>
-          <p class="hidden text-sm text-ink-muted lg:block">{title}</p>
-          <div class="flex items-center gap-3">
-            <span class="hidden max-w-[16rem] truncate text-xs text-ink-muted sm:block" data-user-email>{email}</span>
-            <span class="grid h-8 w-8 place-items-center rounded-full bg-sunken text-xs font-semibold text-ink-muted" title={email} aria-hidden="true">{initials}</span>
-            <form method="post" action="/auth/signout"><button type="submit" class="rounded-md px-2 py-1 text-xs font-medium text-ink-muted hover:bg-sunken hover:text-ink">Sign out</button></form>
-          </div>
+          </a>
+          <span class="flex items-center gap-1">
+            <button type="button" data-search-open class="grid h-9 w-9 place-items-center rounded-md text-ink-muted hover:bg-sunken hover:text-ink" aria-label="Search"><Icon name="search" size={20} /></button>
+            <span class="max-w-[7rem] truncate text-xs text-ink-muted">{territory ?? 'All territory'}</span>
+          </span>
         </header>
         <main id="main" tabindex="-1" class:list={[bleed ? 'flex-1' : 'mx-auto w-full max-w-[84rem] flex-1 px-4 py-8 pb-28 sm:px-8 lg:pb-12']}>
           <slot />
@@ -73,12 +107,90 @@ const nav = [
     </div>
 
     <nav aria-label="Primary (mobile)" class="no-print fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
-      {nav.map((n) => (
-        <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
-          class="flex flex-col items-center gap-0.5 py-2 text-2xs font-medium text-ink-muted aria-[current=page]:text-accent">
+      {mobileItems.map((n) => (
+        <a href={n.href} aria-current={active === n.key ? 'page' : undefined} class="flex flex-col items-center gap-0.5 py-2 text-2xs font-medium text-ink-muted aria-[current=page]:text-accent">
           <Icon name={n.icon} size={20} />{n.label}
         </a>
       ))}
+      <button type="button" data-more-open class="flex flex-col items-center gap-0.5 py-2 text-2xs font-medium text-ink-muted" aria-haspopup="dialog"><Icon name="more" size={20} />More</button>
     </nav>
+
+    <!-- Phone menu: the full navigation, territory and sign out -->
+    <dialog id="more-menu" class="no-print m-0 mt-auto h-auto max-h-[85dvh] w-full max-w-none overflow-y-auto rounded-t-xl bg-side p-4 text-side-ink backdrop:bg-black/50">
+      <form method="post" action="/actions/territory" class="mb-4">
+        <input type="hidden" name="back" value={back} />
+        <label for="territory-m" class="mb-1 block text-2xs font-semibold uppercase tracking-[0.08em] text-side-faint">Territory</label>
+        <select id="territory-m" name="territory" data-territory class="h-10 w-full rounded-md border border-side-line bg-side-raised px-3 text-sm text-white">
+          {hoods.map((h) => <option value={h === 'All' ? '' : h} selected={(territory ?? 'All') === h}>{h === 'All' ? 'All territory' : h}</option>)}
+        </select>
+      </form>
+      {NAV.map((g) => (
+        <div class="mb-4">
+          <p class="px-3 pb-1 text-2xs font-semibold uppercase tracking-[0.08em] text-side-faint">{g.label}</p>
+          <ul>{g.items.map((n) => { const b = badge(n); return <li><a href={n.href} class="side-link" aria-current={active === n.key ? 'page' : undefined}><Icon name={n.icon} size={18} />{n.label}{b != null && b > 0 && <span class="side-badge">{fmtBadge(b)}</span>}</a></li>; })}</ul>
+        </div>
+      ))}
+      <form method="post" action="/auth/signout" class="flex items-center justify-between border-t border-side-line pt-3"><span class="truncate text-xs">{email}</span><button type="submit" class="rounded-md px-3 py-1.5 text-sm text-white hover:bg-side-hover">Sign out</button></form>
+      <button type="button" data-more-close class="mt-3 h-10 w-full rounded-md bg-side-active text-sm font-medium text-white">Close</button>
+    </dialog>
+
+    <!-- Global search (⌘K / Ctrl+K, or the search field): address or APN, opens the lead brief -->
+    <dialog id="search-dialog" aria-label="Search leads" class="no-print mx-auto mt-[12vh] w-[min(36rem,calc(100vw-2rem))] rounded-xl border border-line bg-surface p-0 shadow-lg backdrop:bg-black/40">
+      <div class="flex items-center gap-2 border-b border-line px-4">
+        <Icon name="search" size={18} class="text-ink-muted" />
+        <input id="search-input" type="search" autocomplete="off" spellcheck="false" placeholder="Search by address or APN" aria-label="Search by address or APN" class="h-12 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-ink-faint" />
+        <kbd class="rounded border border-line px-1.5 text-2xs text-ink-muted">Esc</kbd>
+      </div>
+      <ul id="search-results" role="listbox" class="max-h-[50vh] overflow-y-auto p-2" aria-label="Results"></ul>
+      <p id="search-status" class="px-4 pb-3 text-xs text-ink-muted" aria-live="polite">Type at least 2 characters.</p>
+    </dialog>
+
+    <script>
+      import { ringSvg } from '../../lib/ring';
+      import { bandOf } from '../../lib/data/catalog';
+      const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s);
+
+      // Territory switcher: submit as soon as it changes.
+      document.querySelectorAll<HTMLSelectElement>('select[data-territory]').forEach((s) => s.addEventListener('change', () => s.form?.submit()));
+
+      // Phone menu
+      const more = $<HTMLDialogElement>('#more-menu');
+      document.querySelector('[data-more-open]')?.addEventListener('click', () => more?.showModal());
+      document.querySelector('[data-more-close]')?.addEventListener('click', () => more?.close());
+
+      // Search
+      const dlg = $<HTMLDialogElement>('#search-dialog')!, input = $<HTMLInputElement>('#search-input')!, list = $<HTMLUListElement>('#search-results')!, status = $<HTMLElement>('#search-status')!;
+      let hits: { apn: string; situs_address: string | null; neighborhood: string | null; score: number }[] = [];
+      let sel = -1, timer: number | undefined, seq = 0;
+      const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+      const open = () => { if (!dlg.open) dlg.showModal(); input.select(); };
+      const render = () => {
+        list.innerHTML = hits.map((h, i) => `<li role="option" aria-selected="${i === sel}"><a href="/leads/${encodeURIComponent(h.apn)}" class="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-sunken ${i === sel ? 'bg-sunken' : ''}">${ringSvg(h.score, bandOf(h.score), 'sm')}<span class="min-w-0"><span class="block truncate text-sm font-medium text-ink">${esc(h.situs_address ?? h.apn)}</span><span class="block truncate text-xs text-ink-muted">${esc([h.neighborhood, h.apn].filter(Boolean).join(' · '))}</span></span></a></li>`).join('');
+      };
+      const run = async () => {
+        const q = input.value.trim();
+        if (q.length < 2) { hits = []; sel = -1; render(); status.textContent = 'Type at least 2 characters.'; return; }
+        const mine = ++seq;
+        status.textContent = 'Searching…';
+        try {
+          const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+          if (mine !== seq) return;
+          if (!res.ok) throw new Error(String(res.status));
+          hits = await res.json(); sel = hits.length ? 0 : -1; render();
+          status.textContent = hits.length ? `${hits.length} result${hits.length === 1 ? '' : 's'}. Enter opens the first.` : 'No matching address or APN.';
+        } catch { if (mine === seq) status.textContent = 'Search is unavailable right now.'; }
+      };
+      input.addEventListener('input', () => { window.clearTimeout(timer); timer = window.setTimeout(run, 150); });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown' && hits.length) { e.preventDefault(); sel = (sel + 1) % hits.length; render(); }
+        else if (e.key === 'ArrowUp' && hits.length) { e.preventDefault(); sel = (sel - 1 + hits.length) % hits.length; render(); }
+        else if (e.key === 'Enter') { e.preventDefault(); const h = hits[Math.max(sel, 0)]; if (h) location.href = `/leads/${encodeURIComponent(h.apn)}`; }
+      });
+      dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+      document.querySelectorAll('[data-search-open]').forEach((b) => b.addEventListener('click', open));
+      document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); open(); }
+      });
+    </script>
   </body>
 </html>

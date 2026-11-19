@@ -7,7 +7,7 @@ import Grid from '../../../components/ui/Grid.astro';
 import Stack from '../../../components/ui/Stack.astro';
 import Cluster from '../../../components/ui/Cluster.astro';
 import Section from '../../../components/ui/Section.astro';
-import ScoreBadge from '../../../components/ui/ScoreBadge.astro';
+import ScoreRing from '../../../components/ui/ScoreRing.astro';
 import ScoreBreakdown from '../../../components/ui/ScoreBreakdown.astro';
 import RecipeTag from '../../../components/ui/RecipeTag.astro';
 import FactList from '../../../components/ui/FactList.astro';
@@ -74,7 +74,7 @@ const ownerFacts = owner ? [
         <div class="flex flex-col gap-4 sm:flex-row sm:gap-6">
           <div class="flex shrink-0 items-center gap-3 sm:flex-col sm:items-start sm:gap-2">
             <p class="eyebrow max-sm:hidden">Score</p>
-            <ScoreBadge score={score.score} size="lg" showLabel />
+            <ScoreRing score={score.score} size="xl" showLabel />
             <p class="text-xs text-ink-muted" data-model-version>Model {score.model_version}</p>
           </div>
           <div class="min-w-0 flex-1">

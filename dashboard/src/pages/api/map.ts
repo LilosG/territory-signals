@@ -12,6 +12,9 @@ const headers = { 'content-type': 'application/geo+json', 'cache-control': 'priv
  */
 export const GET: APIRoute = async ({ url, locals }) => {
   const f = filtersFrom(url.searchParams);
+  // The territory switcher wins over any neighborhood filter; by default only parcels scoring 30+ are mapped.
+  if (locals.territory) f.neighborhood = locals.territory;
+  if (url.searchParams.get('all') !== '1' && f.minScore == null) f.minScore = 30;
   if (providerName() === 'fixtures' || !locals.supabase) {
     const { points, is_sample } = await locals.data.getMapData(f);
     return new Response(JSON.stringify({
