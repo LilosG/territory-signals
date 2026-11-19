@@ -1,9 +1,12 @@
 ---
 import type { Outreach } from '../../lib/data/types';
+import { COMPONENTS, RECIPE_LABELS } from '../../lib/data/catalog';
+import { fmtDateTime } from '../../lib/format';
 import SourceLink from './SourceLink.astro';
 import SampleDataBadge from './SampleDataBadge.astro';
-export interface Props { draft: Outreach }
-const { draft } = Astro.props;
+import Button from './Button.astro';
+export interface Props { draft: Outreach; back: string; canAct?: boolean }
+const { draft, back, canAct = true } = Astro.props;
 const status: Record<Outreach['status'], { label: string; cls: string }> = {
   draft: { label: 'Draft', cls: 'bg-sunken text-ink-muted' },
   awaiting_approval: { label: 'Awaiting approval', cls: 'bg-warning-soft text-warning' },
@@ -11,19 +14,62 @@ const status: Record<Outreach['status'], { label: string; cls: string }> = {
   sent: { label: 'Sent', cls: 'bg-accent-soft text-accent' },
   suppressed: { label: 'Suppressed', cls: 'bg-critical-soft text-critical' },
 };
+const editable = draft.status === 'draft' || draft.status === 'awaiting_approval';
+const reasons = (draft.blocked_reason ?? '').split(';').map((r) => r.trim()).filter(Boolean);
+/** What is missing, in words a person can act on. Reasons come from the generator (D11 and the office-address rule). */
+const help = (r: string) =>
+  r === 'missing agent name or DRE license' ? 'Add the agent name and DRE license number under team_members in the client config, then regenerate drafts.'
+  : r === 'missing office address' ? 'Add team_profile.office_address in the client config, then regenerate drafts.'
+  : r === 'sample data' ? 'This draft uses sample owner data. It can be approved once real owner data is connected (Phase 6).'
+  : 'Resolve this in the client config or data, then regenerate drafts.';
+const PARCEL_FIELDS: Record<string, string> = { neighborhood: 'Neighborhood', situs_address: 'Street address' };
+const facts = (draft.source_facts ?? []).map((f) => ({
+  text: f.kind === 'component' ? `${COMPONENTS[f.key ?? '']?.label ?? f.key}${f.is_estimate ? ' (estimated)' : ''}${f.is_sample ? ' (sample data)' : ''}`
+    : f.kind === 'parcel_field' ? `${PARCEL_FIELDS[f.parcel_field ?? ''] ?? f.parcel_field}: ${String(f.value)}`
+    : `${f.owner_field ?? f.kind}: ${String(f.value ?? '')}`,
+  source_key: f.source_key ?? (f.kind === 'parcel_field' ? 'parcels' : 'sample_owner'),
+  source_record_id: f.source_record_id ?? f.apn ?? '',
+}));
 ---
-<div class="flex flex-col gap-4">
+<div class="flex flex-col gap-4" data-draft={draft.id}>
   <div class="flex flex-wrap items-center gap-2">
-    <span class:list={['rounded-full px-2.5 py-0.5 text-xs font-medium', status[draft.status].cls]}>{status[draft.status].label}</span>
-    <SampleDataBadge label="Sample draft" />
-    <span class="text-xs text-ink-muted">Preview only · nothing is sent until a person approves it</span>
+    <span data-draft-status class:list={['rounded-full px-2.5 py-0.5 text-xs font-medium', status[draft.status].cls]}>{status[draft.status].label}</span>
+    {draft.uses_sample_data && <SampleDataBadge label="Sample" />}
+    {draft.recipe && <span class="text-xs text-ink-muted">{RECIPE_LABELS[draft.recipe] ?? draft.recipe}</span>}
+    <span class="text-xs text-ink-muted">Preview only. Nothing is sent, even when approved.</span>
   </div>
-  <div class="whitespace-pre-wrap rounded-md border border-line bg-canvas p-5 text-sm leading-6 text-ink">{draft.content}</div>
-  {draft.source_facts && (
+
+  {reasons.length > 0 && (
+    <div role="note" data-blocked class="rounded-md border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-warning">
+      <p class="font-semibold">Blocked: {draft.blocked_reason}</p>
+      <ul class="mt-1 list-disc pl-5 text-ink">{reasons.map((r) => <li>{help(r)}</li>)}</ul>
+    </div>
+  )}
+
+  {editable && canAct
+    ? <form method="post" action="/actions/edit" class="flex flex-col gap-2">
+        <input type="hidden" name="id" value={draft.id} /><input type="hidden" name="back" value={back} />
+        <label class="eyebrow" for={`c-${draft.id}`}>Draft text (edit before approving)</label>
+        <textarea id={`c-${draft.id}`} name="content" rows="12" required class="w-full rounded-md border border-line-strong bg-canvas p-4 text-sm leading-6 text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30">{draft.content}</textarea>
+        <div><Button type="submit" size="sm" variant="secondary">Save edit</Button></div>
+      </form>
+    : <div class="whitespace-pre-wrap rounded-md border border-line bg-canvas p-5 text-sm leading-6 text-ink">{draft.content}</div>}
+  {draft.edited_by && <p class="text-xs text-ink-muted" data-edited>Edited by {draft.edited_by} · {fmtDateTime(draft.edited_at)}. The original text is kept.</p>}
+  {draft.approved_by && <p class="text-xs text-ink-muted">Approved by {draft.approved_by}.</p>}
+
+  {editable && (
+    <form method="post" action="/actions/approve" class="flex flex-wrap items-center gap-3">
+      <input type="hidden" name="id" value={draft.id} /><input type="hidden" name="back" value={back} />
+      <Button type="submit" variant="primary" disabled={reasons.length > 0 || !canAct} title={reasons.length ? `Cannot approve: ${draft.blocked_reason}` : undefined} id={`approve-${draft.id}`}>Approve draft</Button>
+      {reasons.length > 0 && <span class="text-xs text-ink-muted">Approve is off until the items above are fixed.</span>}
+    </form>
+  )}
+
+  {facts.length > 0 && (
     <div>
       <p class="eyebrow mb-2">Facts used (from the database)</p>
       <ul class="flex flex-col gap-2">
-        {draft.source_facts.facts.map((f) => (
+        {facts.map((f) => (
           <li class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm"><span>{f.text}</span><SourceLink sourceKey={f.source_key} recordId={f.source_record_id} /></li>
         ))}
       </ul>

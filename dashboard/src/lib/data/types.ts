@@ -111,35 +111,58 @@ export interface SaleHistory {
   created_at: IsoTimestamp;
 }
 
-export interface ScoreComponent {
-  key: string;
-  label: string;
-  points: number;
-  max: number;
-  /** Signal ids (or owner/sales facts) the points were computed from. */
-  evidence: string[];
-}
-export interface ScoreComponents {
-  items: ScoreComponent[];
-}
-export interface Score {
-  id: Uuid;
-  apn: string;
-  score: number; // 0..100
-  components: ScoreComponents | null;
-  reason_text: string | null;
-  recipe_matches: string[] | null;
-  model_version: string;
-  scored_at: IsoTimestamp;
-  created_at: IsoTimestamp;
-}
-
 export interface Suppression {
   id: Uuid;
   apn: string;
   reason: string;
   until_date: IsoDate | null;
   created_at: IsoTimestamp;
+}
+
+/** One element of scores.components, as written by the scorer (territory/scoring_engine.py). */
+export interface RawScoreComponent {
+  key: string;                 // e.g. "tax_default", "permit_approved:adu", "owner:years_owned"
+  kind: 'signal' | 'owner';
+  family: string;
+  contribution: number;        // points this component added
+  raw_weight: number;
+  decay_factor?: number;
+  is_sample: boolean;
+  is_estimate: boolean;
+  facts?: Record<string, unknown>;
+  signal_id?: string | null;
+  source_key?: string;
+  source_record_id?: string;
+  confidence?: number;
+}
+/** A component ready to display: label and max points come from the catalog. */
+export interface ScoreItem { key: string; label: string; points: number; max: number; is_sample: boolean; is_estimate: boolean }
+
+export interface Score {
+  id: Uuid;
+  apn: string;
+  score: number; // 0..100
+  components: RawScoreComponent[] | null;
+  reason_text: string | null;
+  recipe_matches: string[] | null;
+  primary_recipe: string | null;
+  model_version: string;
+  uses_sample_data: boolean;
+  scored_at: IsoTimestamp;
+  created_at: IsoTimestamp;
+}
+
+export interface SourceFact {
+  kind: 'component' | 'parcel_field' | 'owner_field' | string;
+  key?: string;                 // component key
+  parcel_field?: string;        // e.g. "neighborhood"
+  owner_field?: string;
+  value?: unknown;
+  apn?: string;
+  source_key?: string;
+  source_record_id?: string;
+  is_estimate?: boolean;
+  is_sample?: boolean;
 }
 
 export type OutreachChannel = 'mail' | 'email' | 'call_task';
@@ -150,69 +173,66 @@ export interface Outreach {
   channel: OutreachChannel;
   status: OutreachStatus;
   content: string | null;
-  /** Facts from the database the draft is allowed to use, with record citations. */
-  source_facts: { facts: { text: string; source_key: string; source_record_id: string }[] } | null;
+  /** The facts the draft text relies on, each with its source record (written by territory/outreach.py). */
+  source_facts: SourceFact[] | null;
   approved_by: string | null;
   sent_at: IsoTimestamp | null;
+  recipe: string | null;
+  assigned_to: string | null;
+  blocked_reason: string | null;
+  uses_sample_data: boolean;
+  original_content: string | null;
+  edited_by: string | null;
+  edited_at: IsoTimestamp | null;
   created_at: IsoTimestamp;
 }
 
-export type OutcomeStatus =
-  | 'contacted' | 'conversation' | 'appointment' | 'listing' | 'not_interested' | 'bad_data';
-export interface Outcome {
+export interface StageEvent {
   id: Uuid;
   apn: string;
+  stage: string;
   team_member_email: string | null;
-  status: OutcomeStatus;
-  noted_at: IsoTimestamp;
+  occurred_at: IsoTimestamp;
   note: string | null;
-  created_at: IsoTimestamp;
+  source: 'dashboard' | 'system';
 }
 
 export type TeamRole = 'owner' | 'agent' | 'assistant';
-export interface TeamMember {
-  id: Uuid;
-  email: string;
-  name: string | null;
-  role: TeamRole;
-  created_at: IsoTimestamp;
-}
+export interface TeamMember { id: Uuid; email: string; name: string | null; role: TeamRole; created_at: IsoTimestamp }
+
+export interface ShareLink { token: string; apn: string; created_by: string; created_at: IsoTimestamp; revoked_at: IsoTimestamp | null }
 
 /* ───────────── View models (dashboard only, not tables) ───────────── */
 
 export type ScoreBand = 'low' | 'watch' | 'warm' | 'hot';
 
-export interface Recipe {
-  key: string;
-  name: string;
-  description: string;
-  enabled: boolean;
-}
+export interface Recipe { key: string; name: string; description: string; enabled: boolean }
 
 export interface ClientConfig {
   client_id: string;
   display_name: string;
   territory: { planning_areas: string[]; zips: string[]; neighborhoods: string[] };
   owner_data_provider: OwnerProvider;
-  outreach: { mode: 'preview'; weekly_send_cap: number; daily_send_cap: number };
+  outreach: { mode: 'preview'; weekly_send_cap_per_agent: number; drafts_per_run: number; cooldown_days: number };
+  team_profile: { display_name: string; brokerage: string; office_address: string };
   recipes: Recipe[];
-  team_members: Pick<TeamMember, 'email' | 'name' | 'role'>[];
-  /** True when recipes/caps are fixture values rather than loaded from YAML. */
-  is_sample: boolean;
+  team_members: { email: string; name: string | null; role: TeamRole; phone?: string }[];
 }
 
 /** Where outreach stands for a lead, from the outreach table. Derived, never typed in by hand. */
 export type LeadStatus = 'new' | 'draft_ready' | 'awaiting_approval' | 'approved' | 'sent';
 
 export interface LeadSummary {
-  parcel: Parcel;
-  score: Score;
-  owner: Owner | null;
+  parcel: { apn: string; situs_address: string | null; neighborhood: string | null };
+  score: { score: number; reason_text: string | null; recipe_matches: string[]; primary_recipe: string | null; model_version: string; scored_at: IsoTimestamp; uses_sample_data: boolean };
+  owner: { owner_name: string | null; is_sample: boolean; last_sale_date: IsoDate | null; est_equity: number | null } | null;
+  /** Whole years since the current owner's tenure started (owners.last_sale_date). */
+  years_owned: number | null;
   signal_count: number;
   top_signal_types: string[];
   latest_signal_date: IsoDate | null;
   status: LeadStatus;
-  /** True if any signal feeding this lead is sample data. */
+  /** True if the score or the owner row shown for this lead is sample data. */
   is_sample: boolean;
 }
 
@@ -224,31 +244,27 @@ export interface LeadFilters {
   maxScore?: number;
   search?: string;
 }
+export interface LeadPage { items: LeadSummary[]; total: number; page: number; pageSize: number }
 
-export interface LeadDetail extends LeadSummary {
-  owners: Owner[];
+export interface LeadDetail {
+  parcel: Parcel;
+  score: Score;
+  score_items: ScoreItem[];
+  owner: Owner | null;
+  years_owned: number | null;
   sales: SaleHistory[];
   signals: Signal[];
+  /** Live signals on the parcel; `signals` holds the latest 25 of them. */
+  signal_total: number;
   outreach: Outreach[];
-  outcomes: Outcome[];
-  years_owned: number | null;
+  stage_events: StageEvent[];
+  share_links: ShareLink[];
+  status: LeadStatus;
+  is_sample: boolean;
 }
 
-export interface MapPoint {
-  apn: string;
-  lng: number;
-  lat: number;
-  score: number;
-  band: ScoreBand;
-  address: string;
-  neighborhood: string;
-  recipes: string[];
-  signalGroups: string[];
-  reason_text: string | null;
-  owner_name: string | null;
-  est_equity: number | null;
-  years_owned: number | null;
-}
+export interface MapPoint { apn: string; score: number; band: ScoreBand; recipe: string | null; neighborhood: string; lng: number; lat: number }
+export interface MapData { points: MapPoint[]; is_sample: boolean }
 
 export interface Coverage {
   parcels_monitored: number;
@@ -259,12 +275,28 @@ export interface Coverage {
   is_sample: boolean;
 }
 
+/** What the public /share/[token] page may show: property facts only. */
+export interface SharePage {
+  neighborhood: string | null;
+  lot_sqft: number | null;
+  zoning: string | null;
+  year_built: number | null;
+  /** signal types of the in-house estimates (SB 9, SB 79), always shown as estimated */
+  upzoning_estimates: string[];
+  agent_name: string | null;
+  agent_email: string | null;
+  agent_phone: string | null;
+}
+
+export interface FeedSignal extends Signal { situs_address: string | null; neighborhood: string | null }
 export interface TodayFeed {
   as_of: IsoTimestamp;
   coverage: Coverage;
   top_leads: LeadSummary[];
-  new_signals: (Signal & { situs_address: string | null; neighborhood: string | null })[];
+  new_signals: FeedSignal[];
+  new_signals_total: number;
   approvals_waiting: (Outreach & { situs_address: string | null })[];
+  approvals_total: number;
   call_tasks_due: (Outreach & { situs_address: string | null; score: number | null; reason_text: string | null; assigned_agent: string | null })[];
 }
 
@@ -274,28 +306,21 @@ export interface TrendMetric {
   key: 'turnover' | 'permits' | 'str_lost' | 'tax_default' | 'upzoning' | 'recipes';
   title: string;
   unit: string;
-  /** Set for grouped-bar metrics: one group per category (neighborhood). Each series point's `month` then holds its category label. */
+  /** Set for grouped-bar metrics: one group per category (neighborhood). */
   categories?: string[];
-  series: TrendSeries[]; // permits has one series per signal group
+  series: TrendSeries[];
   is_estimate: boolean;
+  /** True when any row behind this chart is sample data. */
+  is_sample: boolean;
   takeaway: string; // computed deterministically
 }
-export interface Trends {
-  area: string; // neighborhood name or "All"
-  months: string[];
-  metrics: TrendMetric[];
-  is_sample: boolean;
-}
+export interface Trends { area: string; months: string[]; metrics: TrendMetric[]; is_sample: boolean }
 
-export interface FunnelStage { key: 'signals' | 'contacted' | 'conversation' | 'appointment' | 'listing'; label: string; count: number }
+export interface FunnelStage { key: 'signal' | 'contacted' | 'conversation' | 'appointment' | 'listing'; label: string; count: number }
 export interface FunnelRow { label: string; stages: FunnelStage[] }
-export interface Pipeline {
-  by_agent: FunnelRow[];
-  by_recipe: FunnelRow[];
-  overall: FunnelRow;
-  is_sample: boolean;
-}
+export interface Pipeline { by_agent: FunnelRow[]; by_recipe: FunnelRow[]; overall: FunnelRow; has_events: boolean; is_sample: boolean }
 
+/** `null` from the supabase provider until owner sale history exists (Phase 6). */
 export interface Backtest {
   past_sales_considered: number;
   flagged_before_listing: number;
@@ -312,8 +337,13 @@ export interface CoverageSource {
   label: string;
   last_run: SourceRun | null;
   status: SourceRunStatus | 'never';
-  is_sample: boolean;
 }
+
+export interface TurnoverRow { month: string; neighborhood: string; sales: number; sample_rows: number }
+export interface SignalMonthRow { month: string; neighborhood: string; signal_type: string; signal_group: string; signals: number; sample_rows: number }
+export interface UpzoningRow { neighborhood: string; sb9: number; sb79_quarter_mile: number; sb79_half_mile: number; sample_rows: number }
+export interface RecipeRow { neighborhood: string; recipe: string; parcels: number; sample_rows: number }
+export interface TrendRows { turnover: TurnoverRow[]; signals: SignalMonthRow[]; upzoning: UpzoningRow[]; recipes: RecipeRow[] }
 
 export interface FixtureBundle {
   generated_for: string; // fixed "today"
@@ -326,9 +356,10 @@ export interface FixtureBundle {
   scores: Score[];
   suppressions: Suppression[];
   outreach: Outreach[];
-  outcomes: Outcome[];
+  stage_events: StageEvent[];
   team_members: TeamMember[];
-  trends: Record<string, { months: string[]; raw: Record<string, Record<string, number[]>> }>;
+  share_links: ShareLink[];
+  /** Pre-aggregated monthly rows shaped like the SQL trend views. */
+  trend_rows: TrendRows;
   backtest: Omit<Backtest, 'share_flagged'>;
-  config: ClientConfig;
 }

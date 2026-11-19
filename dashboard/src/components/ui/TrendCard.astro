@@ -13,7 +13,7 @@ const option = { months: grouped ? m.categories : months.map(fmtMonth), unit: m.
 ---
 <Card as="article">
   <header class="flex flex-wrap items-center gap-2">
-    <h3 class="text-base font-semibold">{m.title}</h3>{m.is_estimate && <EstimateBadge />}<SampleDataBadge />
+    <h3 class="text-base font-semibold">{m.title}</h3>{m.is_estimate && <EstimateBadge />}{m.is_sample && <SampleDataBadge />}
   </header>
   <p class="mt-1 text-sm text-ink">{m.takeaway}</p>
   <Chart id={`${idPrefix}-${m.key}`} option={option} kind={kind} height={compact ? 200 : grouped ? 270 : 250} label={grouped ? `${m.title}, by neighborhood` : `${m.title}, monthly, last 12 months`} class="mt-4" />

@@ -1,11 +1,12 @@
 ---
 import AppShell from '../components/ui/AppShell.astro';
 import LeadMap from '../components/map/LeadMap.astro';
-import { data } from '../lib/data';
-const points = await data.getMapPoints();
-const config = await data.getConfig();
+export const prerender = false;
+const config = await Astro.locals.data.getConfig();
+// Marks the page as sample when any score on the map is sample data (the points themselves load from /api/map).
+await Astro.locals.data.getMapData({ minScore: 101 }).catch(() => null);
 ---
 <AppShell title="Map" active="map" bleed>
   <h1 class="sr-only">Map of scored parcels</h1>
-  <LeadMap points={points} recipes={config.recipes} neighborhoods={config.territory.neighborhoods} />
+  <LeadMap recipes={config.recipes.filter((r) => r.enabled)} neighborhoods={config.territory.neighborhoods} />
 </AppShell>

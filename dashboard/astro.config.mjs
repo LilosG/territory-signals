@@ -8,5 +8,7 @@ export default defineConfig({
   adapter: vercel(),
   compressHTML: true,
   devToolbar: { enabled: false },
+  // 127.0.0.1:3000 is the local Supabase auth site_url (supabase/config.toml), so magic links land here.
+  server: { host: '127.0.0.1', port: 3000 },
   vite: { plugins: [tailwindcss()], optimizeDeps: { exclude: ['maplibre-gl'] } },
 });

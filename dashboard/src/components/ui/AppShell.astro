@@ -1,10 +1,12 @@
 ---
 import '../../styles/global.css';
 import { brand, brandCssVars } from '../../config/brand';
-import { data } from '../../lib/data';
 import Icon from './Icon.astro';
 export interface Props { title: string; active?: 'today' | 'map' | 'trends' | 'pipeline' | 'settings' | 'system'; bleed?: boolean; description?: string }
 const { title, active, bleed = false, description } = Astro.props;
+const email = Astro.locals.user?.email ?? '';
+const initials = (email.split('@')[0] ?? '?').slice(0, 2).toUpperCase();
+const flash = Astro.locals.flash;
 const nav = [
   { key: 'today', href: '/', label: 'Today', icon: 'today' },
   { key: 'map', href: '/map', label: 'Map', icon: 'map' },
@@ -44,10 +46,13 @@ const nav = [
       </aside>
 
       <div class="flex min-h-dvh min-w-0 flex-col">
-        {data.isSample && (
-          <div role="status" class="no-print border-b border-warning/25 bg-warning-soft px-4 py-1.5 text-center text-xs text-warning">
-            <strong class="font-semibold">Sample data.</strong> Every owner, address, sale and signal on this page is fictional. No live data is connected.
+        {Astro.locals.sample.used && (
+          <div role="status" data-sample-banner class="no-print border-b border-warning/25 bg-warning-soft px-4 py-1.5 text-center text-xs text-warning">
+            <strong class="font-semibold">Sample data.</strong> Some owner records, sales or scores on this page are sample data, labeled <span class="font-semibold">Sample</span>. Real owner data is connected in Phase 6.
           </div>
+        )}
+        {flash && (
+          <div role={flash.kind === 'error' ? 'alert' : 'status'} data-flash={flash.kind} class:list={['no-print border-b px-4 py-2 text-center text-sm', flash.kind === 'error' ? 'border-critical/25 bg-critical-soft text-critical' : 'border-good/25 bg-good-soft text-good']}>{flash.text}</div>
         )}
         <header class="no-print sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-surface/90 px-4 backdrop-blur sm:px-8">
           <div class="flex items-center gap-3 lg:hidden">
@@ -56,7 +61,9 @@ const nav = [
           </div>
           <p class="hidden text-sm text-ink-muted lg:block">{title}</p>
           <div class="flex items-center gap-3">
-            <span class="grid h-8 w-8 place-items-center rounded-full bg-sunken text-xs font-semibold text-ink-muted" title="Signed-in user (sample)">SP</span>
+            <span class="hidden max-w-[16rem] truncate text-xs text-ink-muted sm:block" data-user-email>{email}</span>
+            <span class="grid h-8 w-8 place-items-center rounded-full bg-sunken text-xs font-semibold text-ink-muted" title={email} aria-hidden="true">{initials}</span>
+            <form method="post" action="/auth/signout"><button type="submit" class="rounded-md px-2 py-1 text-xs font-medium text-ink-muted hover:bg-sunken hover:text-ink">Sign out</button></form>
           </div>
         </header>
         <main id="main" tabindex="-1" class:list={[bleed ? 'flex-1' : 'mx-auto w-full max-w-[84rem] flex-1 px-4 py-8 pb-28 sm:px-8 lg:pb-12']}>

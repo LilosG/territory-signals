@@ -2,16 +2,25 @@
 import type { Coverage } from '../../lib/data/types';
 import { fmtDateTime, fmtNum } from '../../lib/format';
 import Card from './Card.astro';
-import StatTile from './StatTile.astro';
 export interface Props { coverage: Coverage }
 const { coverage: c } = Astro.props;
+const stats = [
+  { label: 'Parcels', long: 'Parcels monitored', value: fmtNum(c.parcels_monitored) },
+  { label: 'Sources', long: 'Sources live', value: `${c.sources_live}/${c.sources_total}` },
+  { label: 'Last pull', long: 'Last pull', value: fmtDateTime(c.last_pull) },
+  { label: 'This week', long: 'Signals this week', value: fmtNum(c.signals_this_week) },
+];
 ---
 <Card as="section" aria-labelledby="coverage-h" class="!p-0">
   <h2 id="coverage-h" class="sr-only">Coverage</h2>
-  <dl class="grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x [&>div]:p-5 sm:[&>div]:p-6 max-sm:[&>div:nth-child(n+3)]:border-t max-sm:[&>div:nth-child(even)]:border-l max-sm:[&>div]:border-line">
-    <StatTile label="Parcels monitored" value={fmtNum(c.parcels_monitored)} sample={c.is_sample} />
-    <StatTile label="Sources live" value={`${c.sources_live} / ${c.sources_total}`} hint={c.sources_live < c.sources_total ? `${c.sources_total - c.sources_live} not reporting` : 'All reporting'} />
-    <StatTile label="Last pull" value={fmtDateTime(c.last_pull)} />
-    <StatTile label="Signals this week" value={fmtNum(c.signals_this_week)} />
+  <!-- One compact row of four small stats on phones; roomier tiles from sm up. -->
+  <dl class="grid grid-cols-4 divide-x divide-line">
+    {stats.map((s) => (
+      <div class="flex min-w-0 flex-col gap-0.5 px-2.5 py-2.5 sm:gap-1 sm:p-6">
+        <dt class="eyebrow truncate"><span class="sm:hidden">{s.label}</span><span class="max-sm:hidden">{s.long}</span></dt>
+        <dd class="truncate text-sm font-semibold tabular-nums tracking-tight text-ink sm:text-2xl" title={s.value}>{s.value}</dd>
+      </div>
+    ))}
   </dl>
+  {c.sources_live < c.sources_total && <p class="border-t border-line px-3 py-1.5 text-2xs text-ink-muted max-sm:hidden sm:px-6">{c.sources_total - c.sources_live} source{c.sources_total - c.sources_live === 1 ? '' : 's'} not reporting. See Settings.</p>}
 </Card>

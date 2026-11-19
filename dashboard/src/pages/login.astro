@@ -1,0 +1,46 @@
+---
+import AuthShell from '../components/ui/AuthShell.astro';
+import Card from '../components/ui/Card.astro';
+import Button from '../components/ui/Button.astro';
+export const prerender = false;
+
+let sent = false;
+let error: string | null = null;
+let email = '';
+const q = Astro.url.searchParams.get('error');
+if (q === 'not-team') error = 'This email is not on the team. Ask the team owner to add you.';
+else if (q === 'link') error = 'That sign-in link is invalid or has expired. Request a new one.';
+
+if (Astro.request.method === 'POST' && Astro.locals.supabase) {
+  const form = await Astro.request.formData();
+  email = String(form.get('email') ?? '').trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(email)) error = 'Enter a valid email address.';
+  else {
+    const { error: e } = await Astro.locals.supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${Astro.url.origin}/auth/callback`, shouldCreateUser: true } });
+    // Only a rate limit is reported. Any other failure (including an email that is not on the team, which the
+    // database refuses) shows the same message, so the page does not reveal who is on the team.
+    if (e && (e.status === 429 || e.code === 'over_email_send_rate_limit')) error = 'Too many sign-in emails were requested. Wait a few minutes and try again.';
+    else sent = true;
+  }
+}
+if (Astro.locals.user) return Astro.redirect('/');
+---
+<AuthShell title="Sign in">
+  <Card as="section" aria-labelledby="login-h">
+    <h1 id="login-h" class="text-2xl font-semibold text-ink">Sign in</h1>
+    {sent
+      ? <div role="status" class="mt-3 text-base text-ink">
+          <p class="font-medium">Check your email.</p>
+          <p class="mt-1 text-sm text-ink-muted">If <strong class="font-semibold text-ink">{email}</strong> is on the team, a sign-in link is on its way. It works once and expires soon.</p>
+        </div>
+      : <form method="post" class="mt-4 flex flex-col gap-4" novalidate>
+          <p class="text-sm text-ink-muted">Team members only. We email you a one-time link; there is no password.</p>
+          {error && <p role="alert" class="rounded-md border border-critical/30 bg-critical-soft px-3 py-2 text-sm text-critical">{error}</p>}
+          <label class="flex flex-col gap-1.5 text-sm font-medium text-ink">Email
+            <input type="email" name="email" value={email} required autocomplete="email" inputmode="email" autofocus
+              class="h-11 rounded-md border border-line-strong bg-surface px-3 text-base font-normal text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30" placeholder="you@yourteam.com" />
+          </label>
+          <Button type="submit" variant="primary" class="h-11">Email me a sign-in link</Button>
+        </form>}
+  </Card>
+</AuthShell>

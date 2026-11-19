@@ -29,3 +29,13 @@
   body { background: #fff; }
   @page { margin: 16mm; }
 }
+
+/* Responsive type roles. Phones use the smaller step of the scale in tokens.css (xl / base), tablets and up the larger. */
+@layer components {
+  .t-page-title { font-size: var(--text-xl); line-height: var(--text-xl--line-height); font-weight: 600; }
+  .t-lead-reason { font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: 500; }
+  @media (min-width: 40rem) {
+    .t-page-title { font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); }
+    .t-lead-reason { font-size: var(--text-lg); line-height: 1.75rem; }
+  }
+}

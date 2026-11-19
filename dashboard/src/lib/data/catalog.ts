@@ -1,71 +1,69 @@
-/** Static labels for signal types, groups, sources and recipes. Display only. */
-export const SIGNAL_TYPES: Record<string, { label: string; group: string; phase: 2 | 6 }> = {
-  stro_license_active: { label: 'Short-term rental license', group: 'short_term_rental', phase: 2 },
-  stro_license_lapsed: { label: 'Short-term rental license lost', group: 'short_term_rental', phase: 2 },
-  permit_demolition: { label: 'Demolition permit', group: 'permits', phase: 2 },
-  permit_new_construction: { label: 'New construction permit', group: 'permits', phase: 2 },
-  permit_addition_remodel: { label: 'Addition / remodel permit', group: 'permits', phase: 2 },
-  permit_adu: { label: 'ADU permit', group: 'permits', phase: 2 },
-  tax_default: { label: 'Tax-defaulted (power to sell)', group: 'tax_distress', phase: 2 },
-  upzoning_sb9: { label: 'SB 9 lot-split eligibility', group: 'upzoning', phase: 2 },
-  upzoning_sb79: { label: 'SB 79 transit eligibility', group: 'upzoning', phase: 2 },
-  fire_hazard_zone: { label: 'Fire hazard zone', group: 'risk', phase: 2 },
-  recorded_document: { label: 'Recent recorded document', group: 'ownership', phase: 2 },
-  long_tenure: { label: 'Long tenure', group: 'ownership', phase: 6 },
-  absentee_owner: { label: 'Absentee owner', group: 'ownership', phase: 6 },
-  high_equity: { label: 'High equity', group: 'ownership', phase: 6 },
-  inheritance_transfer: { label: 'Inheritance transfer', group: 'life_event', phase: 6 },
-  trust_transfer: { label: 'Trust transfer', group: 'life_event', phase: 6 },
-  notice_of_default: { label: 'Notice of default', group: 'distress', phase: 6 },
-};
+/**
+ * Names come from src/data/catalog.generated.json only (python -m territory.export_catalog, built from
+ * config/scoring.yaml, signal_labels.yaml, permit_labels.yaml and the client's recipe toggles). Nothing here
+ * defines a signal, recipe, component, band or stage. Only the display helpers and the external source
+ * links below are written by hand.
+ */
+import raw from '../../data/catalog.generated.json';
 
-export const SIGNAL_GROUPS: Record<string, string> = {
-  permits: 'Permits',
-  short_term_rental: 'Short-term rentals',
-  tax_distress: 'Tax distress',
-  upzoning: 'Upzoning',
-  risk: 'Risk',
-  ownership: 'Ownership',
-  life_event: 'Life events',
-  distress: 'Distress',
-};
+interface CatalogFile {
+  model_version: string;
+  signal_types: { key: string; label: string }[];
+  signal_groups: { key: string; label: string }[];
+  permit_types: { key: string; label: string }[];
+  recipes: { key: string; label: string; short_description: string; enabled: boolean; requires_data: string[] }[];
+  components: { key: string; kind: string; family: string; max_points: number; label: string; family_label: string }[];
+  score_bands: { key: string; label: string; min: number }[];
+  stages: { key: string; label: string }[];
+  owner_modifier_cap: number;
+}
+const catalog = raw as unknown as CatalogFile;
 
-export const SOURCES: Record<string, { label: string; url: string; is_sample?: boolean }> = {
-  stro_licenses: { label: 'City STRO licenses', url: 'https://data.sandiego.gov/datasets/stro-licenses/' },
-  dsd_permits: { label: 'City development permits', url: 'https://data.sandiego.gov/datasets/development-permits/' },
-  treasurer_tax_defaults: { label: 'County tax-default list', url: 'https://www.sdttc.com/content/ttc/en/tax-collection/property-tax-sales/legal-ads.html' },
-  sangis_parcels: { label: 'SanGIS parcels', url: 'https://geo.sandag.org/server/rest/directories/downloads/Parcels.csv' },
-  sandag_zoning: { label: 'SANDAG base zoning', url: 'https://geo.sandag.org/server/rest/directories/downloads/Zoning_Base_SD.geojson' },
-  sandag_transit: { label: 'SANDAG transit stops', url: 'https://geo.sandag.org/server/rest/directories/downloads/Transit_Stops_GTFS.geojson' },
-  sandag_planning_areas: { label: 'Community planning areas', url: 'https://geo.sandag.org/server/rest/directories/downloads/Community_Plan_SD.geojson' },
-  attom_recorder: { label: 'ATTOM recorder data', url: 'https://api.developer.attomdata.com/', is_sample: true },
-  attom_owner: { label: 'ATTOM owner data', url: 'https://api.developer.attomdata.com/', is_sample: true },
-  fire_hazard_zones: { label: 'Fire hazard zones (manual file)', url: 'https://osfm.fire.ca.gov/' },
-};
+import type { ScoreBand } from './types';
 
-export const OUTCOME_LABELS: Record<string, string> = {
-  contacted: 'Contacted',
-  conversation: 'Conversation',
-  appointment: 'Appointment',
-  listing: 'Listing',
-  not_interested: 'Not interested',
-  bad_data: 'Bad data',
-};
+const map = <T extends { key: string }, V>(xs: T[], f: (x: T) => V): Record<string, V> => Object.fromEntries(xs.map((x) => [x.key, f(x)]));
 
-export const bandOf = (score: number): 'low' | 'watch' | 'warm' | 'hot' =>
-  score >= 80 ? 'hot' : score >= 60 ? 'warm' : score >= 40 ? 'watch' : 'low';
-export const BAND_LABEL = { low: 'Low', watch: 'Watch', warm: 'Warm', hot: 'Hot' } as const;
+export const MODEL_VERSION = catalog.model_version;
+export const SIGNAL_TYPES = map(catalog.signal_types, (x) => x.label);
+export const SIGNAL_GROUPS = map(catalog.signal_groups, (x) => x.label);
+export const PERMIT_TYPES = map(catalog.permit_types, (x) => x.label);
+export const RECIPES = catalog.recipes;
+export const RECIPE_LABELS = map(catalog.recipes, (x) => x.label);
+export const COMPONENTS = map(catalog.components, (x) => ({ label: x.label, max: x.max_points, family: x.family, family_label: x.family_label, kind: x.kind }));
+export const STAGES = catalog.stages;
+export const OUTCOME_LABELS = map(catalog.stages, (x) => x.label);
+export const SCORE_BANDS = [...catalog.score_bands].sort((a, b) => b.min - a.min) as { key: ScoreBand; label: string; min: number }[];
+export const BAND_LABEL = Object.fromEntries(SCORE_BANDS.map((b) => [b.key, b.label])) as Record<ScoreBand, string>;
+export const bandOf = (score: number): ScoreBand => (SCORE_BANDS.find((b) => score >= b.min) ?? SCORE_BANDS.at(-1)!).key;
 
-/** Signal types already implied by a recipe name. The card omits these chips so a concept is never shown twice. */
-export const RECIPE_IMPLIES: Record<string, string[]> = {
-  'long-tenure-equity': ['long_tenure', 'high_equity'],
-  'absentee-owner': ['absentee_owner'],
-  redevelopment: ['upzoning_sb9', 'upzoning_sb79', 'permit_demolition'],
-  'str-exit': ['stro_license_active', 'stro_license_lapsed'],
-  'life-event': ['inheritance_transfer', 'trust_transfer'],
-  'financial-stress': ['tax_default', 'notice_of_default'],
-  'permit-momentum': ['permit_demolition', 'permit_new_construction', 'permit_addition_remodel', 'permit_adu'],
+/** Display label for a signal: permits use the plain-English permit label, transfers their own label. */
+export function signalLabel(type: string, details?: Record<string, unknown> | null): string {
+  if (type === 'permit_approved' || type === 'permit_stalled') {
+    const pt = PERMIT_TYPES[String(details?.approval_type ?? '')];
+    const base = SIGNAL_TYPES[type] ?? type;
+    return pt ? `${base}: ${pt}` : base;
+  }
+  return SIGNAL_TYPES[type] ?? type;
+}
+
+/** The scoring component for a stored component key (label and the most points it can contribute). */
+export const componentInfo = (key: string) => COMPONENTS[key];
+
+/** External source pages for signal citations (display only). Keys are `source_runs.source_key` values. */
+export const SOURCES: Record<string, { label: string; url: string }> = {
+  stro_licenses: { label: 'City STR licenses', url: 'https://data.sandiego.gov/datasets/stro-licenses/' },
+  dev_permits: { label: 'City development permits', url: 'https://data.sandiego.gov/datasets/development-permits/' },
+  tax_default: { label: 'County tax-default list', url: 'https://www.sdttc.com/content/ttc/en/tax-collection/property-tax-sales/legal-ads.html' },
+  parcels: { label: 'SanGIS parcels', url: 'https://geo.sandag.org/server/rest/directories/downloads/Parcels.csv' },
+  zoning: { label: 'SANDAG base zoning', url: 'https://geo.sandag.org/server/rest/directories/downloads/Zoning_Base_SD.geojson' },
+  upzoning_estimate: { label: 'In-house upzoning screen', url: 'https://geo.sandag.org/server/rest/directories/downloads/Transit_Stops_GTFS.geojson' },
+  planning_areas: { label: 'Community planning areas', url: 'https://geo.sandag.org/server/rest/directories/downloads/Community_Plan_SD.geojson' },
+  fire_zones: { label: 'Fire hazard zones (manual file)', url: 'https://osfm.fire.ca.gov/' },
+  permit_rederive: { label: 'Permit re-derivation', url: '' },
+  sample_sales_history: { label: 'Sample sales history', url: '' },
+  sample_owner: { label: 'Sample owner data', url: '' },
 };
+export const SOURCE_LABEL = (key: string) => SOURCES[key]?.label ?? key;
 
 export const LEAD_STATUS: Record<'new' | 'draft_ready' | 'awaiting_approval' | 'approved' | 'sent', { label: string; tone: 'good' | 'warning' | 'neutral' }> = {
   new: { label: 'New', tone: 'neutral' },

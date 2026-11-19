@@ -1,0 +1,50 @@
+---
+import AppShell from '../../components/ui/AppShell.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import Stack from '../../components/ui/Stack.astro';
+import LeadCard from '../../components/ui/LeadCard.astro';
+import EmptyState from '../../components/ui/EmptyState.astro';
+import Select from '../../components/ui/Select.astro';
+import Button from '../../components/ui/Button.astro';
+import { SIGNAL_GROUPS } from '../../lib/data';
+import { filtersFrom } from '../../lib/filters';
+import { fmtNum } from '../../lib/format';
+export const prerender = false;
+
+const PAGE_SIZE = 20;
+const sp = Astro.url.searchParams;
+const page = Math.max(1, Number(sp.get('page') ?? 1) || 1);
+const filters = filtersFrom(sp);
+const config = await Astro.locals.data.getConfig();
+const result = await Astro.locals.data.getLeads(filters, page, PAGE_SIZE);
+const recipeNames = Object.fromEntries(config.recipes.map((r) => [r.key, r.name]));
+const pages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
+const link = (n: number) => { const q = new URLSearchParams(sp); q.set('page', String(n)); return `/leads?${q}`; };
+---
+<AppShell title="Leads" active="today">
+  <PageHeader eyebrow={`${fmtNum(result.total)} scored properties`} title="All leads" description="Ranked by score. Filters run in the database; each page loads only the leads it shows." />
+  <Stack gap={6}>
+    <form method="get" role="search" aria-label="Lead filters" class="flex flex-wrap items-end gap-3">
+      <label class="flex flex-col gap-1 text-xs font-medium text-ink-muted">Address or APN
+        <input type="search" name="q" value={sp.get('q') ?? ''} class="h-10 w-48 rounded-md border border-line-strong bg-surface px-3 text-sm font-normal text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30" />
+      </label>
+      <Select label="Recipe" name="recipe" value={sp.get('recipe') ?? ''} class="w-48" options={[{ value: '', label: 'All recipes' }, ...config.recipes.filter((r) => r.enabled).map((r) => ({ value: r.key, label: r.name }))]} />
+      <Select label="Signal group" name="group" value={sp.get('group') ?? ''} class="w-44" options={[{ value: '', label: 'All signal groups' }, ...Object.entries(SIGNAL_GROUPS).map(([k, v]) => ({ value: k, label: v }))]} />
+      <Select label="Neighborhood" name="hood" value={sp.get('hood') ?? ''} class="w-44" options={[{ value: '', label: 'All neighborhoods' }, ...config.territory.neighborhoods.map((n) => ({ value: n, label: n }))]} />
+      <Select label="Score" name="range" value={sp.get('range') ?? ''} class="w-40" options={[{ value: '', label: 'All scores' }, { value: '80-100', label: '80–100 · Hot' }, { value: '60-79', label: '60–79 · Warm' }, { value: '40-59', label: '40–59 · Watch' }, { value: '0-39', label: '0–39 · Low' }]} />
+      <Button type="submit" variant="primary">Apply</Button>
+    </form>
+
+    {result.items.length === 0
+      ? <EmptyState title="No leads match" description="Try removing a filter." />
+      : <Stack as="ul" gap={3}>{result.items.map((l, i) => <li><LeadCard lead={l} recipeNames={recipeNames} rank={(page - 1) * PAGE_SIZE + i + 1} /></li>)}</Stack>}
+
+    <nav aria-label="Pagination" class="flex items-center justify-between gap-3 text-sm">
+      <span class="text-ink-muted">Page {page} of {pages}</span>
+      <span class="flex gap-2">
+        {page > 1 && <Button href={link(page - 1)} size="sm">Previous</Button>}
+        {page < pages && <Button href={link(page + 1)} size="sm">Next</Button>}
+      </span>
+    </nav>
+  </Stack>
+</AppShell>

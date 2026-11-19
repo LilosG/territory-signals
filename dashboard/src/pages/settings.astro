@@ -8,12 +8,13 @@ import Grid from '../components/ui/Grid.astro';
 import FactList from '../components/ui/FactList.astro';
 import DataTable from '../components/ui/DataTable.astro';
 import StatusPill from '../components/ui/StatusPill.astro';
-import SampleDataBadge from '../components/ui/SampleDataBadge.astro';
-import { data } from '../lib/data';
 import { fmtDateTime, fmtNum } from '../lib/format';
-const [config, sources] = await Promise.all([data.getConfig(), data.getSources()]);
+export const prerender = false;
+const [config, sources] = await Promise.all([Astro.locals.data.getConfig(), Astro.locals.data.getSources()]);
+if (config.owner_data_provider === 'sample') Astro.locals.sample.used = true;
 const tone = { success: 'good', failed: 'critical', running: 'warning', never: 'neutral' } as const;
 const word = { success: 'Live', failed: 'Failed', running: 'Running', never: 'Not connected' } as const;
+const tp = config.team_profile;
 ---
 <AppShell title="Settings" active="settings">
   <PageHeader eyebrow="Read-only" title="Settings" description="The client configuration this deployment runs on. Changes are made in the config file, not here." />
@@ -25,17 +26,28 @@ const word = { success: 'Live', failed: 'Failed', running: 'Running', never: 'No
           { label: 'Client', value: config.display_name }, { label: 'Client id', value: config.client_id },
           { label: 'Planning areas', value: config.territory.planning_areas.join(', ') }, { label: 'ZIP codes', value: config.territory.zips.join(', ') },
           { label: 'Owner data provider', value: config.owner_data_provider, sample: config.owner_data_provider === 'sample' },
+          { label: 'Brokerage', value: tp.brokerage || 'Not set' }, { label: 'Office address', value: tp.office_address || 'Not set' },
         ]} />
       </Card>
       <Card as="section" aria-labelledby="send-h">
-        <h2 id="send-h" class="mb-4 flex items-center gap-2 text-base font-semibold">Outreach {config.is_sample && <SampleDataBadge label="Sample values" />}</h2>
+        <h2 id="send-h" class="mb-4 text-base font-semibold">Outreach</h2>
         <FactList items={[
           { label: 'Mode', value: config.outreach.mode === 'preview' ? 'Preview (nothing is sent)' : config.outreach.mode },
-          { label: 'Daily send cap', value: fmtNum(config.outreach.daily_send_cap) }, { label: 'Weekly send cap', value: fmtNum(config.outreach.weekly_send_cap) },
+          { label: 'Weekly send cap per agent', value: fmtNum(config.outreach.weekly_send_cap_per_agent) },
+          { label: 'Drafts per run', value: fmtNum(config.outreach.drafts_per_run) },
+          { label: 'Cooldown', value: `${config.outreach.cooldown_days} days` },
           { label: 'Automated texts or calls', value: 'Never' },
         ]} />
+        <p class="mt-4 text-xs text-ink-muted">Send caps apply once sending exists. Today nothing is sent.</p>
       </Card>
     </Grid>
+
+    <Section title="Team" description="Only these emails can sign in. Add people in the client config, then run the team seed.">
+      {config.team_members.length === 0
+        ? <Card><p class="text-sm text-ink-muted">No team members are listed in the client config. Owners added with ADMIN_EMAIL can still sign in.</p></Card>
+        : <DataTable caption="Team" columns={[{ key: 'n', label: 'Name' }, { key: 'e', label: 'Email', hideOnMobile: true }, { key: 'r', label: 'Role', align: 'right' }]}
+            rows={config.team_members.map((m) => ({ cells: { n: { v: m.name }, e: { v: m.email }, r: { v: m.role } } }))} />}
+    </Section>
 
     <Section title="Recipes" description="Which scoring recipes are switched on for this client.">
       <DataTable caption="Recipes" columns={[{ key: 'n', label: 'Recipe' }, { key: 'd', label: 'Rule', hideOnMobile: true }, { key: 's', label: 'Status', align: 'right' }]}
@@ -46,7 +58,7 @@ const word = { success: 'Live', failed: 'Failed', running: 'Running', never: 'No
       <DataTable caption="Data sources" defaultSort={{ key: 'src', dir: 'asc' }}
         columns={[{ key: 'src', label: 'Source', sortable: true }, { key: 'st', label: 'Status', sortable: true }, { key: 'when', label: 'Last run', sortable: true, hideOnMobile: true }, { key: 'fetched', label: 'Fetched', align: 'right', type: 'number', sortable: true, hideOnMobile: true }, { key: 'matched', label: 'Matched', align: 'right', type: 'number', sortable: true }]}
         rows={sources.map((s) => ({ cells: {
-          src: { v: s.label + (s.is_sample ? ' (sample)' : '') }, st: { v: word[s.status] },
+          src: { v: s.label }, st: { v: word[s.status] },
           when: { v: s.last_run?.started_at ?? '', display: fmtDateTime(s.last_run?.started_at) },
           fetched: { v: s.last_run?.rows_fetched ?? 0, display: fmtNum(s.last_run?.rows_fetched) }, matched: { v: s.last_run?.rows_matched ?? 0, display: fmtNum(s.last_run?.rows_matched) },
         } }))} />
