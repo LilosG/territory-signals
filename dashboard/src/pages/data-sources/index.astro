@@ -14,7 +14,7 @@ const word = { live: 'Live', failed: 'Last update failed', running: 'Updating no
 const live = sources.filter((s) => s.state === 'live').length;
 ---
 <AppShell title="Data sources" active="data-sources">
-  <PageHeader eyebrow={`${live} of ${sources.length} live`} title="Data sources" description="The public records and datasets behind every signal, and when each was last updated." />
+  <PageHeader eyebrow={`${live} of ${sources.length} live`} title="Data sources" description="The datasets behind every signal and when each last updated" />
   <Stack gap={6}>
     <Grid cols={2} gap={4}>
       {sources.map((s) => (

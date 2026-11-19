@@ -14,12 +14,12 @@ export const prerender = false;
 const pipe = await Astro.locals.data.getPipeline();
 ---
 <AppShell title="Pipeline" active="pipeline">
-  <PageHeader eyebrow="Signals to listings" title="Pipeline" description="Where flagged properties stand and the latest outcomes the team has logged.">
+  <PageHeader eyebrow="Signals to listings" title="Pipeline" description="Where flagged properties stand, plus the latest logged outcomes.">
     <Button href="/performance" variant="secondary" icon="performance">Funnels by agent and recipe</Button>
   </PageHeader>
   <Stack gap={8}>
     {!pipe.has_events
-      ? <Card><EmptyState title="No outcomes recorded yet" description="Open a lead and record an outcome (contacted, conversation, appointment, listing). The pipeline fills in as the team logs results." /></Card>
+      ? <Card><EmptyState title="No outcomes recorded yet" description="Record an outcome on a lead and the pipeline fills in." /></Card>
       : <>
           <Section title="Overall funnel" description="Parcels that reached each stage.">
             <Card><div class="mb-4 flex items-center gap-2">{pipe.is_sample && <SampleDataBadge />}</div><FunnelBars caption="Overall funnel" rows={[pipe.overall]} /></Card>

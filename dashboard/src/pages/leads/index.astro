@@ -35,7 +35,7 @@ const statusOptions = [{ value: '', label: 'Any status' }, ...Object.entries(LEA
 const now = new Date();
 ---
 <AppShell title="Leads" active="leads">
-  <PageHeader eyebrow={`${fmtNum(result.total)} ${result.total === 1 ? 'property' : 'properties'}`} title="Leads" description="Ranked by score unless you sort differently. Filters run in the database." />
+  <PageHeader eyebrow={`${fmtNum(result.total)} ${result.total === 1 ? 'property' : 'properties'}`} title="Leads" description="Ranked by score unless you sort differently." />
   <Stack gap={6}>
     <nav aria-label="Saved views" class="flex flex-wrap gap-2">
       {VIEWS.map((v) => (
@@ -60,7 +60,7 @@ const now = new Date();
     </form>
 
     {result.items.length === 0
-      ? <EmptyState title="No leads match" description="Try removing a filter or choosing another saved view." />
+      ? <EmptyState title="No leads match" description="Remove a filter or pick another view." />
       : <Stack as="ul" gap={3}>{result.items.map((l, i) => <li><LeadCard lead={l} rank={(page - 1) * PAGE_SIZE + i + 1} isNew={isNewLead(l, now)} /></li>)}</Stack>}
 
     <nav aria-label="Pagination" class="flex items-center justify-between gap-3 text-sm">

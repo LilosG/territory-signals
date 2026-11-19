@@ -23,11 +23,11 @@ const charts = [
 const hasCoverage = perf.coverage.length > 1 && perf.coverage.some((w) => w.parcels_monitored > 0 || w.signals > 0);
 ---
 <AppShell title="Performance" active="performance">
-  <PageHeader eyebrow="Results" title="Performance" description="How flagged properties move from signal to listing, how well past sales would have been caught, and how much ground we cover." />
+  <PageHeader eyebrow="Results" title="Performance" description="Signal-to-listing funnel, backtest and coverage" />
   <Stack gap={10}>
-    <Section title="Funnel" description="Parcels that reached each stage. Each stage shows the share that advanced from the one before.">
+    <Section title="Funnel" description="Parcels reaching each stage, and the share advancing">
       {!perf.has_events
-        ? <Card><EmptyState title="No outcomes recorded yet" description="Open a lead and record an outcome (contacted, conversation, appointment, listing). The funnels fill in as the team logs results." /></Card>
+        ? <Card><EmptyState title="No outcomes recorded yet" description="Record an outcome on a lead and the funnels fill in." /></Card>
         : <Stack gap={6}>
             <Card><div class="mb-4 flex items-center gap-2"><h3 class="t-h2">Overall</h3>{perf.is_sample && <SampleDataBadge />}</div><FunnelBars caption="Overall funnel" rows={[perf.overall]} /></Card>
             <Grid split="even" gap={6}>
@@ -50,11 +50,11 @@ const hasCoverage = perf.coverage.length > 1 && perf.coverage.some((w) => w.parc
               </dl>
               <p class="mt-5 border-t border-line pt-4 text-xs text-ink-muted">{bt.note}</p>
             </>
-          : <EmptyState title="Connects when owner sale history is added in Phase 6" description="A backtest needs real past sales. No backtest numbers are shown until then." />}
+          : <EmptyState title="Connects when owner sale history is added in Phase 6" description="No backtest numbers until real past sales exist." />}
       </Card>
     </Section>
 
-    <Section title="Coverage over time" description="How much the system watches, week by week.">
+    <Section title="Coverage over time">
       {!hasCoverage
         ? <Card><EmptyState title="Appears after the second weekly snapshot" description="Coverage is charted once there are at least two weeks of history." /></Card>
         : <Grid cols={3} gap={4}>

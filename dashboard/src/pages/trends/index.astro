@@ -14,7 +14,7 @@ const trends = await Promise.all(areas.map((a) => Astro.locals.data.getTrends(a)
 const slug = slugify;
 ---
 <AppShell title="Trends" active="trends">
-  <PageHeader eyebrow="Month over month · last 12 months" title="Neighborhood trends" description="What is moving in each neighborhood, with a plain-language takeaway for every chart.">
+  <PageHeader eyebrow="Last 12 months" title="Neighborhood trends" description="What is moving in each neighborhood, month over month.">
     <Button href="/trends/newsletter" variant="secondary" icon="mail">Export for newsletter</Button>
   </PageHeader>
   <Tabs label="Neighborhood" tabs={areas.map((a) => ({ id: slug(a), label: a === 'All' ? 'All neighborhoods' : a }))}>
@@ -23,6 +23,14 @@ const slug = slugify;
         <Grid cols={2} gap={6}>
           {t.metrics.map((m) => <TrendCard metric={m} months={t.months} idPrefix={slug(t.area)} />)}
         </Grid>
+        {t.coming_soon.length > 0 && (
+          <section aria-label="Coming soon" data-coming-soon class="mt-6 rounded-lg border border-line bg-surface px-4 py-3 sm:px-5">
+            <h2 class="eyebrow">Coming soon</h2>
+            <ul class="mt-2 flex flex-col divide-y divide-line">
+              {t.coming_soon.map((c) => <li class="flex flex-wrap items-baseline gap-x-3 py-2 text-sm"><span class="font-medium text-ink">{c.title}</span><span class="text-ink-muted">{c.unlock}</span></li>)}
+            </ul>
+          </section>
+        )}
       </TabPanel>
     ))}
   </Tabs>

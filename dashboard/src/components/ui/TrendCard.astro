@@ -1,6 +1,6 @@
 ---
 import type { TrendMetric } from '../../lib/data/types';
-import { fmtMonth } from '../../lib/format';
+import { fmtMonth, fmtMonthShort, boldLead } from '../../lib/format';
 import Card from './Card.astro';
 import Chart from './Chart.astro';
 import EstimateBadge from './EstimateBadge.astro';
@@ -8,9 +8,11 @@ import SampleDataBadge from './SampleDataBadge.astro';
 export interface Props { metric: TrendMetric; months: string[]; idPrefix: string; compact?: boolean }
 const { metric: m, months, idPrefix, compact = false } = Astro.props;
 const grouped = !!m.categories;
-const kind = grouped ? 'groupedBar' : m.key === 'permits' ? 'stackedBar' : m.key === 'turnover' || m.key === 'str_lost' ? 'bar' : 'line';
+const kind = grouped ? 'groupedBar' : m.key === 'permits' ? 'stackedBar' : 'bar';
 const toSeries = (xs: TrendMetric['series']) => xs.map((s) => ({ name: s.label, data: s.points.map((p) => p.value) }));
-const option = { months: grouped ? m.categories : months.map(fmtMonth), unit: m.unit, estimate: m.is_estimate, series: toSeries(m.series), optional: toSeries(m.optional_series ?? []) };
+const partialLabel = `${fmtMonthShort(months[months.length - 1]!)} (to date)`;
+const monthLabels = months.map((k, i) => (i === months.length - 1 ? partialLabel : fmtMonth(k)));
+const option = { months: grouped ? m.categories : monthLabels, partialIndex: grouped ? null : months.length - 1, partialLabel: grouped ? null : partialLabel, unit: m.unit, estimate: m.is_estimate, series: toSeries(m.series), optional: toSeries(m.optional_series ?? []) };
 const id = `${idPrefix}-${m.key}`;
 const h = compact ? 200 : grouped ? 270 : 250;
 ---
@@ -18,7 +20,7 @@ const h = compact ? 200 : grouped ? 270 : 250;
   <header class="flex flex-wrap items-center gap-2">
     <h3 class="t-h2">{m.title}</h3>{m.is_estimate && <EstimateBadge />}{m.is_sample && !m.empty_state && <SampleDataBadge />}
   </header>
-  <p class="mt-1 text-sm text-ink">{m.takeaway}</p>
+  <p class="mt-1 text-sm text-ink" data-takeaway set:html={boldLead(m.takeaway)} />
   {m.empty_state
     ? <div data-empty-chart style={`min-height:${h}px`} class="mt-4 grid place-items-center rounded-lg border border-dashed border-line-strong bg-canvas px-6 text-center"><p class="max-w-xs text-sm text-ink-muted">{m.empty_state}</p></div>
     : <>

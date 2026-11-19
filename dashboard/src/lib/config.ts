@@ -10,7 +10,7 @@ interface RawClient {
   team_members?: { name: string; email: string; role: TeamRole; phone?: string }[];
   team_profile: { display_name: string; brokerage?: string; office_address?: string };
   recipes: Record<string, { enabled: boolean }>;
-  outreach: { mode: 'preview'; weekly_send_cap_per_agent: number; drafts_per_run: number; cooldown_days: number };
+  outreach: { mode: 'preview'; weekly_send_cap_per_agent: number; drafts_per_run: number; cooldown_days: number; approval_required_recipes?: string[] };
 }
 
 const files = import.meta.glob('../../../config/clients/*.yaml', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
@@ -31,7 +31,7 @@ export function loadClientConfig(): ClientConfig {
     display_name: raw.display_name,
     territory: raw.territory,
     owner_data_provider: raw.owner_data_provider,
-    outreach: raw.outreach,
+    outreach: { ...raw.outreach, approval_required_recipes: raw.outreach.approval_required_recipes ?? [] },
     team_profile: { display_name: raw.team_profile.display_name, brokerage: raw.team_profile.brokerage ?? '', office_address: raw.team_profile.office_address ?? '' },
     // Names come from the catalog; on/off comes from this client's config file.
     recipes: RECIPES.map((r) => ({ key: r.key, name: r.label, description: r.short_description, enabled: raw.recipes[r.key]?.enabled ?? r.enabled, requires_data: r.requires_data })),
@@ -39,3 +39,6 @@ export function loadClientConfig(): ClientConfig {
   };
   return cached;
 }
+
+/** Recipes switched on for this client. The nav badge and the Recipes page header both read this. */
+export const enabledRecipeCount = (): number => loadClientConfig().recipes.filter((r) => r.enabled).length;

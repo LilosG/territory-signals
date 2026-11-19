@@ -7,6 +7,7 @@ import Button from '../../components/ui/Button.astro';
 import EmptyState from '../../components/ui/EmptyState.astro';
 import TabLinks from '../../components/ui/TabLinks.astro';
 import OutreachQueueRow from '../../components/ui/OutreachQueueRow.astro';
+import { blockedHelp } from '../../lib/present';
 import type { OutreachTab } from '../../lib/data/types';
 export const prerender = false;
 
@@ -25,6 +26,10 @@ const link = (n: number) => `/outreach?tab=${tab}&page=${n}`;
 const bulk = tab === 'drafts' || tab === 'awaiting_approval';
 const back = `/outreach?tab=${tab}${page > 1 ? `&page=${page}` : ''}`;
 const approvable = result.items.filter((o) => o.blocked.length === 0).length;
+// When every item in the tab is blocked, the reasons they all share are stated once in a banner.
+const shared = result.items.length > 0 && approvable === 0
+  ? result.items.map((o) => o.blocked).reduce((a, b) => a.filter((r) => b.includes(r)))
+  : [];
 const empty = {
   drafts: ['No drafts', 'New drafts appear here after the weekly draft run.'],
   awaiting_approval: ['All clear', 'No drafts are waiting for approval.'],
@@ -33,25 +38,33 @@ const empty = {
 }[tab];
 ---
 <AppShell title="Outreach" active="outreach">
-  <PageHeader eyebrow="Preview mode · nothing is sent" title="Outreach" description="Review drafts, approve them in bulk, and see what is blocked and why. A person approves everything." />
+  <PageHeader eyebrow="Preview mode · nothing is sent" title="Outreach" description="Review drafts, approve in bulk, see what is blocked. A person approves everything." />
   <Stack gap={5}>
     <TabLinks label="Outreach" active={tab} tabs={TABS.map((t) => ({ ...t, href: `/outreach?tab=${t.id}`, count: counts[t.id] }))} />
 
     {result.items.length === 0
       ? <Card><EmptyState title={empty[0]!} description={empty[1]} /></Card>
       : <>
+          {shared.length > 0 && (
+            <div role="note" data-blocked-banner class="rounded-lg border border-warning/30 bg-warning-soft px-4 py-3 text-sm">
+              <p class="font-medium text-warning">All {result.items.length === result.total ? result.total : 'these'} can’t be approved yet</p>
+              <ul class="mt-1 list-disc pl-5 text-ink">{shared.map((r) => <li>{blockedHelp(r)}</li>)}</ul>
+            </div>
+          )}
           {bulk && (
             <form id="bulk-form" method="post" action="/actions/approve-bulk" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 py-3" data-bulk-bar>
               <input type="hidden" name="back" value={back} />
-              <label class="flex items-center gap-2 text-sm font-medium text-ink">
-                <input type="checkbox" data-bulk-all class="h-4 w-4 rounded border-line-strong accent-[var(--color-accent)]" disabled={approvable === 0} />
-                <span data-bulk-label>Select all ready ({approvable})</span>
-              </label>
-              <Button type="submit" variant="primary" size="sm" icon="check" id="approve-selected">Approve selected</Button>
+              {approvable > 0
+                ? <label class="flex items-center gap-2 text-sm font-medium text-ink">
+                    <input type="checkbox" data-bulk-all class="h-4 w-4 rounded border-line-strong accent-[var(--color-accent)]" />
+                    <span data-bulk-label>Select all ready ({approvable})</span>
+                  </label>
+                : <span></span>}
+              <Button type="submit" variant="primary" size="sm" icon="check" id="approve-selected" disabled title={approvable === 0 ? 'Nothing is ready to approve: every draft here is blocked' : 'Select at least one draft to approve'}>Approve selected</Button>
             </form>
           )}
           <Card padded={false}>
-            <ul class="divide-y divide-line">{result.items.map((o) => <OutreachQueueRow item={o} selectable={bulk} />)}</ul>
+            <ul class="divide-y divide-line">{result.items.map((o) => <OutreachQueueRow item={o} selectable={bulk} shared={shared} />)}</ul>
           </Card>
           <nav aria-label="Pagination" class="flex items-center justify-between gap-3 text-sm">
             <span class="text-ink-muted">Page {page} of {pages} · {result.total} {result.total === 1 ? 'item' : 'items'}</span>
@@ -71,8 +84,23 @@ const empty = {
   const sync = () => {
     const n = items().filter((i) => i.checked).length;
     if (label) label.textContent = n > 0 ? `${n} selected` : `Select all ready (${total})`;
+    const btn = document.querySelector<HTMLButtonElement>('#approve-selected');
+    if (btn) { btn.disabled = n === 0; btn.setAttribute('aria-disabled', String(n === 0)); btn.title = n === 0 ? (total === 0 ? 'Nothing is ready to approve: every draft here is blocked' : 'Select at least one draft to approve') : `Approve ${n} selected`; btn.classList.toggle('opacity-55', n === 0); btn.classList.toggle('cursor-not-allowed', n === 0); }
     if (all) { all.checked = n > 0 && n === total; all.indeterminate = n > 0 && n < total; }
   };
   all?.addEventListener('change', () => { items().forEach((i) => (i.checked = all.checked)); sync(); });
   document.addEventListener('change', (e) => { if ((e.target as HTMLElement).matches('[data-bulk-item]')) sync(); });
+  sync();
+  // One-line previews end on a whole word: trim by words until the line fits, then add an ellipsis.
+  const fit = () => document.querySelectorAll<HTMLElement>('[data-preview]').forEach((el) => {
+    const full = el.dataset.preview ?? '';
+    el.textContent = full;
+    if (el.scrollHeight <= el.clientHeight + 1) return;
+    const words = full.split(' ');
+    let lo = 1, hi = words.length - 1;
+    while (lo < hi) { const mid = Math.ceil((lo + hi) / 2); el.textContent = `${words.slice(0, mid).join(' ')}…`; if (el.scrollHeight <= el.clientHeight + 1) lo = mid; else hi = mid - 1; }
+    el.textContent = `${words.slice(0, lo).join(' ')}…`;
+  });
+  fit();
+  new ResizeObserver(fit).observe(document.body);
 </script>

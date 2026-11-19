@@ -37,14 +37,14 @@ const asOf = new Date(feed.as_of);
       <StatCard label="Active leads" series={stat('active_leads')} />
     </Grid>
 
-    <Section title="This week by recipe" description="Parcels matching each recipe, and how many became a match this week.">
+    <Section title="This week by recipe">
       {feed.recipe_strip.length === 0
         ? <p class="text-sm text-ink-muted">No recipes are switched on.</p>
         : <ul class="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">{feed.recipe_strip.map((r) => <li><RecipeTile recipe={r} /></li>)}</ul>}
     </Section>
 
     <Grid split="main-aside" gap={8}>
-      <Section title="Top leads" description="Ranked by score. Scores are computed from stored records, never by AI.">
+      <Section title="Top leads" description="Ranked by score">
         {feed.top_leads.length === 0
           ? <EmptyState title="No leads here yet" description="Nothing scores in this territory yet." />
           : <Stack as="ul" gap={3}>{feed.top_leads.map((l, i) => <li><LeadCard lead={l} rank={i + 1} isNew={isNewLead(l, asOf)} /></li>)}</Stack>}

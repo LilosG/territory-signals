@@ -12,6 +12,17 @@ export const fmtDateTime = (s: string | null | undefined) =>
   s ? new Date(s).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' }) : '—';
 export const fmtMonth = (ym: string) =>
   new Date(`${ym}-01T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' });
+/** "November 2026" from "2026-11". */
+export const fmtMonthLong = (ym: string) =>
+  new Date(`${ym}-01T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+/** "Nov" from "2026-11". */
+export const fmtMonthShort = (ym: string) =>
+  new Date(`${ym}-01T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+/** A takeaway sentence with its leading number in bold (HTML-escaped). */
+export function boldLead(text: string): string {
+  const esc = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return esc.replace(/^(\d[\d,]*(?:\.\d+)?%?)/, '<strong>$1</strong>');
+}
 export const fmtApn = (apn: string) => `${apn.slice(0, 3)}-${apn.slice(3, 6)}-${apn.slice(6, 8)}-${apn.slice(8)}`;
 /** Reference "now" for fixtures so rendered output is deterministic. */
 export const FIXTURE_NOW = new Date('2026-11-18T12:00:00Z');

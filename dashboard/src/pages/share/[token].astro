@@ -8,7 +8,7 @@ import { anonClient, supabaseConfigured } from '../../lib/supabase';
 import { fmtNum } from '../../lib/format';
 export const prerender = false;
 
-const reader = createShareReader(supabaseConfigured() ? anonClient() : null);
+const reader = await createShareReader(supabaseConfigured() ? anonClient() : null);
 const page = await reader.getSharePage(Astro.params.token ?? '');
 if (!page) Astro.response.status = 404;
 // Property facts only. The page type has no owner, address, equity, mortgage, sales or distress field to show.

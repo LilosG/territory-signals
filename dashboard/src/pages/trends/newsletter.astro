@@ -8,7 +8,7 @@ import { brand } from '../../config/brand';
 const config = await Astro.locals.data.getConfig();
 const all = await Astro.locals.data.getTrends('All');
 const byArea = await Promise.all(config.territory.neighborhoods.map((a) => Astro.locals.data.getTrends(a)));
-const pick = (t: typeof all, k: string) => t.metrics.find((m) => m.key === k)!;
+const lead = all.metrics.filter((m) => m.key === 'turnover' || m.key === 'permits');
 ---
 <PrintShell title="Neighborhood update" backHref="/reports" backLabel="Back to reports">
   <Stack gap={10}>
@@ -18,8 +18,7 @@ const pick = (t: typeof all, k: string) => t.metrics.find((m) => m.key === k)!;
       <p class="mt-2 text-base text-ink-muted">Twelve months to {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.</p>
     </header>
     <Section title="Across the territory">
-      <TrendCard metric={pick(all, 'turnover')} months={all.months} idPrefix="nl-all" compact />
-      <TrendCard metric={pick(all, 'permits')} months={all.months} idPrefix="nl-all" compact />
+      {lead.map((m) => <TrendCard metric={m} months={all.months} idPrefix="nl-all" compact />)}
     </Section>
     {byArea.map((t) => (
       <Section title={t.area}>

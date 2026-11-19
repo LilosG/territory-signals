@@ -172,6 +172,14 @@ export function blockedHelp(reason: string): string {
     : 'Resolve this with your administrator, then prepare the drafts again.';
 }
 
+/** The same reasons as a short label, for banners, chips and tooltips. */
+export function blockedLabel(reason: string): string {
+  return reason === 'missing agent name or DRE license' ? 'agent name and DRE license number missing from the team profile'
+    : reason === 'missing office address' ? 'office address missing from the team profile'
+    : reason === 'sample data' ? 'uses sample owner data'
+    : reason;
+}
+
 /* ── lead brief ── */
 /** One-line headline for the brief hero: the largest non-sensitive signal component, from its stored facts only. */
 export function detailHeadline(lead: LeadDetail): Marked | null {

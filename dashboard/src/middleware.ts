@@ -23,7 +23,7 @@ export const onRequest = defineMiddleware(async ({ url, request, cookies, locals
 
   // Fixtures mode: a local demo with no database and no login.
   if (providerName() === 'fixtures') {
-    locals.supabase = null; locals.user = { email: 'demo@example.com' }; locals.data = createProvider(null, mark, locals.territory);
+    locals.supabase = null; locals.user = { email: 'demo@example.com' }; locals.data = await createProvider(null, mark, locals.territory);
     return next();
   }
 
@@ -43,7 +43,7 @@ export const onRequest = defineMiddleware(async ({ url, request, cookies, locals
     if (!member) await supabase.auth.signOut();
   }
   locals.user = user && member ? { email: user.email ?? '' } : null;
-  locals.data = createProvider(supabase, mark, locals.territory);
+  locals.data = await createProvider(supabase, mark, locals.territory);
 
   if (!locals.user && !isPublic(url.pathname)) return redirect(user && !member ? '/login?error=not-team' : '/login');
   return next();

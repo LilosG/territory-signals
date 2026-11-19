@@ -1,4 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { parse } from 'yaml';
 import { SECRET_OWNER, stack, TEST_APN, TEST_APN2, TEST_EMAIL } from './env';
 
 const brief = `/leads/${TEST_APN}`;
@@ -212,9 +215,12 @@ test('Outreach: tabs show counts, blocked drafts explain themselves, and bulk ap
 
   // The blocked email draft is listed, cannot be selected, and says in plain words what is missing.
   const blockedRow = await findQueueRow(page, 'drafts', '1 E2E Test Way');
-  await expect(blockedRow.locator('[data-blocked]')).toContainText('Can’t be approved yet');
-  await expect(blockedRow.locator('[data-blocked]')).toContainText('DRE license');
-  await expect(blockedRow.locator('[data-blocked]')).not.toContainText(/blocked_reason|rpc|_/);
+  await expect(blockedRow.locator('[data-blocked]')).toHaveText('Blocked');
+  await expect(blockedRow.locator('[data-blocked]')).toHaveAttribute('title', /DRE license/);
+  // The reasons are stated once in the tab banner when every draft on the page shares them; otherwise the row says why.
+  const stated = (await page.locator('[data-blocked-banner]').allInnerTexts()).join(' ') + (await blockedRow.locator('[data-blocked-extra]').allInnerTexts()).join(' ');
+  expect(stated).toContain('DRE license');
+  expect(stated).not.toMatch(/blocked_reason|rpc|_/);
   await expect(blockedRow.locator('input[data-bulk-item]')).toBeDisabled();
 
   // Bulk approve exactly one ready draft (never "select all": other drafts belong to real data).
@@ -229,15 +235,25 @@ test('Outreach: tabs show counts, blocked drafts explain themselves, and bulk ap
   expect(db).toEqual([{ status: 'approved', approved_by: TEST_EMAIL }]);
 });
 
-test('Recipes: a card per recipe, idle recipes say why, and links open the filtered Leads list', async ({ page }) => {
+test('Recipes: every enabled recipe is shown, the header count equals the nav badge, and links open the filtered Leads list', async ({ page }) => {
   const errors = noConsoleErrors(page);
   await page.goto('/recipes');
-  const cards = page.locator('article[data-recipe]');
-  expect(await cards.count()).toBeGreaterThan(0);
-  const keys = await cards.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.recipe!));
-  expect(keys).not.toContain('financial_pressure');          // distress recipes live only in the lead brief
-  expect(keys).not.toContain('quiet_inheritance');
-  for (const idle of await page.locator('[data-idle]').all()) await expect(idle).toContainText('Idle.');
+  const cfg = parse(readFileSync(resolve(import.meta.dirname, '../../config/clients/kaiser-team.yaml'), 'utf8')) as { recipes: Record<string, { enabled: boolean }> };
+  const enabled = Object.entries(cfg.recipes).filter(([, v]) => v.enabled).map(([k]) => k);
+  // Each enabled recipe is a card (it has matches) or a row under "Waiting on data"; never missing.
+  for (const key of enabled) await expect(page.locator(`article[data-recipe=${key}], [data-waiting-recipe=${key}]`), key).toHaveCount(1);
+  await expect(page.locator('article[data-recipe=financial_pressure]')).toBeVisible();           // the e2e parcel matches it
+  await expect(page.locator('article[data-recipe=financial_pressure] [data-approval-chip]')).toHaveText('Approval required');
+  await expect(page.locator('article[data-recipe=quiet_inheritance]')).toHaveCount(0);
+  // Cards hold no placeholder bodies; waiting recipes are one line each.
+  await expect(page.locator('article[data-recipe] [data-idle]')).toHaveCount(0);
+  const header = Number((await page.locator('main .eyebrow').first().innerText()).match(/^(\d+) switched on/i)![1]);
+  const badge = Number((await page.getByRole('navigation', { name: 'Primary', exact: true }).getByRole('link', { name: /^Recipes/ }).innerText()).match(/(\d+)/)![1]);
+  expect(header).toBe(enabled.length);
+  expect(badge).toBe(header);
+  // Active cards run strongest first.
+  const strong = await page.locator('article[data-recipe]').evaluateAll((els) => els.map((e) => Number(e.querySelectorAll('dd')[2]!.textContent!.replace(/,/g, ''))));
+  expect(strong).toEqual([...strong].sort((x, y) => y - x));
   const bait = page.locator('article[data-recipe=builder_bait]');
   await expect(bait).toBeVisible();
   await expect(bait.getByText('New this week')).toBeVisible();
@@ -444,3 +460,59 @@ test('every signed-in page loads without a server error or console error', async
   }
   expect(errors.filter((e) => !IGNORED_ERRORS.test(e))).toEqual([]);
 });
+
+test('Outreach: Approve selected is disabled with nothing selected and enables with a selection', async ({ page }) => {
+  await page.goto('/outreach?tab=drafts');
+  const approve = page.locator('#approve-selected');
+  await expect(approve).toBeDisabled();
+  await expect(approve).toHaveAttribute('title', /Select at least one|Nothing is ready/);
+  // With a ready draft on the page (the bulk-approve test uses it up, so this is conditional), selecting enables the button.
+  const box = page.locator('input[data-bulk-item]:not(:disabled)').first();
+  if (await box.count()) {
+    await box.check();
+    await expect(approve).toBeEnabled();
+    await box.uncheck();
+    await expect(approve).toBeDisabled();
+  }
+});
+
+test('Outreach: draft previews are one line and end on a whole word', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/outreach?tab=drafts');
+  const previews = page.locator('[data-preview]');
+  expect(await previews.count()).toBeGreaterThan(0);
+  const bad = await previews.evaluateAll((els) => els.flatMap((e) => {
+    const full = (e as HTMLElement).dataset.preview!;
+    const shown = e.textContent!;
+    const h = (e as HTMLElement).clientHeight, line = parseFloat(getComputedStyle(e).lineHeight);
+    const clipped = shown.endsWith('…') && !full.startsWith(shown.slice(0, -1).trimEnd() + ' ') && full !== shown.slice(0, -1);
+    return h > line * 1.5 || clipped ? [shown] : [];
+  }));
+  expect(bad).toEqual([]);
+});
+
+for (const [name, size] of [['1440', { width: 1440, height: 900 }], ['390', { width: 390, height: 844 }]] as const) {
+  test(`Trends at ${name}px: the legend sits in its own row above the plot, nothing overlaps, and the partial month is labeled`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await page.goto('/trends');
+    const charts = page.locator('[data-chart]:visible');
+    expect(await charts.count()).toBeGreaterThan(0);
+    for (const chart of await charts.all()) {
+      const id = (await chart.getAttribute('data-chart'))!;
+      const plot = (await chart.boundingBox())!;
+      const legend = page.locator(`[data-chart-legend="${id}"]`);
+      if (!(await legend.locator('li').count())) continue;
+      const lb = (await legend.boundingBox())!;
+      expect(lb.y + lb.height, `${id}: legend ends above the plot`).toBeLessThanOrEqual(plot.y + 0.5);
+      expect(lb.x, id).toBeGreaterThanOrEqual(0);
+      expect(lb.x + lb.width, `${id}: legend inside the viewport`).toBeLessThanOrEqual(size.width);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    // The current, partial month is called out as "<Mon> (to date)" on the monthly charts.
+    const keys = page.locator('[data-partial-key]:visible');
+    expect(await keys.count()).toBeGreaterThan(0);
+    await expect(keys.first()).toContainText(/^[A-Z][a-z]{2} \(to date\)/);
+    // Placeholder charts are not in the grid: they are one slim "Coming soon" strip.
+    await expect(page.locator('[data-empty-chart]')).toHaveCount(0);
+  });
+}

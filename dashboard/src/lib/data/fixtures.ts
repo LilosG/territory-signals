@@ -178,7 +178,7 @@ export function fixturesProvider(mark: MarkSample, territory: string | null = nu
         const apns = ranked({}).filter((a) => (scoreBy.get(a)!.recipe_matches ?? []).includes(r.key));
         return { key: r.key, name: r.name, description: r.description, enabled: r.enabled, parcels: apns.length, new_this_week: 0, strong: apns.filter((a) => scoreBy.get(a)!.score >= 60).length,
           top: apns.slice(0, 5).map((a) => ({ apn: a, score: scoreBy.get(a)!.score, situs_address: parcelBy.get(a)!.situs_address, neighborhood: parcelBy.get(a)!.neighborhood })),
-          idle_reason: apns.length ? null : 'No properties match this recipe right now.', is_sample: true };
+          idle_reason: apns.length ? null : 'No matching properties yet', is_sample: true };
       });
     },
     async getOffMarket(filters = {}, page = 1, pageSize = 25): Promise<OffMarketPage> {

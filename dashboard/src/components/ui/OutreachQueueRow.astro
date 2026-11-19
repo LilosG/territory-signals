@@ -1,18 +1,20 @@
 ---
 import type { OutreachItem } from '../../lib/data/types';
 import { RECIPE_LABELS } from '../../lib/data/catalog';
-import { blockedHelp } from '../../lib/present';
+import { blockedLabel } from '../../lib/present';
 import { fmtDate } from '../../lib/format';
 import ScoreRing from './ScoreRing.astro';
 import SampleDataBadge from './SampleDataBadge.astro';
 import Button from './Button.astro';
 /** One draft in the outreach queue. Blocked drafts cannot be selected and say exactly what is missing. */
-export interface Props { item: OutreachItem; selectable: boolean }
-const { item: o, selectable } = Astro.props;
+export interface Props { item: OutreachItem; selectable: boolean; /** Reasons the page banner already states for every item in the tab. */ shared?: string[] }
+const { item: o, selectable, shared = [] } = Astro.props;
 const chan = { mail: 'Letter', email: 'Email', call_task: 'Call task' }[o.channel];
 const meta = [o.neighborhood, chan, o.recipe ? (RECIPE_LABELS[o.recipe] ?? o.recipe) : null, o.due_date ? `Due ${fmtDate(o.due_date)}` : null, o.assigned_name ? `Assigned to ${o.assigned_name}` : null].filter(Boolean).join(' · ');
 const blocked = o.blocked.length > 0;
-const preview = (o.content ?? '').replace(/\s+/g, ' ').trim().slice(0, 160);
+const preview = (o.content ?? '').replace(/\s+/g, ' ').trim();
+const allReasons = o.blocked.map(blockedLabel).join('; ');
+const extra = o.blocked.filter((r) => !shared.includes(r));
 ---
 <li class="flex items-start gap-3 px-4 py-4 sm:px-5" data-outreach-row={o.id}>
   {selectable
@@ -23,15 +25,11 @@ const preview = (o.content ?? '').replace(/\s+/g, ' ').trim().slice(0, 160);
     <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
       <a href={`/leads/${o.apn}#drafts`} class="truncate text-sm font-semibold text-ink hover:text-accent">{o.situs_address ?? o.apn}</a>
       {o.uses_sample_data && <SampleDataBadge />}
+      {blocked && <span data-blocked title={`Can’t be approved yet: ${allReasons}`} class="inline-flex items-center whitespace-nowrap rounded-full bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning">Blocked</span>}
     </div>
     <p class="t-meta truncate text-ink-muted" title={meta}>{meta}</p>
-    {preview && <p class="mt-1 line-clamp-2 text-sm text-ink-muted">{preview}</p>}
-    {blocked && (
-      <div role="note" data-blocked class="mt-2 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm">
-        <p class="font-medium text-warning">Can’t be approved yet</p>
-        <ul class="mt-0.5 list-disc pl-5 text-ink">{o.blocked.map((r) => <li>{blockedHelp(r)}</li>)}</ul>
-      </div>
-    )}
+    {preview && <p data-preview={preview} class="mt-1 line-clamp-1 text-sm text-ink-muted">{preview}</p>}
+    {extra.length > 0 && <p data-blocked-extra class="mt-1 text-sm text-warning">Also: {extra.map(blockedLabel).join('; ')}</p>}
   </div>
   <Button size="sm" variant="secondary" href={`/leads/${o.apn}#drafts`} class="shrink-0 max-sm:hidden">Review</Button>
 </li>
