@@ -21,7 +21,6 @@ interface ImportMetaEnv {
   readonly PUBLIC_SUPABASE_ANON_KEY: string;
   readonly DATA_PROVIDER?: 'supabase' | 'fixtures';
   readonly CLIENT_ID?: string;
-  readonly CLIENT_CONFIG_PATH?: string;
 }
 interface ImportMeta { readonly env: ImportMetaEnv }
 }

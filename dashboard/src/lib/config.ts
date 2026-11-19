@@ -1,6 +1,4 @@
-/** Reads the client config (config/clients/<CLIENT_ID>.yaml). Server only. */
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+/** Reads the client config (config/clients/<CLIENT_ID>.yaml). Server only. The YAML files are bundled at build time (Workers has no filesystem). */
 import { parse } from 'yaml';
 import { RECIPES } from './data/catalog';
 import type { ClientConfig, TeamRole } from './data/types';
@@ -15,6 +13,8 @@ interface RawClient {
   outreach: { mode: 'preview'; weekly_send_cap_per_agent: number; drafts_per_run: number; cooldown_days: number };
 }
 
+const files = import.meta.glob('../../../config/clients/*.yaml', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+
 let cached: ClientConfig | null = null;
 
 export function clientId(): string {
@@ -23,8 +23,9 @@ export function clientId(): string {
 
 export function loadClientConfig(): ClientConfig {
   if (cached) return cached;
-  const path = (import.meta.env.CLIENT_CONFIG_PATH as string | undefined) ?? resolve(process.cwd(), '..', 'config', 'clients', `${clientId()}.yaml`);
-  const raw = parse(readFileSync(path, 'utf8')) as RawClient;
+  const entry = Object.entries(files).find(([path]) => path.endsWith(`/${clientId()}.yaml`));
+  if (!entry) throw new Error(`No client config for CLIENT_ID "${clientId()}" in config/clients/.`);
+  const raw = parse(entry[1]) as RawClient;
   cached = {
     client_id: raw.client_id,
     display_name: raw.display_name,

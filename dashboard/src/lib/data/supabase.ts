@@ -1,3 +1,4 @@
+import { titleAddress } from '../format';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadClientConfig } from '../config';
 import { RECIPE_LABELS, SOURCE_LABEL, STAGES, bandOf } from './catalog';
@@ -27,7 +28,7 @@ const PARCEL_COLS = 'apn,situs_address,zip,planning_area,neighborhood,centroid,l
 
 function toLead(r: Row, now: Date): LeadSummary {
   return {
-    parcel: { apn: r.apn, situs_address: r.situs_address, neighborhood: r.neighborhood },
+    parcel: { apn: r.apn, situs_address: titleAddress(r.situs_address) || null, neighborhood: r.neighborhood },
     score: { score: r.score, reason_text: r.reason_text, recipe_matches: r.recipe_matches ?? [], primary_recipe: r.primary_recipe, model_version: r.model_version, scored_at: r.scored_at, uses_sample_data: r.uses_sample_data },
     owner: r.owner_name !== null || r.owner_as_of ? { owner_name: r.owner_name, is_sample: !!r.owner_is_sample, last_sale_date: r.last_sale_date, est_equity: r.est_equity } : null,
     years_owned: yearsSince(r.last_sale_date, now),
@@ -59,7 +60,7 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample): DataProv
   async function addresses(apns: string[]): Promise<Map<string, Row>> {
     if (!apns.length) return new Map();
     const rows = must(await db.from('parcels').select('apn,situs_address,neighborhood').in('apn', apns), 'parcels') as Row[];
-    return new Map(rows.map((r) => [r.apn, r]));
+    return new Map(rows.map((r) => [r.apn, { ...r, situs_address: titleAddress(r.situs_address) || null }]));
   }
 
   const provider: DataProvider = {
@@ -131,7 +132,7 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample): DataProv
       const isSample = !!sc.uses_sample_data || !!o?.is_sample || sl.some((s) => s.is_sample);
       if (isSample) mark();
       return {
-        parcel: { ...p, geom: null, centroid: p.centroid ?? null } as LeadDetail['parcel'],
+        parcel: { ...p, situs_address: titleAddress(p.situs_address) || null, geom: null, centroid: p.centroid ?? null } as LeadDetail['parcel'],
         score: sc as LeadDetail['score'],
         score_items: scoreItems(sc.components),
         owner: o as LeadDetail['owner'],

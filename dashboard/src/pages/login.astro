@@ -9,12 +9,27 @@ let error: string | null = null;
 let email = '';
 const q = Astro.url.searchParams.get('error');
 if (q === 'not-team') error = 'This email is not on the team. Ask the team owner to add you.';
-else if (q === 'link') error = 'That sign-in link is invalid or has expired. Request a new one.';
+else if (q === 'link') error = 'That link expired or was opened in a different browser. Request a new one or use your code.';
 
 if (Astro.request.method === 'POST' && Astro.locals.supabase) {
   const form = await Astro.request.formData();
   email = String(form.get('email') ?? '').trim().toLowerCase();
-  if (!/^\S+@\S+\.\S+$/.test(email)) error = 'Enter a valid email address.';
+  if (form.get('intent') === 'verify') {
+    // Second step: the 6-digit code from the email (works on any device or browser).
+    const token = String(form.get('code') ?? '').replace(/\s+/g, '');
+    if (!/^\d{6}$/.test(token) || !/^\S+@\S+\.\S+$/.test(email)) { sent = true; error = 'Enter the 6-digit code from the email.'; }
+    else {
+      try {
+        const { error: e } = await Astro.locals.supabase.auth.verifyOtp({ email, token, type: 'email' });
+        if (e) { console.error('[login] verifyOtp (code) failed:', e.name, e.status, e.code, e.message); sent = true; error = 'That code is wrong or has expired. Check the latest email, or request a new one.'; }
+        else return Astro.redirect('/');
+      } catch (e) {
+        console.error('[login] verifyOtp (code) unexpected error:', e instanceof Error ? `${e.name}: ${e.message}\n${e.stack}` : String(e));
+        sent = true; error = 'That code is wrong or has expired. Check the latest email, or request a new one.';
+      }
+    }
+  }
+  else if (!/^\S+@\S+\.\S+$/.test(email)) error = 'Enter a valid email address.';
   else {
     const { error: e } = await Astro.locals.supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${Astro.url.origin}/auth/callback`, shouldCreateUser: true } });
     // Only a rate limit is reported. Any other failure (including an email that is not on the team, which the
@@ -29,12 +44,25 @@ if (Astro.locals.user) return Astro.redirect('/');
   <Card as="section" aria-labelledby="login-h">
     <h1 id="login-h" class="text-2xl font-semibold text-ink">Sign in</h1>
     {sent
-      ? <div role="status" class="mt-3 text-base text-ink">
-          <p class="font-medium">Check your email.</p>
-          <p class="mt-1 text-sm text-ink-muted">If <strong class="font-semibold text-ink">{email}</strong> is on the team, a sign-in link is on its way. It works once and expires soon.</p>
+      ? <div class="mt-3 text-base text-ink">
+          <div role="status">
+            <p class="font-medium">Check your email.</p>
+            <p class="mt-1 text-sm text-ink-muted">If <strong class="font-semibold text-ink">{email}</strong> is on the team, a sign-in link and a 6-digit code are on their way. Both work once and expire in 1 hour.</p>
+          </div>
+          <form method="post" class="mt-5 flex flex-col gap-3" novalidate>
+            <input type="hidden" name="intent" value="verify" />
+            <input type="hidden" name="email" value={email} />
+            {error && <p role="alert" class="rounded-md border border-critical/30 bg-critical-soft px-3 py-2 text-sm text-critical">{error}</p>}
+            <label class="flex flex-col gap-1.5 text-sm font-medium text-ink">Enter your 6-digit code
+              <input type="text" name="code" required inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="123456"
+                class="h-11 rounded-md border border-line-strong bg-surface px-3 text-base font-normal tracking-widest text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30" />
+            </label>
+            <Button type="submit" variant="primary" class="h-11">Sign in with code</Button>
+          </form>
+          <p class="mt-4 text-sm text-ink-muted"><a href="/login" class="underline">Use a different email or request a new link</a></p>
         </div>
       : <form method="post" class="mt-4 flex flex-col gap-4" novalidate>
-          <p class="text-sm text-ink-muted">Team members only. We email you a one-time link; there is no password.</p>
+          <p class="text-sm text-ink-muted">Team members only. We email you a one-time link and code; there is no password.</p>
           {error && <p role="alert" class="rounded-md border border-critical/30 bg-critical-soft px-3 py-2 text-sm text-critical">{error}</p>}
           <label class="flex flex-col gap-1.5 text-sm font-medium text-ink">Email
             <input type="email" name="email" value={email} required autocomplete="email" inputmode="email" autofocus

@@ -39,3 +39,17 @@ export function sentenceCase(text: string | null | undefined): string {
   });
   return ACRONYM_RES.reduce((acc, [re, a]) => acc.replace(re, a), out);
 }
+
+/* ── street addresses: the county data is ALL CAPS ("6275 CARDENO DR #302") ── */
+const DIRECTIONALS = new Set(['N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW']);
+/** Title case for display: "6275 CARDENO DR #302" -> "6275 Cardeno Dr #302". Unit markers (#302, #1-102) and directionals stay uppercase. */
+export function titleAddress(s: string | null | undefined): string {
+  if (!s) return s ?? '';
+  return s.trim().split(/\s+/).map((w) => {
+    if (w.startsWith('#') || DIRECTIONALS.has(w)) return w;
+    const ord = w.match(/^(\d+)(ST|ND|RD|TH)$/i);
+    if (ord) return `${ord[1]}${ord[2]!.toLowerCase()}`;
+    if (/^\d/.test(w)) return w;
+    return w.toLowerCase().replace(/(^|[-'’/])([a-z])/g, (_m, sep: string, c: string) => sep + c.toUpperCase()).replace(/^Mc([a-z])/, (_m, c: string) => `Mc${c.toUpperCase()}`);
+  }).join(' ');
+}
