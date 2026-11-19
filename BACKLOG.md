@@ -123,3 +123,11 @@ Added during Phase 5D:
 - Today stat tiles use the last 14 days of signals, drafts, outcomes and active leads; fixtures data is older than that so tiles read zero in demo mode.
 - Outreach "Approve selected" runs one database check per draft (capped at 50); a single batch function would be faster if queues grow.
 - Reports are print-to-PDF pages; no generated PDF files yet.
+
+## Phase 5D Chunk 3 notes
+- [ ] **Refresh `private.scored_parcels` after every scoring run.** It is a materialized view, so the lists, search and counts show old scores until `select private.refresh_dashboard_aggregates();` runs. Call it at the end of the scoring pipeline (and the weekly VPS job).
+- [ ] **Search by APN matches digits only** (real APNs are numeric); a non-numeric APN is found by address only.
+- [ ] **Cmd+K dialog** now closes on Escape through its own handler (the browser's built-in close needed a fresh user gesture in automated tests).
+- [ ] **Playwright tests that page through Outreach and Off-market** walk up to 40 pages to find the seeded rows; add a search box to those pages if the lists keep growing.
+- [ ] **Screenshots** are saved in `dashboard/screenshots/` (git-tracked); consider git-ignoring them if the repo grows.
+

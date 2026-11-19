@@ -1,6 +1,6 @@
 # Phase 5D progress
 
-Branch: `phase-5d-product-polish`. Chunks 1 and 2 are done (`astro check` 0 errors, `astro build` passes). Next: Chunk 3.
+Branch: `phase-5d-product-polish`. Chunks 1, 2 and 3 are done except the production release (see Chunk 3 status). `astro check` 0 errors, `build:prod` passes.
 
 ## 1. What is done
 
@@ -86,7 +86,22 @@ Left for Chunk 3: e2e spec and screenshots script still target the old design; n
 
 Plus every page listed under section B (Information architecture) above: Leads (sorting, filters, saved views), Outreach (tabs with counts, bulk review, blocked drafts explain what's missing), Recipes, Off-market (select properties, create share links with the existing share functions), Reports (newsletter export plus printable neighborhood report per neighborhood, sample sections clearly marked), Performance, Data sources, Team, Settings.
 
-## Chunk 3: verification, docs, deploy
+## Chunk 3 status: DONE except remote migration push and deploy
+
+Done:
+- **Playwright e2e** rewritten for the new design: 22 tests, all passing locally (sign-in flows, Today, sidebar navigation, map API 30+ default, lead brief tabs with same-day permit collapse, no distress chips on lists, blocked/unblocked draft approval, Outreach tabs + blocked explanation + bulk approve, Recipes links, Off-market bulk share link with no owner data then revoke, territory switcher (pages, APIs, search, persistence), Cmd+K search, Reports/Performance/Data sources/Team, outcomes, brief share link, map worker, title-case addresses, every page loads clean). `global-setup` now seeds a second Pacific Beach parcel (own unblocked draft, owner data), a builder_bait match and three same-day permits, and calls `private.refresh_dashboard_aggregates()`; teardown removes them and refreshes again.
+- **Small code fix:** the Cmd+K dialog closes on Escape through its own handler (`AppShell.astro`).
+- **Screenshot script** covers every page at 1440x900 and 390x844 (also checks console errors, failed requests, horizontal overflow, clipped labels). Result: all screens clean. Output: `dashboard/screenshots/`.
+- **Timing test** `tests/test_dashboard_timing.py` (21 queries as a team member against the local database, limit 500 ms; slowest `coverage_weekly` about 99 ms). Full Python suite: 394 passed.
+- **Docs:** DEPLOY.md (5D release steps), ARCHITECTURE.md (5D dashboard section), BACKLOG.md.
+
+NOT done (blocked, needs Mike): `supabase db push --remote --yes` was denied by the permission classifier (a dry run showed only `20261120000000_dashboard_5d.sql` pending on production project `ukpfksabatofcczdrphm`). The production deploy was therefore not run, because the new pages call functions that only exist after the migration. To finish, in order:
+1. `supabase db push --remote --yes`
+2. refresh the materialized view on the cloud database: `select private.refresh_dashboard_aggregates();`
+3. `cd dashboard && npm run deploy`
+4. smoke-test the production URL (kaiser-team-signals.mike-1d7.workers.dev), then list the pages for review.
+
+## Chunk 3 requirements (original)
 
 > D. VERIFICATION
 > Playwright e2e for the new pages (Outreach approve flow, Recipes links, Off-market share link with no owner data, territory switcher filtering, Cmd+K search). Query timing test for every new view as a team member against the local database (each under 500 ms). astro check zero errors, build:prod succeeds, screenshot script for every page at 1440x900 and 390x844 with no console errors or overflow. Deploy to production with the documented deploy command, then list the pages for Mike to review.

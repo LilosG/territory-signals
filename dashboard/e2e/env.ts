@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 /** Local Supabase stack settings, from `supabase status` (or SUPABASE_* env vars). */
@@ -13,6 +13,8 @@ export function stack() {
 
 export const TEST_EMAIL = 'e2e-test@example.test';
 export const TEST_APN = 'E2ETEST001';
+/** Second synthetic parcel, in Pacific Beach: bulk approve, bulk share link and the territory switcher use it. */
+export const TEST_APN2 = 'E2ETEST002';
 export const SECRET_OWNER = 'E2E SECRET OWNER';
 
 export async function rest(path: string, init: RequestInit & { json?: unknown } = {}) {
@@ -26,3 +28,11 @@ export async function rest(path: string, init: RequestInit & { json?: unknown } 
   if (!res.ok) throw new Error(`${init.method ?? 'GET'} ${path} -> ${res.status} ${text}`);
   return text ? JSON.parse(text) : null;
 }
+
+/** Runs SQL as the database owner in the local Supabase container (seeding, cleanup and matview refresh only). */
+export function psql(sql: string) {
+  execFileSync('docker', ['exec', '-i', 'supabase_db_territory-signals', 'psql', '-U', 'supabase_admin', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-c', sql], { stdio: ['ignore', 'ignore', 'inherit'] });
+}
+
+/** The dashboard lists read a materialized view; refresh it after seeding or removing test rows. */
+export const refreshAggregates = () => psql('select private.refresh_dashboard_aggregates();');
