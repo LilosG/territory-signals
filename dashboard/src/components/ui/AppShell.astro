@@ -2,7 +2,7 @@
 import '../../styles/global.css';
 import { brand, brandCssVars } from '../../config/brand';
 import { NAV, MOBILE_TABS, type NavKey } from '../../lib/nav';
-import { loadClientConfig } from '../../lib/config';
+import { loadClientConfig, enabledRecipeCount } from '../../lib/config';
 import Icon from './Icon.astro';
 export interface Props { title: string; active?: NavKey; bleed?: boolean; description?: string }
 const { title, active, bleed = false, description } = Astro.props;
@@ -12,7 +12,7 @@ const flash = Astro.locals.flash;
 const cfg = loadClientConfig();
 const territory = Astro.locals.territory;
 const hoods = ['All', ...cfg.territory.neighborhoods];
-const recipeCount = cfg.recipes.filter((r) => r.enabled).length;
+const recipeCount = enabledRecipeCount();
 const counts = await Astro.locals.data.getNavCounts().catch(() => null);
 const teamName = cfg.team_profile.display_name || brand.name;
 const back = Astro.url.pathname + Astro.url.search;

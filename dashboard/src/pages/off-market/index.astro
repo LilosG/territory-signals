@@ -29,7 +29,7 @@ const origin = Astro.url.origin;
 const KIND_LABEL: Record<string, string> = { builder_bait: 'Builder bait', tired_landlord: 'Tired landlord' };
 ---
 <AppShell title="Off-market" active="off-market">
-  <PageHeader eyebrow={`${fmtNum(result.total)} ${result.total === 1 ? 'property' : 'properties'}`} title="Off-market inventory" description="Properties that may sell before they list. Property facts only: owner, equity and sale details are never shown here or on a share link." />
+  <PageHeader eyebrow={`${fmtNum(result.total)} ${result.total === 1 ? 'property' : 'properties'}`} title="Off-market inventory" description="Properties that may sell before they list · property facts only, never owner details" />
   <Stack gap={6}>
     <TabLinks label="Inventory type" active={kind ?? 'all'} tabs={[
       { id: 'all', label: 'All', href: '/off-market' },
@@ -82,7 +82,7 @@ const KIND_LABEL: Record<string, string> = { builder_bait: 'Builder bait', tired
         </>}
 
     <section id="links" aria-labelledby="links-h" class="flex flex-col gap-3">
-      <div><h2 id="links-h" class="t-h2">Share links</h2><p class="text-sm text-ink-muted">Send these to investors or builders. Each page shows property facts only and can be revoked any time.</p></div>
+      <div><h2 id="links-h" class="t-h2">Share links</h2><p class="text-sm text-ink-muted">Property facts only · revoke any time.</p></div>
       {result.links.length === 0
         ? <Card><p class="text-sm text-ink-muted">No active share links. Select properties above and create links.</p></Card>
         : <Card padded={false}>

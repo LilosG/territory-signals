@@ -10,7 +10,7 @@ const ROLE_NOTE = { owner: 'Full access', agent: 'Works leads and approves outre
 const initials = (n: string | null, e: string) => (n ?? e).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((x) => x[0]!.toUpperCase()).join('');
 ---
 <AppShell title="Team" active="team">
-  <PageHeader eyebrow="Read-only" title="Team" description="Only these people can sign in. To add or change someone, ask your administrator." />
+  <PageHeader eyebrow="Read-only" title="Team" description="Only these people can sign in · ask your administrator to change it" />
   <Card padded={false}>
     {team.length === 0
       ? <EmptyState title="No team members yet" description="People appear here once they are added by your administrator." />

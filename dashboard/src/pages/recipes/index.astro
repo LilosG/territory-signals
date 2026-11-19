@@ -7,23 +7,25 @@ import Stack from '../../components/ui/Stack.astro';
 import ScoreRing from '../../components/ui/ScoreRing.astro';
 import SampleDataBadge from '../../components/ui/SampleDataBadge.astro';
 import Button from '../../components/ui/Button.astro';
-import { SENSITIVE_RECIPES } from '../../lib/data/catalog';
+import Icon from '../../components/ui/Icon.astro';
+import { enabledRecipeCount, loadClientConfig } from '../../lib/config';
 import { fmtNum } from '../../lib/format';
 export const prerender = false;
-// Distress recipes are left off this page: they are shown only inside a lead brief, in a labeled section.
-const cards = (await Astro.locals.data.getRecipes()).filter((r) => !SENSITIVE_RECIPES.has(r.key));
-const on = cards.filter((r) => r.enabled);
-const off = cards.filter((r) => !r.enabled);
+// Every recipe the client has switched on gets a card when it has matches. Distress recipes are labeled, not hidden.
+const all = await Astro.locals.data.getRecipes();
+const approval = new Set(loadClientConfig().outreach.approval_required_recipes);
+const active = all.filter((r) => r.enabled && r.parcels > 0).sort((a, b) => b.strong - a.strong || b.parcels - a.parcels);
+const waiting = all.filter((r) => r.parcels === 0);
 const where = Astro.locals.territory ?? 'the whole territory';
 ---
 <AppShell title="Recipes" active="recipes">
-  <PageHeader eyebrow={`${on.length} switched on`} title="Recipes" description={`Each recipe is a plain rule for a kind of likely seller. Counts are for ${where}.`} />
+  <PageHeader eyebrow={`${enabledRecipeCount()} switched on`} title="Recipes" description={`Plain rules for likely sellers · counts for ${where}`} />
   <Stack gap={8}>
     <Grid cols={2} gap={6}>
-      {on.map((r) => (
+      {active.map((r) => (
         <Card as="article" class="flex flex-col gap-4" data-recipe={r.key}>
           <header>
-            <div class="flex flex-wrap items-center gap-2"><h2 class="t-h2">{r.name}</h2>{r.is_sample && r.parcels > 0 && <SampleDataBadge />}</div>
+            <div class="flex flex-wrap items-center gap-2"><h2 class="t-h2">{r.name}</h2>{r.is_sample && <SampleDataBadge />}{approval.has(r.key) && <span data-approval-chip class="inline-flex items-center whitespace-nowrap rounded-full bg-sunken px-2 py-0.5 text-xs font-medium text-ink-muted">Approval required</span>}</div>
             <p class="mt-1 text-sm text-ink-muted">{r.description}</p>
           </header>
           <dl class="grid grid-cols-3 gap-3 border-y border-line py-3">
@@ -31,28 +33,34 @@ const where = Astro.locals.territory ?? 'the whole territory';
             <div><dt class="eyebrow">New this week</dt><dd class="mt-0.5 text-xl font-semibold tabular-nums">{r.new_this_week > 0 ? <span class="text-gold-strong">+{fmtNum(r.new_this_week)}</span> : '0'}</dd></div>
             <div><dt class="eyebrow">Strong (60+)</dt><dd class="mt-0.5 text-xl font-semibold tabular-nums">{fmtNum(r.strong)}</dd></div>
           </dl>
-          {r.idle_reason
-            ? <p data-idle class="rounded-md bg-sunken px-3 py-2.5 text-sm text-ink-muted"><span class="font-medium text-ink">Idle.</span> {r.idle_reason}</p>
-            : <div>
-                <p class="eyebrow mb-2">Top leads</p>
-                <ul class="flex flex-col gap-2">
-                  {r.top.slice(0, 5).map((t) => (
-                    <li><a href={`/leads/${t.apn}`} class="flex items-center gap-3 rounded-md py-1 hover:text-accent">
-                      <ScoreRing score={t.score} size="xs" />
-                      <span class="min-w-0 flex-1 truncate text-sm font-medium">{t.situs_address}</span>
-                      <span class="t-meta shrink-0 text-ink-muted max-sm:hidden">{t.neighborhood}</span>
-                    </a></li>
-                  ))}
-                </ul>
-              </div>}
-          <div class="mt-auto"><Button size="sm" variant="secondary" href={`/leads?recipe=${r.key}`} disabled={r.parcels === 0}>View all {fmtNum(r.parcels)} in Leads</Button></div>
+          <div>
+            <p class="eyebrow mb-2">Top leads</p>
+            <ul class="flex flex-col gap-2">
+              {r.top.slice(0, 5).map((t) => (
+                <li><a href={`/leads/${t.apn}`} class="flex items-center gap-3 rounded-md py-1 hover:text-accent">
+                  <ScoreRing score={t.score} size="xs" />
+                  <span class="min-w-0 flex-1 truncate text-sm font-medium">{t.situs_address}</span>
+                  <span class="t-meta shrink-0 text-ink-muted max-sm:hidden">{t.neighborhood}</span>
+                </a></li>
+              ))}
+            </ul>
+          </div>
+          <div class="mt-auto"><Button size="sm" variant="secondary" href={`/leads?recipe=${r.key}`}>View all {fmtNum(r.parcels)} in Leads</Button></div>
         </Card>
       ))}
     </Grid>
-    {off.length > 0 && (
-      <section aria-labelledby="off-h">
-        <h2 id="off-h" class="t-h2">Switched off</h2>
-        <ul class="mt-3 flex flex-col gap-2">{off.map((r) => <li class="text-sm text-ink-muted"><span class="font-medium text-ink">{r.name}.</span> {r.idle_reason ?? 'Not switched on for this client.'}</li>)}</ul>
+    {waiting.length > 0 && (
+      <section aria-labelledby="wait-h" data-waiting class="rounded-lg border border-line bg-surface px-4 py-3 sm:px-5">
+        <h2 id="wait-h" class="eyebrow">Waiting on data</h2>
+        <ul class="mt-2 flex flex-col divide-y divide-line">
+          {waiting.map((r) => (
+            <li data-waiting-recipe={r.key} class="flex items-center gap-3 py-2 text-sm">
+              <span class="text-ink-muted"><Icon name="recipes" size={16} /></span>
+              <span class="font-medium text-ink">{r.name}</span>
+              <span class="min-w-0 flex-1 truncate text-ink-muted">{r.idle_reason}</span>
+            </li>
+          ))}
+        </ul>
       </section>
     )}
   </Stack>

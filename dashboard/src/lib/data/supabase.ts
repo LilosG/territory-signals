@@ -365,10 +365,10 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
 
 /** Why a recipe has no matches, in plain words. */
 function idleReason(key: string, enabled: boolean, requires: string[]): string {
-  if (!enabled) return key === 'quiet_inheritance' ? 'Switched off until owner recorder data is connected (Phase 6).' : 'Switched off for this team.';
-  if (requires.includes('fire_zones')) return 'Waiting for the fire hazard zone file to be added.';
-  if (key === 'str_exit') return 'Waiting for the second weekly license snapshot: a removed license can only be seen by comparing two.';
-  return 'No properties match this recipe right now.';
+  if (!enabled) return key === 'quiet_inheritance' ? 'Needs ATTOM recorder data' : 'Switched off for this team';
+  if (requires.includes('fire_zones')) return 'Needs the fire hazard zone file';
+  if (key === 'str_exit') return 'Needs a second weekly license snapshot';
+  return 'No matching properties yet';
 }
 
 /** The public share page reads through a SECURITY DEFINER function that returns property facts only. */

@@ -131,3 +131,4 @@ Added during Phase 5D:
 - [ ] **Playwright tests that page through Outreach and Off-market** walk up to 40 pages to find the seeded rows; add a search box to those pages if the lists keep growing.
 - [ ] **Screenshots** are saved in `dashboard/screenshots/` (git-tracked); consider git-ignoring them if the repo grows.
 
+- [ ] **Pre-existing test failure:** `tests/test_outreach_db.py::test_cooldown_blocks_a_second_run_and_dry_run_writes_nothing` fails on main (expects 4 parcels after the cooldown, gets 1); found in Phase 5E, not caused by it.

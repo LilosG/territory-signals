@@ -1,5 +1,6 @@
 /** Logic both providers share: deterministic derivations, no AI. */
 import { COMPONENTS, RECIPES, SIGNAL_GROUPS, SIGNAL_TYPES, bandOf } from './catalog';
+import { fmtMonthLong } from '../format';
 import type {
   LeadStatus, RawScoreComponent, ScoreItem, TrendMetric, TrendRows, Trends, UpzoningRow,
 } from './types';
@@ -45,6 +46,9 @@ export function monthKeys(now: Date, n = 12): string[] {
   return out;
 }
 
+/** Neighborhoods whose residential zones are planned districts, which the SB 9 screen leaves out (BACKLOG.md). Verified for Mission Beach: MBPD-* zones, and no rail or rapid-bus stop within 1/2 mile (nearest about 2.4 miles). */
+const PLANNED_DISTRICT_HOODS = new Set(['Mission Beach']);
+
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const META = {
   turnover: { title: 'Turnover', unit: 'sales per month' },
@@ -79,15 +83,16 @@ export function buildTrends(area: string, hoods: string[], now: Date, rows: Tren
   const mk = (key: TrendMetric['key'], series: TrendMetric['series'], takeaway: string, is_sample: boolean, extra: Partial<TrendMetric> = {}): TrendMetric =>
     ({ key, ...META[key], series, takeaway, is_sample, is_estimate: false, ...extra });
   const line = (key: string, label: string, vals: number[]) => ({ key, label, points: months.map((m, i) => ({ month: m, value: vals[i]! })) });
-  const last3 = (v: number[]) => sum(v.slice(-3)), prev3 = (v: number[]) => sum(v.slice(-6, -3));
+  // The current month is partial: it never counts in a "last 3 months vs prior 3" comparison.
+  const last3 = (v: number[]) => sum(v.slice(-4, -1)), prev3 = (v: number[]) => sum(v.slice(-7, -4));
 
   const tDir = direction(last3(tSeries), prev3(tSeries));
   const metrics: TrendMetric[] = [];
   // Sales are sample records until owner sale history is added (Phase 6): a chart of them would mislead.
   const allSample = (xs: { sample_rows: number }[], n: (x: any) => number) => xs.length > 0 && xs.every((x) => x.sample_rows >= n(x));
   metrics.push(mk('turnover', [line('sales', 'Sales', tSeries)],
-    turnover.length === 0 ? 'No sales on record for this period.'
-      : `Sales over the last 3 months are ${tDir.dir} versus the 3 months before (${last3(tSeries)} vs ${prev3(tSeries)}).`, sampleIn(turnover),
+    turnover.length === 0 ? '0 sales on record for this period.'
+      : `${last3(tSeries)} sales in the last 3 full months, ${tDir.dir} vs ${prev3(tSeries)} in the prior 3.`, sampleIn(turnover),
     (turnover.length === 0 || allSample(turnover, (x) => x.sales)) ? { empty_state: 'Connects when owner sale history is added in Phase 6' } : {}));
 
   const mainGroups = groupTotals.filter(({ g }) => g !== 'other');
@@ -98,27 +103,32 @@ export function buildTrends(area: string, hoods: string[], now: Date, rows: Tren
   const pDir = direction(last3(pTotal), prev3(pTotal));
   const pLead = pSeries.map((s) => ({ s, n: sum(s.points.map((p) => p.value)) })).sort((a, b) => b.n - a.n)[0];
   metrics.push(mk('permits', pSeries.length ? pSeries : [line('none', 'Permits', months.map(() => 0))],
-    pLead && pLead.n ? `${pLead.s.label} is the largest permit group; permits that matter for selling are ${pDir.dir} over the last 3 months.` : 'No permits that matter for selling were approved in this period.',
+    pLead && pLead.n ? `${last3(pTotal)} permits that matter for selling were approved in the last 3 full months, ${pDir.dir} vs the prior 3; ${pLead.s.label} leads.` : '0 permits that matter for selling were approved in this period.',
     sampleIn(permits.filter((r) => r.signal_group !== 'other')),
     otherSeries.length ? { optional_series: otherSeries, optional_label: 'Include other permits' } : {}));
 
   const sSeries = monthly(str.map((r) => ({ month: r.month, n: r.signals })));
   metrics.push(mk('str_lost', [line('removed', 'Licenses removed', sSeries)],
-    sum(sSeries) === 0 ? 'No short-term rental licenses have been removed in this period. Removals appear once a second license snapshot exists.'
-      : `${last3(sSeries)} licenses removed in the last 3 months, ${direction(last3(sSeries), prev3(sSeries)).dir} versus the prior 3.`, sampleIn(str),
+    sum(sSeries) === 0 ? '0 short-term rental licenses removed so far.'
+      : `${last3(sSeries)} licenses removed in the last 3 full months, ${direction(last3(sSeries), prev3(sSeries)).dir} vs the prior 3.`, sampleIn(str),
     sum(sSeries) === 0 ? { empty_state: 'Appears after the second weekly license snapshot' } : {}));
 
+  // One list publication shows up as a single month of records; the takeaway then names that month.
+  const taxMonths = months.filter((m) => tax.some((r) => r.month.slice(0, 7) === m && r.signals > 0));
   const xSeries = monthly(tax.map((r) => ({ month: r.month, n: r.signals })));
   metrics.push(mk('tax_default', [line('tax', 'Parcels', xSeries)],
-    sum(xSeries) === 0 ? 'No tax-default notices in this period.' : `${sum(xSeries)} parcels appeared on the county tax-default list in the last 12 months.`, sampleIn(tax),
-    sum(xSeries) === 0 ? { empty_state: 'No tax-default notices in this period' } : {}));
+    sum(xSeries) === 0 ? '0 tax-default notices in this period.'
+      : taxMonths.length === 1 ? `${sum(xSeries)} parcels on the county tax-default list published ${fmtMonthLong(taxMonths[0]!)}.`
+      : `${sum(xSeries)} parcels on the county tax-default list in the last 12 months.`, sampleIn(tax),
+    sum(xSeries) === 0 ? { empty_state: 'Appears when a tax-default list is published' } : {}));
 
   const up = hoods.map((h) => rows.upzoning.find((r) => r.neighborhood === h) ?? { neighborhood: h, sb9: 0, sb79_quarter_mile: 0, sb79_half_mile: 0, sample_rows: 0 });
   const upDefs: [string, (r: UpzoningRow) => number][] = [['SB 9 estimate', (r) => r.sb9], ['SB 79 within 1/4 mile', (r) => r.sb79_quarter_mile], ['SB 79 within 1/2 mile', (r) => r.sb79_half_mile]];
   const upTot = upDefs.map(([, f]) => sum(up.map(f)));
-  const upTop = [...up].sort((a, b) => b.sb9 - a.sb9)[0]!;
   metrics.push(mk('upzoning', upDefs.map(([label, f]) => ({ key: label, label, points: up.map((r) => ({ month: r.neighborhood, value: f(r) })) })),
-    `${upTot[0]} estimated SB 9 parcels; ${upTot[2]} sit within 1/2 mile of transit, ${upTot[1]} within 1/4 mile. ${hoods.length > 1 ? `${upTop.neighborhood} has the most SB 9 candidates (${upTop.sb9}). ` : ''}In-house screen, unofficial.`.trim(),
+    [`${upTot[0]!.toLocaleString('en-US')} parcels estimated eligible for SB 9; ${upTot[2]!.toLocaleString('en-US')} sit within 1/2 mile of transit (${upTot[1]!.toLocaleString('en-US')} within 1/4).`,
+      ...up.filter((r) => PLANNED_DISTRICT_HOODS.has(r.neighborhood) && r.sb9 === 0 && r.sb79_half_mile === 0)
+        .map((r) => `${r.neighborhood} shows 0: planned-district zoning is outside the SB 9 screen and no rail or rapid-bus stop is within 1/2 mile.`)].join(' '),
     sampleIn(up), { categories: hoods, is_estimate: true }));
 
   const enabled = RECIPES.filter((r) => r.enabled);
@@ -132,10 +142,13 @@ export function buildTrends(area: string, hoods: string[], now: Date, rows: Tren
   ];
   const byHood = hoods.map((h) => ({ h, n: sum(enabled.map((r) => rcount(r.key, h))) })).sort((a, b) => b.n - a.n)[0]!;
   metrics.push(mk('recipes', rDefs.map((d) => ({ key: d.label, label: d.label, points: hoods.map((h) => ({ month: h, value: d.count(h) })) })),
-    ranked[0] && ranked[0].total ? `${ranked[0].r.label} is the most-matched recipe (${ranked[0].total} parcels).${hoods.length > 1 ? ` ${byHood.h} has the most matches (${byHood.n}).` : ''}` : 'No parcels match a recipe yet.',
+    ranked[0] && ranked[0].total ? `${ranked[0].total} parcels match ${ranked[0].r.label}, the most-matched recipe.${hoods.length > 1 ? ` ${byHood.h} has the most matches (${byHood.n}).` : ''}` : '0 parcels match a recipe yet.',
     sampleIn(rr), { categories: hoods, ...(allSample(rr, (x) => x.parcels) ? { empty_state: 'Connects when real owner data is added in Phase 6' } : {}) }));
 
-  return { area, months, metrics, is_sample: metrics.some((m) => m.is_sample) };
+  // Placeholders never take a grid slot: anything with only an empty state moves to a "Coming soon" strip.
+  const coming_soon = metrics.filter((m) => m.empty_state).map((m) => ({ key: m.key, title: m.title, unlock: m.empty_state! }));
+  const shown_metrics = metrics.filter((m) => !m.empty_state);
+  return { area, months, partial_month: months[months.length - 1]!, metrics: shown_metrics, coming_soon, is_sample: shown_metrics.some((m) => m.is_sample) };
 }
 
 export { bandOf, SIGNAL_TYPES };

@@ -14,7 +14,7 @@ if (config.owner_data_provider === 'sample') Astro.locals.sample.used = true;
 const tp = config.team_profile;
 ---
 <AppShell title="Settings" active="settings">
-  <PageHeader eyebrow="Read-only" title="Settings" description="How this workspace is set up. Changes are made by your administrator, not here." />
+  <PageHeader eyebrow="Read-only" title="Settings" description="How this workspace is set up · changes go through your administrator" />
   <Stack gap={10}>
     <Grid split="even" gap={6}>
       <Card as="section" aria-labelledby="client-h">
@@ -34,11 +34,11 @@ const tp = config.team_profile;
           { label: 'Cooldown', value: `${config.outreach.cooldown_days} days` },
           { label: 'Automated texts or calls', value: 'Never' },
         ]} />
-        <p class="mt-4 text-xs text-ink-muted">Send caps apply once sending exists. Today nothing is sent.</p>
+        <p class="mt-4 text-xs text-ink-muted">Preview mode: nothing is sent.</p>
       </Card>
     </Grid>
 
-    <Section title="Recipes" description="Which scoring recipes are switched on for this client.">
+    <Section title="Recipes">
       <DataTable caption="Recipes" columns={[{ key: 'n', label: 'Recipe' }, { key: 'd', label: 'Rule', hideOnMobile: true }, { key: 's', label: 'Status', align: 'right' }]}
         rows={config.recipes.map((r) => ({ cells: { n: { v: r.name }, d: { v: r.description }, s: { v: r.enabled ? 'On' : 'Off' } } }))} />
     </Section>

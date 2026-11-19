@@ -154,7 +154,7 @@ const sensitiveLine = (t: string, d: string | null) =>
       <Stack gap={6}>
         <Card as="section" aria-labelledby="sig-h">
           <h2 id="sig-h" class="t-h2">Events</h2>
-          <p class="mb-4 mt-0.5 text-sm text-ink-muted">Dated events that matter for selling. Permits approved the same day are grouped. Every event links to its source record.</p>
+          <p class="mb-4 mt-0.5 text-sm text-ink-muted">Dated events that matter for selling, each linked to its source.</p>
           {events.length === 0
             ? <EmptyState title="No events yet" description="Nothing that matters for selling has been detected for this property." />
             : <ol class="flex flex-col">
@@ -215,7 +215,7 @@ const sensitiveLine = (t: string, d: string | null) =>
           {sensitiveCount > 0 && (
             <Card as="section" aria-labelledby="sens-h" tone="sunken" data-sensitive>
               <h2 id="sens-h" class="t-h2">Sensitive records</h2>
-              <p class="mb-3 mt-0.5 text-sm text-ink-muted">Handle with care. This information is never shown on lead cards, lists or share links, and is never used in outreach drafts.</p>
+              <p class="mb-3 mt-0.5 text-sm text-ink-muted">Handle with care: never shown on cards, lists or share links, never used in drafts.</p>
               <ul class="flex flex-col gap-2 text-sm">
                 {lead.sensitive_signals.map((s) => <li class="flex flex-wrap items-baseline gap-x-3"><span>{sensitiveLine(s.signal_type, s.signal_date)}</span><SourceLink sourceKey={s.source_key} recordId={s.source_record_id} />{s.is_sample && <SampleDataBadge />}</li>)}
                 {sensitiveItems.map((i) => <li class="text-ink-muted">Contributes {i.points} of {i.max} points: {sentenceCase(i.label).replace(/ \(death, trust or inheritance\)/i, '')}</li>)}
@@ -230,7 +230,7 @@ const sensitiveLine = (t: string, d: string | null) =>
       <Stack gap={6}>
         <Card as="section" id="drafts" aria-labelledby="drafts-h">
           <h2 id="drafts-h" class="t-h2">Drafts</h2>
-          <p class="mb-4 mt-0.5 text-sm text-ink-muted">Drafts only use facts in the database. A person approves before anything is sent.</p>
+          <p class="mb-4 mt-0.5 text-sm text-ink-muted">Drafts use database facts only; a person approves before anything is sent.</p>
           {drafts.length === 0
             ? <EmptyState title="No drafts yet" description="Drafts are prepared for the highest-scoring leads." />
             : <Stack gap={8}>{drafts.map((x) => (

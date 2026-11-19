@@ -14,13 +14,13 @@ const all = await Astro.locals.data.getTrends('All');
 const areas = await Promise.all(config.territory.neighborhoods.map((a) => Astro.locals.data.getTrends(a)));
 ---
 <AppShell title="Reports" active="reports">
-  <PageHeader eyebrow="Built from the trend data" title="Reports" description="Print-ready pages for newsletters and neighborhood conversations. Sections that rest on sample data are marked." />
+  <PageHeader eyebrow="Built from the trend data" title="Reports" description="Print-ready newsletter and neighborhood pages · sample-based sections are marked" />
   <Stack gap={8}>
     <Section title="Newsletter">
       <Card class="flex flex-wrap items-center justify-between gap-4">
         <div class="min-w-0">
           <div class="flex flex-wrap items-center gap-2"><h3 class="t-h2">Market update for the whole territory</h3>{all.is_sample && <SampleDataBadge />}</div>
-          <p class="mt-1 text-sm text-ink-muted">A one-page summary with headline charts and a short takeaway for each neighborhood.</p>
+          <p class="mt-1 text-sm text-ink-muted">One-page summary with headline charts per neighborhood.</p>
         </div>
         <Button href="/trends/newsletter" variant="primary" icon="print" id="open-newsletter">Open newsletter</Button>
       </Card>

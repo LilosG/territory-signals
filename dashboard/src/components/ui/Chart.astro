@@ -3,47 +3,88 @@ export interface Props { id: string; option: Record<string, unknown>; height?: n
 const { id, option, height = 260, label, kind = 'line', class: cls } = Astro.props;
 ---
 <div class:list={[cls]}>
+  <!-- The legend is HTML in its own row above the plot, so it can never collide with the axes. -->
+  <ul data-chart-legend={id} class="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted empty:hidden"></ul>
   <div data-chart={id} data-kind={kind} role="img" aria-label={label} style={`height:${height}px`} class="w-full"></div>
   <script type="application/json" data-chart-data={id} set:html={JSON.stringify(option)} />
 </div>
 <script>
   import { init, use } from 'echarts/core';
   import { LineChart, BarChart } from 'echarts/charts';
-  import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components';
+  import { GridComponent, TooltipComponent } from 'echarts/components';
   import { CanvasRenderer } from 'echarts/renderers';
   import { chartTheme } from '../../lib/chartTheme';
-  use([LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
+  use([LineChart, BarChart, GridComponent, TooltipComponent, CanvasRenderer]);
 
+  type Series = { name: string; data: number[] };
   const t = chartTheme();
-  const charts: ReturnType<typeof init>[] = [];
+  const PARTIAL_OPACITY = 0.45;
+  const charts: { chart: ReturnType<typeof init>; redraw: () => void }[] = [];
   document.querySelectorAll<HTMLElement>('[data-chart]').forEach((el) => {
     const id = el.dataset.chart!;
     const spec = JSON.parse(document.querySelector(`[data-chart-data="${id}"]`)!.textContent!) as {
-      months: string[]; unit: string; series: { name: string; data: number[] }[]; optional?: { name: string; data: number[] }[]; estimate?: boolean;
+      months: string[]; unit: string; series: Series[]; optional?: Series[]; estimate?: boolean; partialIndex?: number | null; partialLabel?: string | null;
     };
+    const legend = document.querySelector<HTMLElement>(`[data-chart-legend="${id}"]`)!;
     const kind = el.dataset.kind;
     const grouped = kind === 'groupedBar';
+    const partial = spec.partialIndex ?? -1;
+    const hidden = new Set<string>();
+    let withOptional = false;
     const chart = init(el, undefined, { renderer: 'canvas' });
-    const draw = (withOptional: boolean) => {
-    const all = withOptional ? [...spec.series, ...(spec.optional ?? [])] : spec.series;
-    const multi = all.length > 1;
-    chart.setOption({
-      ...t.base,
-      legend: multi ? { top: 0, left: 0, right: 0, itemGap: 14, icon: 'roundRect', itemWidth: 10, itemHeight: 10, textStyle: { color: t.muted, fontSize: 12 } } : undefined,
-      grid: { ...t.base.grid, top: multi ? (grouped ? 64 : 40) : 16 },
-      tooltip: { ...t.base.tooltip, trigger: 'axis', valueFormatter: (v: number) => `${v} ${spec.unit}` },
-      xAxis: { ...t.base.xAxis, type: 'category', data: spec.months, boundaryGap: kind !== 'line', axisLabel: { ...t.base.xAxis.axisLabel, interval: grouped ? 0 : 'auto' } },
-      yAxis: { ...t.base.yAxis, type: 'value', minInterval: 1 },
-      series: all.map((s, i) => kind === 'line'
-        ? { name: s.name, type: 'line', data: s.data, smooth: 0.25, symbol: 'circle', symbolSize: 5, showSymbol: false, lineStyle: { width: 2.25, type: spec.estimate ? 'dashed' : 'solid', color: t.palette[i % t.palette.length] }, itemStyle: { color: t.palette[i % t.palette.length] }, areaStyle: multi ? undefined : { color: t.accent, opacity: 0.06 } }
-        : { name: s.name, type: 'bar', stack: kind === 'stackedBar' ? 'total' : undefined, data: s.data, barMaxWidth: grouped ? 28 : 22, barGap: grouped ? '12%' : undefined, label: grouped ? { show: true, position: 'top', fontSize: 11, color: t.ink, formatter: (x: { value: number }) => String(x.value) } : undefined, itemStyle: { color: t.palette[i % t.palette.length], borderRadius: kind === 'stackedBar' ? 0 : [3, 3, 0, 0] } }),
-    }, true);
+    const color = (i: number): string => t.palette[i % t.palette.length] ?? '#17294d';
+
+    const drawLegend = (all: Series[]) => {
+      legend.replaceChildren();
+      const multi = all.length > 1;
+      if (multi) all.forEach((s, i) => {
+        const li = document.createElement('li');
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.setAttribute('aria-pressed', String(!hidden.has(s.name)));
+        b.className = 'inline-flex items-center gap-1.5 rounded px-1 py-0.5 hover:text-ink' + (hidden.has(s.name) ? ' opacity-45' : '');
+        const sw = document.createElement('span');
+        sw.className = 'inline-block h-2.5 w-2.5 rounded-sm'; sw.style.background = color(i);
+        b.append(sw, s.name);
+        b.addEventListener('click', () => { hidden.has(s.name) ? hidden.delete(s.name) : hidden.add(s.name); draw(); });
+        li.append(b); legend.append(li);
+      });
+      if (partial >= 0 && !grouped && kind !== 'line' && spec.partialLabel) {
+        const li = document.createElement('li');
+        li.dataset.partialKey = '1';
+        li.className = 'inline-flex items-center gap-1.5 px-1 py-0.5';
+        const sw = document.createElement('span');
+        sw.className = 'inline-block h-2.5 w-2.5 rounded-sm'; sw.style.background = color(0); sw.style.opacity = String(PARTIAL_OPACITY);
+        li.append(sw, `${spec.partialLabel}, partial month`); legend.append(li);
+      }
     };
-    draw(false);
-    document.querySelector<HTMLInputElement>(`[data-chart-toggle="${id}"]`)?.addEventListener('change', (e) => draw((e.target as HTMLInputElement).checked));
-    charts.push(chart);
+
+    const draw = () => {
+      const all = withOptional ? [...spec.series, ...(spec.optional ?? [])] : spec.series;
+      drawLegend(all);
+      const idx = (s: Series) => all.indexOf(s);
+      const shown = all.filter((s) => !hidden.has(s.name));
+      const axisLabels = spec.months.map((m, i) => (i === partial ? m.replace(' (to date)', '\n(to date)') : m));
+      chart.setOption({
+        ...t.base,
+        grid: { ...t.base.grid, top: 20, bottom: 8 },
+        tooltip: { ...t.base.tooltip, trigger: 'axis', valueFormatter: (v: number) => `${v} ${spec.unit}` },
+        xAxis: { ...t.base.xAxis, type: 'category', data: spec.months, boundaryGap: kind !== 'line', axisLabel: { ...t.base.xAxis.axisLabel, interval: grouped ? 0 : 'auto', formatter: (_v: string, i: number) => axisLabels[i] ?? _v } },
+        yAxis: { ...t.base.yAxis, type: 'value', minInterval: 1 },
+        series: shown.map((s) => kind === 'line'
+          ? { name: s.name, type: 'line', data: s.data, smooth: 0.25, symbol: 'circle', symbolSize: 5, showSymbol: false, lineStyle: { width: 2.25, type: spec.estimate ? 'dashed' : 'solid', color: color(idx(s)) }, itemStyle: { color: color(idx(s)) }, areaStyle: all.length > 1 ? undefined : { color: t.accent, opacity: 0.06 } }
+          : { name: s.name, type: 'bar', stack: kind === 'stackedBar' ? 'total' : undefined,
+              data: s.data.map((v, i) => (i === partial ? { value: v, itemStyle: { opacity: PARTIAL_OPACITY } } : v)),
+              barMaxWidth: grouped ? 28 : 22, barGap: grouped ? '12%' : undefined,
+              label: grouped ? { show: true, position: 'top', fontSize: 11, color: t.ink, formatter: (x: { value: number }) => String(x.value) } : undefined,
+              itemStyle: { color: color(idx(s)), borderRadius: kind === 'stackedBar' ? 0 : [3, 3, 0, 0] } }),
+      }, true);
+    };
+    draw();
+    document.querySelector<HTMLInputElement>(`[data-chart-toggle="${id}"]`)?.addEventListener('change', (e) => { withOptional = (e.target as HTMLInputElement).checked; draw(); });
+    charts.push({ chart, redraw: draw });
   });
-  const resize = () => charts.forEach((c) => c.resize());
+  const resize = () => charts.forEach((c) => c.chart.resize());
   new ResizeObserver(resize).observe(document.body);
   document.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('[role=tab]')) requestAnimationFrame(resize); });
 </script>

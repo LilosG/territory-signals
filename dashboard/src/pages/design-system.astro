@@ -31,10 +31,12 @@ import StatusPill from '../components/ui/StatusPill.astro';
 import FunnelBars from '../components/ui/FunnelBars.astro';
 import TrendCard from '../components/ui/TrendCard.astro';
 import Icon from '../components/ui/Icon.astro';
-import { fixturesProvider } from '../lib/data/fixtures';
 import { brand } from '../config/brand';
 
 // The gallery always renders from the fixture bundle so it works without a database or a session.
+// Dev only: the fixture bundle is not shipped in the production Worker.
+if (import.meta.env.PROD) return new Response(null, { status: 404 });
+const { fixturesProvider } = await import('../lib/data/fixtures');
 const data = fixturesProvider(() => { Astro.locals.sample.used = true; });
 const [feed, pipe, lead, trends] = await Promise.all([data.getTodayFeed(), data.getPipeline(), data.getLead((await data.getLeads()).items[0]!.parcel.apn), data.getTrends('All')]);
 const l = lead!;

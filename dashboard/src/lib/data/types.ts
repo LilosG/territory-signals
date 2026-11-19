@@ -213,7 +213,7 @@ export interface ClientConfig {
   display_name: string;
   territory: { planning_areas: string[]; zips: string[]; neighborhoods: string[] };
   owner_data_provider: OwnerProvider;
-  outreach: { mode: 'preview'; weekly_send_cap_per_agent: number; drafts_per_run: number; cooldown_days: number };
+  outreach: { mode: 'preview'; weekly_send_cap_per_agent: number; drafts_per_run: number; cooldown_days: number; approval_required_recipes: string[] };
   team_profile: { display_name: string; brokerage: string; office_address: string };
   recipes: Recipe[];
   team_members: { email: string; name: string | null; role: TeamRole; phone?: string }[];
@@ -388,7 +388,15 @@ export interface TrendMetric {
   /** Set when the chart would mislead (all rows are sample data, or there is nothing yet): a designed empty state is shown instead. */
   empty_state?: string;
 }
-export interface Trends { area: string; months: string[]; metrics: TrendMetric[]; is_sample: boolean }
+export interface Trends {
+  area: string; months: string[];
+  /** The current, incomplete month ("YYYY-MM"): shown as "(to date)" and left out of period comparisons. */
+  partial_month: string;
+  metrics: TrendMetric[];
+  /** Charts with nothing to show yet, with what unlocks each. */
+  coming_soon: { key: TrendMetric['key']; title: string; unlock: string }[];
+  is_sample: boolean;
+}
 
 export interface FunnelStage { key: 'signal' | 'contacted' | 'conversation' | 'appointment' | 'listing'; label: string; count: number }
 export interface FunnelRow { label: string; stages: FunnelStage[] }
