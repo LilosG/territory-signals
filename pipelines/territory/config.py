@@ -44,6 +44,25 @@ class TeamProfile(_Strict):
     office_address: str = ""
 
 
+class LlmTask(_Strict):
+    model: str | None = None            # overrides llm.model for this task
+
+
+class LlmConfig(_Strict):
+    """Per-client AI provider (D13). Client data goes to this provider, so it is chosen per client."""
+    provider: Literal["openai_compatible", "anthropic", "fake"]
+    base_url: str | None = None
+    api_key_env: str = "LLM_API_KEY"
+    model: str = Field(min_length=1)
+    tasks: dict[str, LlmTask] = Field(default_factory=dict)
+    monthly_budget_usd: float = Field(ge=0)
+    enabled: bool = True
+
+    def model_for(self, task: str) -> str:
+        t = self.tasks.get(task)
+        return (t.model if t and t.model else self.model)
+
+
 class RecipeToggle(_Strict):
     enabled: bool
 
@@ -57,6 +76,7 @@ class ClientConfig(_Strict):
     team_members: list[TeamMember] = Field(default_factory=list)
     team_profile: TeamProfile
     recipes: dict[str, RecipeToggle]
+    llm: LlmConfig | None = None
 
     def enabled_recipes(self) -> list[str]:
         return [k for k, v in self.recipes.items() if v.enabled]

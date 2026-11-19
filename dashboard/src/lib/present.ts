@@ -194,3 +194,19 @@ export function detailHeadline(lead: LeadDetail): Marked | null {
 
 /** Score components that describe tax default or ownership transfer: shown only in the brief's labeled sensitive section. */
 export const isSensitiveComponent = (key: string) => key.startsWith('tax_default') || key === 'owner:ownership_transfer';
+
+/* ── AI claims (Phase 5F) ── */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Where a cited record id lives on the lead page: a signal is an entry on the Signals tab, owner and parcel facts are on the Owner tab. */
+export function claimHref(id: string): string {
+  if (UUID.test(id)) return `#rec-${id}`;
+  if (id.startsWith('owner:')) return '#owner-h';
+  if (id.startsWith('parcel:')) return '#prop-h';
+  return '#why-h';
+}
+export function claimLabel(id: string): string {
+  if (UUID.test(id)) return 'Signal record';
+  if (id.startsWith('owner:')) return 'Owner record';
+  if (id.startsWith('parcel:')) return 'Parcel record';
+  return 'Score detail';
+}

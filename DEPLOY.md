@@ -151,6 +151,51 @@ supabase config push --workdir <scratch> --yes
 - Sender: "The Kaiser Team" via smtp.gmail.com:587 as mike@lilosgrowth.com.
 - Gmail limits sending to about 500 messages a day; see `BACKLOG.md`.
 
+## AI layer: set a provider for a client (Phase 5F, D13)
+
+The AI provider is chosen **per client**, because that client's data (parcel facts, permit text, weekly counts) is sent to it. It lives in the client's `llm:` block in `config/clients/<id>.yaml`. The API key is never in the file: `api_key_env` names an environment variable.
+
+**A new provider or model must score >= 90% on the eval before a client config switches to it.**
+
+```bash
+cd pipelines && source ../.venv/bin/activate
+LLM_API_KEY=... python -m territory.llm.eval --provider openai_compatible --model <model> --base-url <url> -v
+# prints the pass rate per task (permit_intent, lead_brief, weekly_brief) and the total cost
+```
+
+Config examples (only the `llm:` block changes):
+
+```yaml
+# OpenRouter (Kaiser Team). Every request sends provider.data_collection = deny.
+llm: {provider: openai_compatible, base_url: https://openrouter.ai/api/v1, api_key_env: LLM_API_KEY,
+      model: <model id>, tasks: {permit_intent: {model: <model id>}, lead_brief: {}, weekly_brief: {}},
+      monthly_budget_usd: 20, enabled: true}
+
+# Anthropic (official SDK). Add the model's prices to config/llm_pricing.yaml first, or its cost is recorded as unknown.
+llm: {provider: anthropic, api_key_env: ANTHROPIC_API_KEY, model: <claude model id>,
+      tasks: {permit_intent: {}, lead_brief: {}, weekly_brief: {}}, monthly_budget_usd: 20, enabled: true}
+
+# xAI
+llm: {provider: openai_compatible, base_url: https://api.x.ai/v1, api_key_env: XAI_API_KEY, model: <grok model id>,
+      tasks: {}, monthly_budget_usd: 20, enabled: true}
+
+# Ollama on this machine (no cost is reported, so spend shows as unknown; any non-empty key works)
+llm: {provider: openai_compatible, base_url: http://localhost:11434/v1, api_key_env: OLLAMA_KEY, model: llama3.1,
+      tasks: {}, monthly_budget_usd: 20, enabled: true}
+```
+
+- **Off switch.** `enabled: false`, or the key variable not set, makes every AI task skip cleanly (a "skipped" row is recorded) and the dashboard shows nothing AI-related. The dashboard reads `enabled` from the config baked into the build, so redeploy it after changing the flag.
+- **Run.** `python -m territory.run --client kaiser-team --only-ai` runs permit_intent, lead_brief and weekly_brief in that order (`--skip-ai` leaves them out of a full `--source all` run). Results are cached by input and prompt version, so a rerun costs nothing unless facts changed.
+- **Budget.** `monthly_budget_usd` caps the month's total. A task stops before the call that would pass it and a warning shows on the Pipeline page.
+- **Run against the cloud database** (key from the macOS Keychain, service `territory-signals-llm`):
+
+```bash
+cd ~/territory-signals && source .venv/bin/activate \
+  && export SUPABASE_DB_URL="postgresql://postgres:$(security find-generic-password -a mike -s territory-signals-kaiser-db -w)@db.ukpfksabatofcczdrphm.supabase.co:5432/postgres?sslmode=require" \
+  && export LLM_API_KEY="$(security find-generic-password -a mike -s territory-signals-llm -w)" \
+  && cd pipelines && python -m territory.run --client kaiser-team --only-ai
+```
+
 ## Runtime notes
 
 - No `nodejs_compat` flag is needed. No Node-only modules or filesystem access at runtime.

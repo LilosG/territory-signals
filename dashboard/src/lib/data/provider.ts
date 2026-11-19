@@ -1,6 +1,6 @@
 import type {
   Backtest, ClientConfig, Coverage, LeadDetail, LeadFilters, LeadPage, MapData, NavCounts, OffMarketFilters, OffMarketPage,
-  OutreachPage, OutreachTab, Performance, Pipeline, RecipeCard, SearchHit, SharePage, SourceCard, TeamMember, TodayFeed, Trends,
+  OutreachPage, OutreachTab, Performance, Pipeline, RecipeCard, SearchHit, SharePage, SourceCard, TeamMember, TodayFeed, Trends, WeeklyBriefAi,
 } from './types';
 
 /** Called by a provider whenever it returns something that is, or is derived from, sample data. Drives the sample banner. */
@@ -33,6 +33,8 @@ export interface DataProvider {
   getRecipes(): Promise<RecipeCard[]>;
   getOffMarket(filters?: OffMarketFilters, page?: number, pageSize?: number): Promise<OffMarketPage>;
   searchLeads(q: string): Promise<SearchHit[]>;
+  /** Weekly briefings, newest first (empty when the AI layer is off or nothing valid exists). */
+  getBriefings(): Promise<WeeklyBriefAi[]>;
 }
 
 /** Public share page: property facts only. Works without a session. */

@@ -1,0 +1,353 @@
+[
+ {
+  "id": "weekly-busy",
+  "facts": {
+   "week": {
+    "start": "2026-11-09",
+    "end": "2026-11-16"
+   },
+   "baseline": {
+    "kind": "week_start",
+    "compared_with": "2026-11-09"
+   },
+   "territory": {
+    "strong_leads_now": 14,
+    "new_strong_leads": 5,
+    "recipe_counts": {
+     "Pre-list prep": {
+      "now": 40,
+      "before": 34,
+      "change": 6
+     },
+     "Builder bait": {
+      "now": 22,
+      "before": 22,
+      "change": 0
+     }
+    },
+    "new_pre_sale_permits": 31,
+    "tax_default_new_this_week": 2,
+    "tax_default_total": 39,
+    "new_str_removals": 3,
+    "top_movers": [
+     {
+      "address": "100 Example St",
+      "neighborhood": "La Jolla",
+      "score_before": 52,
+      "score_now": 66,
+      "change": 14
+     },
+     {
+      "address": "200 Sample Ave",
+      "neighborhood": "Pacific Beach",
+      "score_before": 41,
+      "score_now": 55,
+      "change": 14
+     },
+     {
+      "address": "300 Test Ct",
+      "neighborhood": "La Jolla",
+      "score_before": 60,
+      "score_now": 49,
+      "change": -11
+     },
+     {
+      "address": "400 Demo Way",
+      "neighborhood": "Mission Beach",
+      "score_before": 38,
+      "score_now": 47,
+      "change": 9
+     },
+     {
+      "address": "500 Mock Blvd",
+      "neighborhood": "Pacific Beach",
+      "score_before": 63,
+      "score_now": 55,
+      "change": -8
+     }
+    ]
+   },
+   "neighborhoods": {
+    "La Jolla": {
+     "strong_leads_now": 7,
+     "new_strong_leads": 3,
+     "recipe_counts": {
+      "Pre-list prep": {
+       "now": 18,
+       "before": 15,
+       "change": 3
+      }
+     },
+     "new_pre_sale_permits": 14,
+     "tax_default_new_this_week": 1,
+     "tax_default_total": 20,
+     "new_str_removals": 1,
+     "top_movers": [
+      {
+       "address": "100 Example St",
+       "neighborhood": "La Jolla",
+       "score_before": 52,
+       "score_now": 66,
+       "change": 14
+      },
+      {
+       "address": "300 Test Ct",
+       "neighborhood": "La Jolla",
+       "score_before": 60,
+       "score_now": 49,
+       "change": -11
+      }
+     ]
+    },
+    "Mission Beach": {
+     "strong_leads_now": 1,
+     "new_strong_leads": 0,
+     "recipe_counts": {
+      "Pre-list prep": {
+       "now": 4,
+       "before": 4,
+       "change": 0
+      }
+     },
+     "new_pre_sale_permits": 3,
+     "tax_default_new_this_week": 0,
+     "tax_default_total": 2,
+     "new_str_removals": 0,
+     "top_movers": [
+      {
+       "address": "400 Demo Way",
+       "neighborhood": "Mission Beach",
+       "score_before": 38,
+       "score_now": 47,
+       "change": 9
+      }
+     ]
+    },
+    "Pacific Beach": {
+     "strong_leads_now": 6,
+     "new_strong_leads": 2,
+     "recipe_counts": {
+      "Pre-list prep": {
+       "now": 18,
+       "before": 15,
+       "change": 3
+      }
+     },
+     "new_pre_sale_permits": 14,
+     "tax_default_new_this_week": 1,
+     "tax_default_total": 17,
+     "new_str_removals": 2,
+     "top_movers": [
+      {
+       "address": "200 Sample Ave",
+       "neighborhood": "Pacific Beach",
+       "score_before": 41,
+       "score_now": 55,
+       "change": 14
+      },
+      {
+       "address": "500 Mock Blvd",
+       "neighborhood": "Pacific Beach",
+       "score_before": 63,
+       "score_now": 55,
+       "change": -8
+      }
+     ]
+    }
+   }
+  },
+  "forbidden_in_newsletter": [
+   "100 Example St",
+   "200 Sample Ave",
+   "300 Test Ct",
+   "400 Demo Way",
+   "500 Mock Blvd",
+   "tax",
+   "default"
+  ]
+ },
+ {
+  "id": "weekly-quiet",
+  "facts": {
+   "week": {
+    "start": "2026-11-09",
+    "end": "2026-11-16"
+   },
+   "baseline": {
+    "kind": "none",
+    "compared_with": null
+   },
+   "territory": {
+    "strong_leads_now": 2,
+    "new_strong_leads": null,
+    "recipe_counts": {},
+    "new_pre_sale_permits": 0,
+    "tax_default_new_this_week": 0,
+    "tax_default_total": 0,
+    "new_str_removals": 0,
+    "top_movers": []
+   },
+   "neighborhoods": {
+    "La Jolla": {
+     "strong_leads_now": 0,
+     "new_strong_leads": null,
+     "recipe_counts": {},
+     "new_pre_sale_permits": 0,
+     "tax_default_new_this_week": 0,
+     "tax_default_total": 0,
+     "new_str_removals": 0,
+     "top_movers": []
+    },
+    "Mission Beach": {
+     "strong_leads_now": 0,
+     "new_strong_leads": null,
+     "recipe_counts": {},
+     "new_pre_sale_permits": 0,
+     "tax_default_new_this_week": 0,
+     "tax_default_total": 0,
+     "new_str_removals": 0,
+     "top_movers": []
+    },
+    "Pacific Beach": {
+     "strong_leads_now": 0,
+     "new_strong_leads": null,
+     "recipe_counts": {},
+     "new_pre_sale_permits": 0,
+     "tax_default_new_this_week": 0,
+     "tax_default_total": 0,
+     "new_str_removals": 0,
+     "top_movers": []
+    }
+   }
+  },
+  "forbidden_in_newsletter": [
+   "tax",
+   "default"
+  ]
+ },
+ {
+  "id": "weekly-tax",
+  "facts": {
+   "week": {
+    "start": "2026-11-02",
+    "end": "2026-11-09"
+   },
+   "baseline": {
+    "kind": "earliest_available",
+    "compared_with": "2026-11-03"
+   },
+   "territory": {
+    "strong_leads_now": 9,
+    "new_strong_leads": 4,
+    "recipe_counts": {
+     "Short-term rental exit": {
+      "now": 3,
+      "before": 1,
+      "change": 2
+     }
+    },
+    "new_pre_sale_permits": 12,
+    "tax_default_new_this_week": 6,
+    "tax_default_total": 45,
+    "new_str_removals": 2,
+    "top_movers": [
+     {
+      "address": "100 Example St",
+      "neighborhood": "La Jolla",
+      "score_before": 52,
+      "score_now": 66,
+      "change": 14
+     },
+     {
+      "address": "200 Sample Ave",
+      "neighborhood": "Pacific Beach",
+      "score_before": 41,
+      "score_now": 55,
+      "change": 14
+     },
+     {
+      "address": "300 Test Ct",
+      "neighborhood": "La Jolla",
+      "score_before": 60,
+      "score_now": 49,
+      "change": -11
+     }
+    ]
+   },
+   "neighborhoods": {
+    "La Jolla": {
+     "strong_leads_now": 4,
+     "new_strong_leads": 2,
+     "recipe_counts": {
+      "Short-term rental exit": {
+       "now": 1,
+       "before": 0,
+       "change": 1
+      }
+     },
+     "new_pre_sale_permits": 5,
+     "tax_default_new_this_week": 3,
+     "tax_default_total": 22,
+     "new_str_removals": 1,
+     "top_movers": [
+      {
+       "address": "100 Example St",
+       "neighborhood": "La Jolla",
+       "score_before": 52,
+       "score_now": 66,
+       "change": 14
+      },
+      {
+       "address": "300 Test Ct",
+       "neighborhood": "La Jolla",
+       "score_before": 60,
+       "score_now": 49,
+       "change": -11
+      }
+     ]
+    },
+    "Mission Beach": {
+     "strong_leads_now": 0,
+     "new_strong_leads": 0,
+     "recipe_counts": {},
+     "new_pre_sale_permits": 1,
+     "tax_default_new_this_week": 0,
+     "tax_default_total": 3,
+     "new_str_removals": 0,
+     "top_movers": []
+    },
+    "Pacific Beach": {
+     "strong_leads_now": 5,
+     "new_strong_leads": 2,
+     "recipe_counts": {
+      "Short-term rental exit": {
+       "now": 2,
+       "before": 1,
+       "change": 1
+      }
+     },
+     "new_pre_sale_permits": 6,
+     "tax_default_new_this_week": 3,
+     "tax_default_total": 20,
+     "new_str_removals": 1,
+     "top_movers": [
+      {
+       "address": "200 Sample Ave",
+       "neighborhood": "Pacific Beach",
+       "score_before": 41,
+       "score_now": 55,
+       "change": 14
+      }
+     ]
+    }
+   }
+  },
+  "forbidden_in_newsletter": [
+   "100 Example St",
+   "200 Sample Ave",
+   "300 Test Ct",
+   "tax",
+   "default"
+  ]
+ }
+]

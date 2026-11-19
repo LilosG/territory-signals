@@ -7,10 +7,12 @@ import Stack from '../../components/ui/Stack.astro';
 import Section from '../../components/ui/Section.astro';
 import Button from '../../components/ui/Button.astro';
 import SampleDataBadge from '../../components/ui/SampleDataBadge.astro';
-import { slugify } from '../../lib/format';
+import AiTag from '../../components/ui/AiTag.astro';
+import { slugify, fmtDate } from '../../lib/format';
 export const prerender = false;
 const config = await Astro.locals.data.getConfig();
 const all = await Astro.locals.data.getTrends('All');
+const briefings = await Astro.locals.data.getBriefings();
 const areas = await Promise.all(config.territory.neighborhoods.map((a) => Astro.locals.data.getTrends(a)));
 ---
 <AppShell title="Reports" active="reports">
@@ -25,6 +27,17 @@ const areas = await Promise.all(config.territory.neighborhoods.map((a) => Astro.
         <Button href="/trends/newsletter" variant="primary" icon="print" id="open-newsletter">Open newsletter</Button>
       </Card>
     </Section>
+    {briefings.length > 0 && (
+      <Section title="Briefings archive" description="One page per week.">
+        <Card class="flex flex-wrap items-center justify-between gap-4">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2"><h3 class="t-h2">{briefings[0]!.title}</h3><AiTag /></div>
+            <p class="mt-1 text-sm text-ink-muted">Latest: week of {fmtDate(briefings[0]!.week_start)} · {briefings.length} {briefings.length === 1 ? 'briefing' : 'briefings'} in the archive.</p>
+          </div>
+          <Button href="/reports/briefings" variant="secondary" id="open-briefings">Open archive</Button>
+        </Card>
+      </Section>
+    )}
     <Section title="Neighborhood market reports" description="One printable report per neighborhood.">
       <Grid cols={3} gap={4}>
         {areas.map((t) => (

@@ -1,0 +1,28 @@
+---
+import AppShell from '../../../components/ui/AppShell.astro';
+import PageHeader from '../../../components/ui/PageHeader.astro';
+import Card from '../../../components/ui/Card.astro';
+import Stack from '../../../components/ui/Stack.astro';
+import Section from '../../../components/ui/Section.astro';
+import AiTag from '../../../components/ui/AiTag.astro';
+import { fmtDate } from '../../../lib/format';
+export const prerender = false;
+const briefs = await Astro.locals.data.getBriefings();
+const b = briefs.find((x) => x.week_start === Astro.params.week);
+if (!b) return new Response('Not found', { status: 404 });
+---
+<AppShell title={b.title} active="reports">
+  <a href="/reports/briefings" class="mb-3 inline-block text-sm text-ink-muted hover:text-ink">← Briefings</a>
+  <PageHeader eyebrow={`Week of ${fmtDate(b.week_start)}`} title={b.title} description="Written by AI from numbers computed in the database. Every figure was checked against those numbers." />
+  <Stack gap={6}>
+    <Card><div class="flex items-center gap-2"><AiTag /></div><p class="mt-2 text-base text-ink" data-briefing-intro>{b.intro}</p></Card>
+    {b.sections.map((s) => (
+      <Section title={s.neighborhood}>
+        <Card><ul class="flex list-disc flex-col gap-1.5 pl-5 text-sm text-ink">{s.bullets.map((x) => <li>{x}</li>)}</ul></Card>
+      </Section>
+    ))}
+    <Section title="Newsletter paragraph" description="Homeowner-safe: no addresses, owner names or internal labels.">
+      <Card><p class="text-sm text-ink" data-briefing-newsletter>{b.newsletter_paragraph}</p></Card>
+    </Section>
+  </Stack>
+</AppShell>

@@ -110,7 +110,7 @@ export function fixturesProvider(mark: MarkSample, territory: string | null = nu
         top_leads: (await provider.getLeads({ minScore: 30 }, 1, 8)).items,
         recipe_strip: cfg.recipes.filter((r) => r.enabled).map((r) => { const c = rec.find((x) => x.key === r.key)!; return { key: r.key, label: r.name, parcels: c.parcels, new_this_week: c.new_this_week }; }),
         approvals: waiting.slice(0, 5).map(toItem), approvals_total: waiting.length, call_tasks: calls.slice(0, 5).map(toItem), call_tasks_total: calls.length,
-        new_signals: events, new_signals_total: events.length,
+        new_signals: events, new_signals_total: events.length, weekly: null,
       };
     },
     async getLead(apn): Promise<LeadDetail | null> {
@@ -125,7 +125,7 @@ export function fixturesProvider(mark: MarkSample, territory: string | null = nu
         sensitive_signals: (signalsBy.get(apn) ?? []).filter((s) => (SENSITIVE_TYPES as readonly string[]).includes(s.signal_type)),
         trait_signals: (signalsBy.get(apn) ?? []).filter((s) => (TRAIT_TYPES as readonly string[]).includes(s.signal_type)),
         outreach: out, stage_events: db.stage_events.filter((e) => e.apn === apn).sort((a, b) => b.occurred_at.localeCompare(a.occurred_at)),
-        share_links: db.share_links.filter((l) => l.apn === apn && !l.revoked_at), status: leadStatus(out), is_sample: true,
+        share_links: db.share_links.filter((l) => l.apn === apn && !l.revoked_at), status: leadStatus(out), is_sample: true, ai_brief: null,
       };
     },
     async getMapData(filters = {}): Promise<MapData> {
@@ -144,9 +144,10 @@ export function fixturesProvider(mark: MarkSample, territory: string | null = nu
     },
     async getPipeline(): Promise<Pipeline> {
       const events = db.stage_events.filter((e) => inHood(e.apn));
-      return { overall: funnel('All leads', events), has_events: events.length > 0, is_sample: true, by_recipe: [], by_agent: [],
+      return { ai: null, overall: funnel('All leads', events), has_events: events.length > 0, is_sample: true, by_recipe: [], by_agent: [],
         recent: events.filter((e) => e.source === 'dashboard').slice(0, 10).map((e) => ({ apn: e.apn, situs_address: parcelBy.get(e.apn)?.situs_address ?? null, neighborhood: parcelBy.get(e.apn)?.neighborhood ?? null, stage: e.stage, by: e.team_member_email, note: e.note, occurred_at: e.occurred_at })) };
     },
+    async getBriefings() { return []; },
     async getPerformance(): Promise<Performance> {
       const events = db.stage_events.filter((e) => inHood(e.apn));
       const recipeOf = (apn: string) => scoreBy.get(apn)?.primary_recipe ?? null;

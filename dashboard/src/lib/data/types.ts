@@ -217,12 +217,31 @@ export interface ClientConfig {
   team_profile: { display_name: string; brokerage: string; office_address: string };
   recipes: Recipe[];
   team_members: { email: string; name: string | null; role: TeamRole; phone?: string }[];
+  ai: { enabled: boolean; monthly_budget_usd: number };
 }
 
 /** Where outreach stands for a lead, from the outreach table. Derived, never typed in by hand. */
 export type LeadStatus = 'new' | 'draft_ready' | 'awaiting_approval' | 'approved' | 'sent';
 
 export interface TopComponent { key: string; facts: Record<string, unknown> | null; points: number; signal_date: IsoDate | null; is_sample: boolean; is_estimate: boolean }
+
+/** AI layer (Phase 5F). Every AI output is stored, validated and cites the records it used. Never sets scores. */
+export interface AiClaim { text: string; /** signal ids, `owner:<field>`, `parcel:<apn>` or `score:<id>` */ record_ids: string[] }
+export interface LeadBriefAi {
+  headline: string; summary: string; claims: AiClaim[]; suggested_angle: string;
+  uses_sample: boolean; model: string; created_at: IsoTimestamp;
+}
+export interface WeeklySection { neighborhood: string; bullets: string[] }
+export interface WeeklyBriefAi {
+  week_start: IsoDate; title: string; intro: string; sections: WeeklySection[]; newsletter_paragraph: string;
+  model: string; created_at: IsoTimestamp;
+}
+export interface AiTaskRow {
+  task: 'permit_intent' | 'lead_brief' | 'weekly_brief'; model: string | null; status: string; skip_reason: string | null;
+  last_run_at: IsoTimestamp | null; calls: number; cached: number; invalid: number; rejected: number; tokens: number;
+  cost_run: number | null; cost_unknown: boolean; cost_month: number; warnings: string[];
+}
+export interface AiStatus { tasks: AiTaskRow[]; monthly_budget_usd: number; cost_month: number; warnings: string[] }
 
 export interface LeadSummary {
   parcel: { apn: string; situs_address: string | null; neighborhood: string | null };
@@ -239,6 +258,8 @@ export interface LeadSummary {
   status: LeadStatus;
   /** True if the score or the owner row shown for this lead is sample data. */
   is_sample: boolean;
+  /** One-line AI headline (Phase 5F), shown under the address; null when there is no valid brief. */
+  ai_headline?: string | null;
 }
 
 export type LeadSort = 'score' | 'recent' | 'lot' | 'address';
@@ -276,6 +297,8 @@ export interface LeadDetail {
   share_links: ShareLink[];
   status: LeadStatus;
   is_sample: boolean;
+  /** Validated AI summary with its cited records, or null (also null when the AI layer is off). */
+  ai_brief: LeadBriefAi | null;
 }
 
 export interface MapPoint { apn: string; score: number; band: ScoreBand; recipe: string | null; neighborhood: string; lng: number; lat: number }
@@ -342,6 +365,8 @@ export interface TodayFeed {
   approvals: OutreachItem[]; approvals_total: number;
   call_tasks: OutreachItem[]; call_tasks_total: number;
   new_signals: SignalEvent[]; new_signals_total: number;
+  /** Latest valid weekly briefing, or null. */
+  weekly: WeeklyBriefAi | null;
 }
 
 export interface RecipeCard {
@@ -401,7 +426,7 @@ export interface Trends {
 export interface FunnelStage { key: 'signal' | 'contacted' | 'conversation' | 'appointment' | 'listing'; label: string; count: number }
 export interface FunnelRow { label: string; stages: FunnelStage[] }
 export interface RecentOutcome { apn: string; situs_address: string | null; neighborhood: string | null; stage: string; by: string | null; note: string | null; occurred_at: IsoTimestamp }
-export interface Pipeline { by_agent: FunnelRow[]; by_recipe: FunnelRow[]; overall: FunnelRow; has_events: boolean; recent: RecentOutcome[]; is_sample: boolean }
+export interface Pipeline { ai: AiStatus | null; by_agent: FunnelRow[]; by_recipe: FunnelRow[]; overall: FunnelRow; has_events: boolean; recent: RecentOutcome[]; is_sample: boolean }
 
 /** `null` from the supabase provider until owner sale history exists (Phase 6). */
 export interface Backtest {

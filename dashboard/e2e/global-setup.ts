@@ -1,6 +1,6 @@
 import { chromium, type FullConfig } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
-import { refreshAggregates, rest, stack, SECRET_OWNER, TEST_APN, TEST_APN2, TEST_EMAIL } from './env';
+import { refreshAggregates, rest, stack, SECRET_OWNER, TEST_APN, TEST_APN2, TEST_EMAIL, TEST_WEEK } from './env';
 import { cleanup } from './global-teardown';
 
 /**
@@ -18,10 +18,25 @@ export default async function globalSetup(config: FullConfig) {
   await rest('/rest/v1/scores', { method: 'POST', json: { apn: TEST_APN, score: 55, components: [], reason_text: 'Tax default (Jul 2026)', recipe_matches: ['builder_bait', 'financial_pressure'], primary_recipe: 'financial_pressure', model_version: 'v0.3-handset', uses_sample_data: true } });
   await rest('/rest/v1/owners', { method: 'POST', json: { apn: TEST_APN, owner_name: SECRET_OWNER, mailing_address: '9 Secret Mailing Ln, Seattle, WA 98101', owner_occupied: false, absentee: true, out_of_state: true, last_sale_date: '2012-05-01', last_sale_price: 777777, mortgage_open: true, est_value: 3100000, est_equity: 2000000, provider: 'sample', is_sample: true, as_of: '2026-11-18' } });
   await rest('/rest/v1/sales_history', { method: 'POST', json: { apn: TEST_APN, sale_date: '2012-05-01', sale_price: 777777, doc_type: 'grant deed', provider: 'sample', is_sample: true } });
-  await rest('/rest/v1/signals', { method: 'POST', json: [
+  const seeded = await rest('/rest/v1/signals', { method: 'POST', json: [
     { apn: TEST_APN, signal_type: 'tax_default', signal_group: 'distress', signal_date: '2026-07-01', source_key: 'tax_default', source_record_id: TEST_APN, confidence: 0.95, match_method: 'apn', is_estimate: false, details: { list: 'e2e' } },
     ...['A', 'B', 'C'].map((k) => ({ apn: TEST_APN, signal_type: 'permit_approved', signal_group: 'remodel_addition', signal_date: '2026-11-10', source_key: 'dev_permits', source_record_id: `E2E-PMT-${k}`, confidence: 0.95, match_method: 'apn', is_estimate: false, details: { approval_id: `E2E-PMT-${k}`, scope: 'E2E kitchen remodel', issue_date: '2026-11-10' } })),
     { apn: TEST_APN, signal_type: 'sb9_lot_split_estimate', signal_group: 'upzoning', signal_date: '2026-11-18', source_key: 'upzoning_estimate', source_record_id: `${TEST_APN}-sb9`, confidence: 0.9, match_method: 'spatial', is_estimate: true, details: {} },
+  ] });
+  const permitId = (seeded as { id: string; signal_type: string }[]).find((x) => x.signal_type === 'permit_approved')!.id;
+  // AI rows (Phase 5F): one valid lead brief citing a real signal and a sample owner fact, and one weekly briefing.
+  const ai = { client_id: 'kaiser-team', input_hash: 'e2e', prompt_version: 'v1', provider: 'fake', model: 'e2e-model', status: 'valid' };
+  await rest('/rest/v1/ai_outputs', { method: 'POST', json: [
+    { ...ai, task: 'lead_brief', subject_type: 'parcel', subject_id: TEST_APN, uses_sample: true, cited_record_ids: [permitId, 'owner:years_owned'],
+      output: { headline: 'E2E recent remodel permits and long ownership', summary: 'E2E: three remodel permits were approved in November. The owner has held the home for many years (sample data).',
+        claims: [{ text: 'Three remodel permits were approved on Nov 10, 2026.', record_ids: [permitId] }, { text: 'Long ownership (sample data).', record_ids: ['owner:years_owned'] }],
+        suggested_angle: 'E2E: offer a neighborhood market update.' } },
+    { ...ai, task: 'weekly_brief', subject_type: 'territory', subject_id: TEST_WEEK, uses_sample: false, cited_record_ids: [`week:${TEST_WEEK}`],
+      output: { title: 'E2E week in review', intro: 'E2E intro: activity held steady across the territory. Permits led the week.',
+        sections: [{ neighborhood: 'La Jolla', bullets: ['E2E bullet for La Jolla.'] }], newsletter_paragraph: 'E2E newsletter paragraph for homeowners, friendly and without addresses.', facts: {} } },
+  ] });
+  await rest('/rest/v1/ai_task_runs', { method: 'POST', json: [
+    { client_id: 'kaiser-team', task: 'lead_brief', status: 'success', calls: 3, cached: 1, valid: 3, invalid: 0, rejected: 1, input_tokens: 1000, output_tokens: 500, cost_usd: 0.0123, model: 'e2e-model', warnings: ['E2E warning: budget check'] },
   ] });
   const draft = { apn: TEST_APN, recipe: 'financial_pressure', uses_sample_data: false };
   await rest('/rest/v1/outreach', { method: 'POST', json: [

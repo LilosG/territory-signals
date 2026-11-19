@@ -1,0 +1,344 @@
+[
+ {
+  "id": "PMT-3122346",
+  "description": "FOR PARTIAL DEMO OF EXISTING DETACHED GARAGE FOR A PROPOSEDF DETACHED ACCESSORY DWELLING UNIT AND NEW DETACHED GARAGE. BC Code 4333",
+  "permit_type": "",
+  "ok": [
+   "investment_or_redevelopment"
+  ],
+  "tags": [
+   "adu"
+  ]
+ },
+ {
+  "id": "PMT-3213436",
+  "description": "Combination Permit for the conversion of an existing accessory structure to JADU and new ADU on Second Story detached from an existing Single Family Dwelling Unit. BC CODE: 4333",
+  "permit_type": "",
+  "ok": [
+   "investment_or_redevelopment"
+  ],
+  "tags": [
+   "adu"
+  ]
+ },
+ {
+  "id": "PMT-3378012",
+  "description": "For a detached garage-to-ADU conversion at the rear of an (E) SDU.",
+  "permit_type": "",
+  "ok": [
+   "investment_or_redevelopment"
+  ],
+  "tags": [
+   "adu"
+  ]
+ },
+ {
+  "id": "PMT-3363361",
+  "description": "For the proposed conversion of (4) existing garages to (2) ADUs attached to an (E) MDU, work to include new stairs , walls, doors, windows, flooring, ceiling, roofing and associated MEP work. BC Code 4333",
+  "permit_type": "",
+  "ok": [
+   "investment_or_redevelopment"
+  ],
+  "tags": [
+   "adu"
+  ]
+ },
+ {
+  "id": "2578103",
+  "description": "VTM No. 2578103 for the Subdivision of a 0.23 acre -site into one (1) lot with a total of 12 residential condominiums approved by PC on 11/17/2022.",
+  "permit_type": "",
+  "ok": [
+   "investment_or_redevelopment"
+  ],
+  "tags": []
+ },
+ {
+  "id": "PMT-3344301",
+  "description": "Proposed demolition of an existing 488.84 sqft garage and spa in the rear yard of an SDU.",
+  "permit_type": "",
+  "ok": [
+   "investment_or_redevelopment",
+   "unclear",
+   "long_term_stay"
+  ],
+  "tags": [
+   "demolition"
+  ]
+ },
+ {
+  "id": "PMT-3353702",
+  "description": "Demolition/Removal Permit of (1) existing 680 sq.ft. single-story 2-bedroom dwelling unit to be demolished.",
+  "permit_type": "",
+  "ok": [
+   "investment_or_redevelopment"
+  ],
+  "tags": [
+   "demolition"
+  ]
+ },
+ {
+  "id": "703587",
+  "description": "Lot consolidation parcel map of lots 16 and 17 in Block 9 of La Jolla Park. Doc #2010-0102420 Rec 3/2/2010",
+  "permit_type": "",
+  "ok": [
+   "investment_or_redevelopment",
+   "unclear"
+  ],
+  "tags": []
+ },
+ {
+  "id": "PMT-3427557",
+  "description": "For the Proposed Installation of (1) new illuminated wall sign for an existing commercial building.",
+  "permit_type": "",
+  "ok": [
+   "maintenance",
+   "unclear"
+  ],
+  "tags": [
+   "signage"
+  ]
+ },
+ {
+  "id": "2053920",
+  "description": "SFR ReplaceFurnace and add all Duct Work with Electrical",
+  "permit_type": "",
+  "ok": [
+   "maintenance"
+  ],
+  "tags": [
+   "hvac"
+  ]
+ },
+ {
+  "id": "1910428",
+  "description": "REPLACE TANKLESS WATER HEATER SFD",
+  "permit_type": "",
+  "ok": [
+   "maintenance"
+  ],
+  "tags": [
+   "plumbing"
+  ]
+ },
+ {
+  "id": "1690960",
+  "description": "CHANGE OUT FURNACE AND DUCTING",
+  "permit_type": "",
+  "ok": [
+   "maintenance"
+  ],
+  "tags": [
+   "hvac"
+  ]
+ },
+ {
+  "id": "PMT-3424674",
+  "description": "1. x2 3 ton heat pump 2. x2 3 ton upflow air handler",
+  "permit_type": "",
+  "ok": [
+   "maintenance"
+  ],
+  "tags": [
+   "hvac"
+  ]
+ },
+ {
+  "id": "41852",
+  "description": "Interior remodeling*****epermit***1882",
+  "permit_type": "",
+  "ok": [
+   "long_term_stay",
+   "prep_to_sell",
+   "unclear"
+  ],
+  "tags": []
+ },
+ {
+  "id": "PMT-3309128",
+  "description": "For a proposed remodel of existing MDU. Proposed work to include demo of existing interior non-load bearing walls, new electrical work, and new Sauna and Jacuzzi Tub in primary bathroom.",
+  "permit_type": "",
+  "ok": [
+   "long_term_stay",
+   "investment_or_redevelopment",
+   "prep_to_sell"
+  ],
+  "tags": [
+   "bath"
+  ]
+ },
+ {
+  "id": "PMT-3255896",
+  "description": "For proposed (N) 3-level SFR. Existing single-family residence to be demolished. BC CODE: 1010",
+  "permit_type": "",
+  "ok": [
+   "investment_or_redevelopment",
+   "long_term_stay"
+  ],
+  "tags": [
+   "demolition"
+  ]
+ },
+ {
+  "id": "PMT-3279016",
+  "description": "NEW 8.4DC kW(7.82AC kWE) ROOF MOUNTED PHOTOVOLTAIC SYSTEM W/ 21 MODS AND 1 INV.",
+  "permit_type": "",
+  "ok": [
+   "long_term_stay",
+   "maintenance",
+   "unclear"
+  ],
+  "tags": [
+   "solar"
+  ]
+ },
+ {
+  "id": "PMT-3381960",
+  "description": "ROOF MOUNTED PV SYSTEM 3.48 kW (8) SOLAR MODULES (8) MICROINVERTERS  ENERGY STORAGE 14.16 kW (2) ENPHASE IQ BATTERY 10C (1) METER COLLAR",
+  "permit_type": "",
+  "ok": [
+   "long_term_stay",
+   "maintenance",
+   "unclear"
+  ],
+  "tags": [
+   "solar"
+  ]
+ },
+ {
+  "id": "PMT-3419623",
+  "description": "Installation of two Tesla Powerwall 3 batteries storage only.",
+  "permit_type": "",
+  "ok": [
+   "long_term_stay",
+   "maintenance",
+   "unclear"
+  ],
+  "tags": []
+ },
+ {
+  "id": "1526747",
+  "description": "Installation of Roof Mounted PV System for  SDU 1.56 kw",
+  "permit_type": "",
+  "ok": [
+   "long_term_stay",
+   "maintenance",
+   "unclear"
+  ],
+  "tags": [
+   "solar"
+  ]
+ },
+ {
+  "id": "2266953",
+  "description": "Construction change to project 578211, approval 2033334. Delta 3 scope to include revision to soffit framing, handrail/guardrail connections, and revision of non-structural beam to foam.",
+  "permit_type": "",
+  "ok": [
+   "maintenance",
+   "unclear"
+  ],
+  "tags": []
+ },
+ {
+  "id": "386334",
+  "description": "Disregard this job added in error.",
+  "permit_type": "",
+  "ok": [
+   "unclear"
+  ],
+  "tags": []
+ },
+ {
+  "id": "857549",
+  "description": "Construction change to approval #780652 to remove 2 patio post & increase header size, increase ridge & hip beam increased to 6x12 & add 4' wide steps on grade in front - sheet 1,2,5,6,7.",
+  "permit_type": "",
+  "ok": [
+   "maintenance",
+   "unclear",
+   "long_term_stay"
+  ],
+  "tags": []
+ },
+ {
+  "id": "2170766",
+  "description": "to adjust lot line between lots 5 and 6 of Stewart's Subdivision located 1385 and 1405 Tourmaline Street.",
+  "permit_type": "",
+  "ok": [
+   "investment_or_redevelopment",
+   "unclear"
+  ],
+  "tags": []
+ },
+ {
+  "id": "PMT-3397385",
+  "description": "Emergency replacement of existing gas 40 gal water heater with a gas tankless system in the same location with the existing gas and water plumbing lines.",
+  "permit_type": "",
+  "ok": [
+   "maintenance"
+  ],
+  "tags": [
+   "plumbing"
+  ]
+ },
+ {
+  "id": "1449439",
+  "description": "New Quest Quarters (Habitable Accessory Structure) detached on 2nd floor.",
+  "permit_type": "",
+  "ok": [
+   "investment_or_redevelopment",
+   "long_term_stay"
+  ],
+  "tags": []
+ },
+ {
+  "id": "396545",
+  "description": "LA JOLLA-ROW permit to replace two existing driveways and install pavers in ROW. LJSPD-SF, Coastal",
+  "permit_type": "",
+  "ok": [
+   "maintenance",
+   "long_term_stay",
+   "prep_to_sell"
+  ],
+  "tags": []
+ },
+ {
+  "id": "691260",
+  "description": "ROW dedication for 2 new sdu's per CDP#599281/#610582.       RECORDED DOC.# 2010-0458280, O.R.",
+  "permit_type": "",
+  "ok": [
+   "investment_or_redevelopment",
+   "unclear"
+  ],
+  "tags": []
+ },
+ {
+  "id": "2555160",
+  "description": "Digital-Deferred Sprinkler to Project #668331; Approval #2440550; Express-Yes. To install a complete fire sprinkler system to a SFD per 2016 NFPA 13D.",
+  "permit_type": "",
+  "ok": [
+   "maintenance",
+   "unclear"
+  ],
+  "tags": []
+ },
+ {
+  "id": "PMT-3314965",
+  "description": "Install Package Unit. Unit #1.",
+  "permit_type": "",
+  "ok": [
+   "maintenance",
+   "unclear"
+  ],
+  "tags": []
+ },
+ {
+  "id": "1750271",
+  "description": "Mechanical permit change out heat pump 2 ton at a SDU",
+  "permit_type": "",
+  "ok": [
+   "maintenance"
+  ],
+  "tags": [
+   "hvac"
+  ]
+ }
+]

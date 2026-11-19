@@ -2,7 +2,7 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parse } from 'yaml';
-import { SECRET_OWNER, stack, TEST_APN, TEST_APN2, TEST_EMAIL } from './env';
+import { holdAiRows, releaseAiRows, SECRET_OWNER, stack, TEST_APN, TEST_APN2, TEST_EMAIL, TEST_WEEK } from './env';
 
 const brief = `/leads/${TEST_APN}`;
 const noConsoleErrors = (page: Page) => {
@@ -516,3 +516,89 @@ for (const [name, size] of [['1440', { width: 1440, height: 900 }], ['390', { wi
     await expect(page.locator('[data-empty-chart]')).toHaveCount(0);
   });
 }
+
+
+// ---- Phase 5F: AI layer -----------------------------------------------------------------------------------------
+test('lead brief: the AI summary sits at the top with its tag, Sample badge and claims linked to their sources', async ({ page }) => {
+  const errors = noConsoleErrors(page);
+  await page.goto(brief);
+  const card = page.locator('[data-ai-brief]');
+  await expect(card).toBeVisible();
+  await expect(card.locator('[data-ai-tag]').first()).toHaveText('AI summary');
+  await expect(card.locator('[data-ai-headline]')).toHaveText('E2E recent remodel permits and long ownership');
+  await expect(card.getByText('Sample', { exact: true })).toBeVisible();                       // the brief cites a sample owner fact
+  await expect(card.locator('[data-ai-claim]')).toHaveCount(2);
+  // The summary is above the "Why this lead" card.
+  const [ay, wy] = await Promise.all([card.boundingBox(), page.locator('#why-h').boundingBox()]);
+  expect(ay!.y).toBeLessThan(wy!.y);
+  // A claim that cites a signal opens that record on the Signals tab; an owner fact opens the Owner tab.
+  const links = card.locator('[data-claim-link]');
+  await expect(links).toHaveCount(2);
+  expect(await links.nth(0).getAttribute('href')).toMatch(/^#rec-[0-9a-f-]{36}$/);
+  await links.nth(0).click();
+  await expect(page.getByRole('tab', { name: 'Signals' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator((await links.nth(0).getAttribute('href'))!)).toBeAttached();
+  await page.getByRole('tab', { name: 'Overview' }).click();
+  await links.nth(1).click();
+  await expect(page.getByRole('tab', { name: 'Owner and property' })).toHaveAttribute('aria-selected', 'true');
+  expect(errors.filter((e) => !IGNORED_ERRORS.test(e))).toEqual([]);
+});
+
+test('Leads shows the AI headline under the address, tagged', async ({ page }) => {
+  await page.goto('/leads?q=E2E');
+  const row = page.locator('article', { hasText: '1 E2E Test Way' });
+  await expect(row.locator('[data-ai-headline]')).toContainText('E2E recent remodel permits and long ownership');
+  await expect(row.locator('[data-ai-tag]')).toHaveText('AI summary');
+});
+
+test('Today has a "This week" card with the intro and a link to the briefing; Reports keeps an archive; the newsletter export includes the paragraph', async ({ page }) => {
+  await page.goto('/');
+  const card = page.locator('[data-week-card]');
+  await expect(card).toBeVisible();
+  await expect(card.locator('[data-ai-tag]')).toHaveText('AI summary');
+  await expect(card.locator('[data-week-intro]')).toContainText('E2E intro: activity held steady');
+  const top = await card.boundingBox();
+  expect(top!.y).toBeLessThan((await page.locator('[data-stat-card], h2:has-text("Top leads")').first().boundingBox())!.y);
+  await card.locator('[data-week-link]').click();
+  await expect(page).toHaveURL(new RegExp(`/reports/briefings/${TEST_WEEK}$`));
+  await expect(page.getByRole('heading', { name: 'E2E week in review' })).toBeVisible();
+  await expect(page.locator('[data-briefing-newsletter]')).toContainText('E2E newsletter paragraph');
+  await page.goto('/reports');
+  await expect(page.getByRole('heading', { name: 'Briefings archive' })).toBeVisible();
+  await page.locator('#open-briefings').click();
+  await expect(page.locator('[data-briefing-row]').first()).toContainText('E2E week in review');
+  await page.goto('/trends/newsletter');
+  await expect(page.locator('[data-newsletter-paragraph]')).toContainText('E2E newsletter paragraph');
+});
+
+test('Pipeline shows a row per AI task with the month against the budget, and the warnings', async ({ page }) => {
+  await page.goto('/pipeline');
+  const row = page.locator('[data-ai-task="lead_brief"]');
+  await expect(row).toBeVisible();
+  await expect(row).toContainText('$0.0123');
+  await expect(page.locator('[data-ai-budget]')).toContainText('budget');
+  await expect(page.locator('[data-ai-warnings]')).toContainText('E2E warning');
+});
+
+test('with no AI rows the dashboard renders normally and shows nothing AI-related', async ({ page }) => {
+  holdAiRows();
+  try {
+    const errors = noConsoleErrors(page);
+    for (const path of ['/', '/leads', brief, '/reports', '/reports/briefings', '/pipeline', '/trends/newsletter']) {
+      const res = await page.goto(path);
+      expect(res!.status(), path).toBeLessThan(400);
+      await expect(page.locator('[data-ai-tag], [data-ai-brief], [data-week-card], [data-ai-pipeline], [data-ai-headline], [data-newsletter-ai]'), path).toHaveCount(0);
+    }
+    await page.goto(brief);
+    await expect(page.getByRole('heading', { name: 'Why this lead' })).toBeVisible();
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    const res = await page.goto(`/reports/briefings/${TEST_WEEK}`);
+    expect(res!.status()).toBe(404);
+    await page.goto('/reports');
+    await expect(page.getByRole('heading', { name: 'Briefings archive' })).toHaveCount(0);
+    expect(errors.filter((e) => !IGNORED_ERRORS.test(e))).toEqual([]);
+  } finally {
+    releaseAiRows();
+  }
+});

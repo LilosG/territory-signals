@@ -13,6 +13,7 @@ import RailCard from '../components/ui/RailCard.astro';
 import SignalFeedItem from '../components/ui/SignalFeedItem.astro';
 import ApprovalRow from '../components/ui/ApprovalRow.astro';
 import CallTaskRow from '../components/ui/CallTaskRow.astro';
+import WeekCard from '../components/ui/WeekCard.astro';
 import { fmtDate } from '../lib/format';
 import { isNewLead } from '../lib/present';
 
@@ -30,6 +31,7 @@ const asOf = new Date(feed.as_of);
   </PageHeader>
 
   <Stack gap={8}>
+    {feed.weekly && <WeekCard brief={feed.weekly} />}
     <Grid cols={4} gap={4} class="[&>*]:min-w-0">
       <StatCard label="New signals" series={stat('signals')} />
       <StatCard label="Drafts prepared" series={stat('drafts')} />

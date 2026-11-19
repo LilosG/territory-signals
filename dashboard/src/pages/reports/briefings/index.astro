@@ -1,0 +1,23 @@
+---
+import AppShell from '../../../components/ui/AppShell.astro';
+import PageHeader from '../../../components/ui/PageHeader.astro';
+import Card from '../../../components/ui/Card.astro';
+import Stack from '../../../components/ui/Stack.astro';
+import EmptyState from '../../../components/ui/EmptyState.astro';
+import AiTag from '../../../components/ui/AiTag.astro';
+import { fmtDate } from '../../../lib/format';
+export const prerender = false;
+const briefs = await Astro.locals.data.getBriefings();
+---
+<AppShell title="Briefings" active="reports">
+  <a href="/reports" class="mb-3 inline-block text-sm text-ink-muted hover:text-ink">← Reports</a>
+  <PageHeader eyebrow="Weekly" title="Briefings archive" description="One page per week. Numbers come from the database; the prose is written by AI and checked before it is shown." />
+  {briefs.length === 0
+    ? <Card><EmptyState title="No briefings yet" description="A briefing appears here after the weekly AI run." /></Card>
+    : <Stack as="ul" gap={3}>{briefs.map((b) => (
+        <li><Card interactive padded={false}><a href={`/reports/briefings/${b.week_start}`} class="block p-5" data-briefing-row>
+          <div class="flex flex-wrap items-center gap-2"><h2 class="t-h2">{b.title}</h2><AiTag /></div>
+          <p class="t-meta mt-0.5 text-ink-muted">Week of {fmtDate(b.week_start)}</p>
+          <p class="mt-2 text-sm text-ink-muted">{b.intro}</p>
+        </a></Card></li>))}</Stack>}
+</AppShell>

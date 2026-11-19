@@ -1,0 +1,194 @@
+"""lead_brief: a short internal brief per parcel, written from a facts packet built from the database only."""
+from __future__ import annotations
+
+import json
+import re
+from dataclasses import dataclass
+from typing import Any
+
+from pydantic import BaseModel
+
+from territory.config import ClientConfig
+from territory.llm import store
+from territory.llm.base import LLMError, Provider, structured
+from territory.llm.prompts import load_prompt
+from territory.llm.validators import (
+    check_addresses, check_numbers, check_speculation, strings_of,
+)
+from territory.scoring_engine import load_scoring_config, phrase
+
+TASK = "lead_brief"
+SENSITIVE_KEYS = ("tax_default", "owner:ownership_transfer")
+SENSITIVE_RECIPES = {"financial_pressure", "quiet_inheritance"}
+
+
+class Claim(BaseModel):
+    text: str
+    record_ids: list[str]
+
+
+class LeadBriefOut(BaseModel):
+    headline: str
+    summary: str
+    claims: list[Claim]
+    suggested_angle: str
+
+
+@dataclass
+class Packet:
+    apn: str
+    address: str
+    packet: dict[str, Any]              # what the model sees (records use short ids R1..Rn)
+    real_ids: dict[str, str]            # R1 -> signal uuid / owner:<field> / parcel:<apn> / score:<id>
+    sample: dict[str, bool]             # R1 -> is_sample
+
+
+def _cap(text: str) -> str:
+    return text[0].upper() + text[1:] if text else text
+
+
+def build_packet(parcel: dict, score_row: dict, recipe_labels: dict[str, str], cfg: dict | None = None) -> Packet | None:
+    """Facts packet from DB rows only. Sensitive records (tax default, ownership transfer, distress recipes) are left out:
+    briefs appear on lists, where those must never show (presentation rules). None when there is nothing to say."""
+    cfg = cfg or load_scoring_config()
+    records: list[dict] = []
+    real: dict[str, str] = {}
+    sample: dict[str, bool] = {}
+
+    def add(real_id: str, kind: str, text: str, source: str | None, date: str | None, conf: float | None,
+            is_sample: bool, is_estimate: bool) -> None:
+        rid = f"R{len(records) + 1}"
+        records.append({"id": rid, "kind": kind, "source": source, "date": date, "confidence": conf,
+                        "is_sample": is_sample, "is_estimate": is_estimate, "text": text})
+        real[rid] = real_id
+        sample[rid] = is_sample
+
+    bits = [f"in {parcel['neighborhood']}" if parcel.get("neighborhood") else None,
+            f"zoned {parcel['zoning']}" if parcel.get("zoning") else None,
+            f"lot {int(round(parcel['lot_sqft'])):,} sq ft" if parcel.get("lot_sqft") else None,
+            f"built {parcel['year_built']}" if parcel.get("year_built") else None]
+    add(f"parcel:{parcel['apn']}", "parcel", "Residential parcel " + ", ".join(b for b in bits if b), "parcels", None,
+        None, False, False)
+    for c in sorted(score_row["components"] or [], key=lambda c: -c["contribution"]):
+        if c["contribution"] <= 0 or any(c["key"].startswith(k) for k in SENSITIVE_KEYS):
+            continue
+        if c.get("group") in ("distress", "life_event"):
+            continue
+        if c["kind"] == "signal":
+            rid, source, date = c["signal_id"], c.get("source_key"), c.get("signal_date")
+        else:
+            rid, source, date = f"owner:{c['key'].split(':', 1)[1]}", c.get("provider"), c.get("as_of")
+        f = c["facts"]
+        text = _cap(phrase(c))
+        if c["key"].startswith("owner:est_equity") and f.get("est_equity") is not None:
+            text += f"; estimated equity about ${round(f['est_equity']):,}"
+        add(rid, "owner" if c["kind"] == "owner" else "signal", text, source, date, c.get("confidence"),
+            bool(c.get("is_sample")), bool(c.get("is_estimate")))
+    pub = [r for r in (score_row["recipe_matches"] or []) if r not in SENSITIVE_RECIPES]
+    if pub:
+        add(f"score:{score_row['id']}", "recipe_match",
+            "Matches the playbook: " + ", ".join(recipe_labels.get(r, r) for r in pub), "scoring", None, None, False, False)
+    if len(records) <= 1:
+        return None
+    packet = {"parcel": {"neighborhood": parcel.get("neighborhood")}, "records": records}
+    return Packet(parcel["apn"], parcel.get("situs_address") or "", packet, real, sample)
+
+
+def sentences(text: str) -> int:
+    return len([s for s in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9])", text.strip()) if s])
+
+
+def validate(out: LeadBriefOut, pk: Packet) -> tuple[dict | None, list[str], list[str], bool]:
+    """Returns (stored output with real record ids | None, problems, cited real ids, uses_sample)."""
+    problems: list[str] = []
+    if len(out.headline.split()) > 12:
+        problems.append("headline is longer than 12 words")
+    n = sentences(out.summary)
+    if not 2 <= n <= 3:
+        problems.append(f"summary has {n} sentences (need 2 or 3)")
+    if not out.claims:
+        problems.append("no claims")
+    cited: list[str] = []
+    for i, cl in enumerate(out.claims, 1):
+        if not cl.record_ids:
+            problems.append(f"claim {i} cites no record")
+        for rid in cl.record_ids:
+            if rid not in pk.real_ids:
+                problems.append(f"claim {i} cites {rid!r}, which is not in the packet")
+            elif rid not in cited:
+                cited.append(rid)
+    texts = [out.headline, out.summary, out.suggested_angle, *[c.text for c in out.claims]]
+    problems += check_numbers(texts, pk.packet)
+    problems += check_addresses(texts, [pk.address])
+    problems += check_speculation(texts, pk.packet)
+    if problems:
+        return None, problems, [], False
+    stored = {"headline": out.headline.strip(), "summary": out.summary.strip(),
+              "claims": [{"text": c.text.strip(), "record_ids": [pk.real_ids[r] for r in c.record_ids]} for c in out.claims],
+              "suggested_angle": out.suggested_angle.strip()}
+    return stored, [], [pk.real_ids[r] for r in cited], any(pk.sample[r] for r in cited)
+
+
+def packet_prompt(pk: Packet) -> str:
+    return json.dumps(pk.packet, ensure_ascii=False, indent=1)
+
+
+def brief_one(provider: Provider, system: str, pk: Packet, model: str | None):
+    """One brief. Returns (StructuredResult, status, stored output, problems, cited ids, uses_sample)."""
+    res = structured(provider, TASK, system, packet_prompt(pk), LeadBriefOut, model=model)
+    if not res.ok:
+        return res, "invalid", None, [res.error or "invalid output"], [], False
+    stored, problems, cited, uses_sample = validate(res.value, pk)       # type: ignore[arg-type]
+    if stored is None:
+        return res, "rejected", None, problems, [], False
+    return res, "valid", stored, [], cited, uses_sample
+
+
+def select_parcels(conn, top: int = 200, min_score: int = 40, limit: int | None = None) -> list[tuple]:
+    """Score >= min_score, plus the top `top` by score (union), best first. `limit` keeps only the best N."""
+    rows = conn.execute(
+        """with s as (select * from latest_scores),
+                top as (select apn from s order by score desc, apn limit %s)
+           select s.apn, s.id, s.score, s.components, s.recipe_matches, p.situs_address,
+                  coalesce(p.neighborhood, p.planning_area), p.zoning, p.lot_sqft, p.year_built
+             from s join parcels p on p.apn = s.apn
+            where s.score >= %s or s.apn in (select apn from top)
+            order by s.score desc, s.apn""", (top, min_score)).fetchall()
+    return rows[:limit] if limit else rows
+
+
+def run(conn, client: ClientConfig, provider: Provider, stats: store.TaskStats, limit: int | None = None) -> None:
+    system, version = load_prompt(TASK)
+    model = client.llm.model_for(TASK)
+    stats.model = model
+    cfg = load_scoring_config()
+    labels = {k: v.get("label", k) for k, v in cfg["recipes"].items()}
+    guard = store.BudgetGuard(conn, client.client_id, client.llm.monthly_budget_usd, stats)
+    for (apn, sid, score, comps, recipes, situs, hood, zoning, lot, yb) in select_parcels(conn, limit=limit):
+        parcel = {"apn": apn, "situs_address": situs, "neighborhood": hood, "zoning": zoning,
+                  "lot_sqft": float(lot) if lot is not None else None, "year_built": yb}
+        pk = build_packet(parcel, {"id": sid, "components": comps, "recipe_matches": recipes}, labels, cfg)
+        if pk is None:
+            continue
+        ihash = store.input_hash({"packet": pk.packet, "real": pk.real_ids})
+        if store.find_cached(conn, client.client_id, TASK, apn, ihash, version):
+            stats.cached += 1
+            continue
+        if not guard.allow():
+            break
+        try:
+            res, status, out, problems, cited, uses_sample = brief_one(provider, system, pk, model)
+        except LLMError as exc:
+            stats.calls += 1
+            stats.warnings.append(f"{TASK}: provider error for one parcel: {exc}")
+            stats.status = "failed" if stats.status == "success" else stats.status
+            continue
+        stats.calls += 1
+        stats.input_tokens += res.input_tokens
+        stats.output_tokens += res.output_tokens
+        stats.add_cost(res.cost_usd)
+        setattr(stats, status, getattr(stats, status) + 1)
+        store.insert_outputs(conn, [store.OutputRow(
+            client.client_id, TASK, "parcel", apn, ihash, version, res.provider, res.model, status, output=out,
+            cited_record_ids=cited, uses_sample=uses_sample, rejection_reason="; ".join(problems)[:500] or None,
+            input_tokens=res.input_tokens, output_tokens=res.output_tokens, cost_usd=res.cost_usd)])

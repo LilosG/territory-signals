@@ -1,0 +1,6 @@
+# Price per million tokens, USD. Used only for providers that do not report cost (the anthropic adapter).
+# A model missing from this file is recorded with cost "unknown" and a warning is shown; prices are never guessed.
+# Fill in from the provider's pricing page and set `as_of`.
+as_of: null
+models: {}
+#  example-model-id: { input_per_m: 0.0, output_per_m: 0.0 }
