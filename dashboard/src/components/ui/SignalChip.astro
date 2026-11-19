@@ -1,12 +1,12 @@
 ---
-import { SIGNAL_TYPES } from '../../lib/data/catalog';
+import { signalLabel } from '../../lib/data/catalog';
 import { sentenceCase } from '../../lib/format';
 import EstimateBadge from './EstimateBadge.astro';
-export interface Props { type: string; estimate?: boolean; class?: string }
-const { type, estimate = false, class: cls } = Astro.props;
-const label = sentenceCase(SIGNAL_TYPES[type]?.label ?? type);
+export interface Props { type: string; details?: Record<string, unknown> | null; estimate?: boolean; class?: string }
+const { type, details, estimate = false, class: cls } = Astro.props;
+const label = sentenceCase(signalLabel(type, details)).replace(/ \(estimated\)$/, '');
 ---
 <!-- Signals are quiet outline chips with a dot; recipes (RecipeTag) are filled accent pills. -->
-<span class:list={['inline-flex max-w-full items-center gap-1.5 whitespace-nowrap rounded-md border border-line-strong bg-transparent px-2 py-0.5 text-xs font-medium text-ink-muted', cls]}>
+<span class:list={['inline-flex max-w-full min-w-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-line-strong bg-transparent px-2 py-0.5 text-xs font-medium text-ink-muted', cls]}>
   <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-ink-faint" aria-hidden="true"></span><span class="truncate">{label}</span>{estimate && <EstimateBadge />}
 </span>

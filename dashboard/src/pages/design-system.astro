@@ -1,8 +1,4 @@
 ---
-// Astro ignores files prefixed with "_" in src/pages, so the gallery is served at /_system via a static param.
-export function getStaticPaths() {
-  return [{ params: { system: '_system' } }];
-}
 import AppShell from '../components/ui/AppShell.astro';
 import PageHeader from '../components/ui/PageHeader.astro';
 import Section from '../components/ui/Section.astro';
@@ -35,10 +31,12 @@ import StatusPill from '../components/ui/StatusPill.astro';
 import FunnelBars from '../components/ui/FunnelBars.astro';
 import TrendCard from '../components/ui/TrendCard.astro';
 import Icon from '../components/ui/Icon.astro';
-import { data } from '../lib/data';
+import { fixturesProvider } from '../lib/data/fixtures';
 import { brand } from '../config/brand';
 
-const [feed, config, pipe, lead, trends] = await Promise.all([data.getTodayFeed(), data.getConfig(), data.getPipeline(), data.getLead((await data.getLeads())[0]!.parcel.apn), data.getTrends('All')]);
+// The gallery always renders from the fixture bundle so it works without a database or a session.
+const data = fixturesProvider(() => { Astro.locals.sample.used = true; });
+const [feed, config, pipe, lead, trends] = await Promise.all([data.getTodayFeed(), data.getConfig(), data.getPipeline(), data.getLead((await data.getLeads()).items[0]!.parcel.apn), data.getTrends('All')]);
 const l = lead!;
 const recipeNames = Object.fromEntries(config.recipes.map((r) => [r.key, r.name]));
 const swatch = (name: string, cls: string, text = 'text-ink') => ({ name, cls, text });
@@ -89,7 +87,7 @@ const types = [['text-4xl', '4xl · 48'], ['text-3xl', '3xl · 36'], ['text-2xl'
     <Section title="Badges and indicators">
       <Card><Stack gap={6}>
         <Cluster gap={3}><ScoreBadge score={92} showLabel /><ScoreBadge score={71} showLabel /><ScoreBadge score={48} showLabel /><ScoreBadge score={22} showLabel /><ScoreBadge score={92} size="lg" /><ScoreBadge score={55} size="sm" /></Cluster>
-        <Cluster gap={2}><SignalChip type="permit_adu" /><SignalChip type="upzoning_sb9" estimate /><SignalChip type="stro_license_lapsed" /><SignalChip type="inheritance_transfer" /><RecipeTag name="Long tenure, high equity" /><SampleDataBadge /><EstimateBadge /></Cluster>
+        <Cluster gap={2}><SignalChip type="permit_approved" details={{ approval_type: "Approval - Construction - Demolition Pmt" }} /><SignalChip type="sb9_lot_split_estimate" estimate /><SignalChip type="stro_license_removed" /><SignalChip type="ownership_transfer" /><RecipeTag name="Tired landlord" /><SampleDataBadge /><EstimateBadge /></Cluster>
         <Cluster gap={6}><ConfidenceIndicator confidence={0.98} method="apn" /><ConfidenceIndicator confidence={0.83} method="address" /><ConfidenceIndicator confidence={0.62} method="name" /></Cluster>
         <Cluster gap={2}><StatusPill tone="good">Live</StatusPill><StatusPill tone="warning">Running</StatusPill><StatusPill tone="critical">Failed</StatusPill><StatusPill>Not connected</StatusPill></Cluster>
         <SourceLink sourceKey={l.signals[0]!.source_key} recordId={l.signals[0]!.source_record_id} />
@@ -105,7 +103,7 @@ const types = [['text-4xl', '4xl · 48'], ['text-3xl', '3xl · 36'], ['text-2xl'
 
     <Section title="Signal timeline, score breakdown, fact list"><Grid cols={3} gap={4}>
       <Card><SignalTimeline signals={l.signals.slice(0, 4)} /></Card>
-      <Card><ScoreBreakdown items={l.score.components!.items} /></Card>
+      <Card><ScoreBreakdown items={l.score_items} /></Card>
       <Card><FactList items={[{ label: 'Owner', value: l.owner!.owner_name!, sample: true }, { label: 'Estimated equity', value: '$1.9M', estimate: true, sample: true }, { label: 'Mortgage', value: 'No open mortgage' }]} /></Card>
     </Grid></Section>
 

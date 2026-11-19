@@ -1,15 +1,22 @@
-import { fixturesProvider } from './fixtures';
-import type { DataProvider } from './provider';
+import { fixturesProvider, fixturesShareReader } from './fixtures';
+import type { DataProvider, MarkSample, SharePageReader } from './provider';
+import { supabaseProvider, supabaseShareReader } from './supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
-export type { DataProvider } from './provider';
+export type { DataProvider, SharePageReader } from './provider';
 export * from './types';
 export * from './catalog';
 
-const name = (import.meta.env.PUBLIC_DATA_PROVIDER as string | undefined) ?? 'fixtures';
+/** DATA_PROVIDER selects supabase (default) or fixtures. */
+export const providerName = (): 'supabase' | 'fixtures' =>
+  ((import.meta.env.DATA_PROVIDER as string | undefined) ?? 'supabase') === 'fixtures' ? 'fixtures' : 'supabase';
 
-/** Phase 5 will return a supabase-backed provider when PUBLIC_DATA_PROVIDER=supabase. */
-export function getProvider(): DataProvider {
-  if (name !== 'fixtures') throw new Error(`Data provider "${name}" is not available until Phase 5.`);
-  return fixturesProvider;
+export function createProvider(db: SupabaseClient | null, mark: MarkSample): DataProvider {
+  if (providerName() === 'fixtures') return fixturesProvider(mark);
+  if (!db) throw new Error('The supabase provider needs a signed-in session client.');
+  return supabaseProvider(db, mark);
 }
-export const data = getProvider();
+
+export function createShareReader(anon: SupabaseClient | null): SharePageReader {
+  return providerName() === 'fixtures' || !anon ? fixturesShareReader : supabaseShareReader(anon);
+}

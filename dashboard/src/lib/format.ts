@@ -20,7 +20,7 @@ export const cx = (...xs: (string | false | null | undefined)[]) => xs.filter(Bo
 
 /* ── display text: sentence case, acronyms stay uppercase ── */
 const ACRONYMS = ['ADU', 'SB 9', 'SB 79', 'STR', 'STRO', 'APN', 'HOA', 'ZIP', 'LLC', 'ATTOM', 'SANDAG', 'SanGIS'];
-const KEEP_CAPS = new Set(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'La', 'Jolla', 'Pacific', 'Beach', 'Mission', 'Sample', 'San', 'Diego', 'City', 'County']);
+const KEEP_CAPS = new Set(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'January', 'February', 'March', 'April', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'La', 'Jolla', 'Pacific', 'Beach', 'Mission', 'Sample', 'San', 'Diego', 'City', 'County']);
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const ACRONYM_RES = ACRONYMS.map((a) => [new RegExp(`\\b${esc(a).replace(/ /g, '\\s?')}\\b`, 'gi'), a] as const);
 /**

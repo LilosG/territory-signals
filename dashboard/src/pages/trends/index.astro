@@ -1,4 +1,5 @@
 ---
+export const prerender = false;
 import AppShell from '../../components/ui/AppShell.astro';
 import PageHeader from '../../components/ui/PageHeader.astro';
 import Button from '../../components/ui/Button.astro';
@@ -6,10 +7,9 @@ import TabPanel from '../../components/ui/TabPanel.astro';
 import Tabs from '../../components/ui/Tabs.astro';
 import Grid from '../../components/ui/Grid.astro';
 import TrendCard from '../../components/ui/TrendCard.astro';
-import { data } from '../../lib/data';
-const config = await data.getConfig();
+const config = await Astro.locals.data.getConfig();
 const areas = ['All', ...config.territory.neighborhoods];
-const trends = await Promise.all(areas.map((a) => data.getTrends(a)));
+const trends = await Promise.all(areas.map((a) => Astro.locals.data.getTrends(a)));
 const slug = (a: string) => a.toLowerCase().replace(/\s+/g, '-');
 ---
 <AppShell title="Trends" active="trends">

@@ -1,0 +1,47 @@
+---
+import AuthShell from '../../components/ui/AuthShell.astro';
+import Card from '../../components/ui/Card.astro';
+import FactList from '../../components/ui/FactList.astro';
+import EstimateBadge from '../../components/ui/EstimateBadge.astro';
+import { createShareReader, SIGNAL_TYPES } from '../../lib/data';
+import { anonClient, supabaseConfigured } from '../../lib/supabase';
+import { fmtNum } from '../../lib/format';
+export const prerender = false;
+
+const reader = createShareReader(supabaseConfigured() ? anonClient() : null);
+const page = await reader.getSharePage(Astro.params.token ?? '');
+if (!page) Astro.response.status = 404;
+// Property facts only. The page type has no owner, address, equity, mortgage, sales or distress field to show.
+const estimates = (page?.upzoning_estimates ?? []).map((t) => (SIGNAL_TYPES[t] ?? t).replace(/ \(estimated\)$/, ''));
+---
+<AuthShell title="Off-market opportunity">
+  {!page
+    ? <Card as="section"><h1 class="text-xl font-semibold">This link is no longer available</h1><p class="mt-2 text-sm text-ink-muted">It may have been withdrawn or mistyped. Please contact the person who sent it to you.</p></Card>
+    : <div class="flex flex-col gap-5">
+        <Card as="section" aria-labelledby="prop-h">
+          <p class="eyebrow">Off-market opportunity</p>
+          <h1 id="prop-h" class="mt-1 text-2xl font-semibold">{page.neighborhood ?? 'San Diego'} property</h1>
+          <FactList class="mt-5" items={[
+            { label: 'Neighborhood', value: page.neighborhood ?? '—' },
+            { label: 'Lot size', value: page.lot_sqft ? `${fmtNum(Math.round(page.lot_sqft))} sq ft` : '—' },
+            { label: 'Zoning', value: page.zoning ?? '—' },
+            { label: 'Year built', value: page.year_built ? String(page.year_built) : '—' },
+          ]} />
+        </Card>
+        <Card as="section" aria-labelledby="up-h">
+          <h2 id="up-h" class="flex flex-wrap items-center gap-2 text-base font-semibold">Upzoning eligibility <EstimateBadge /></h2>
+          {estimates.length
+            ? <ul class="mt-3 list-disc pl-5 text-sm text-ink">{estimates.map((e) => <li>{e}</li>)}</ul>
+            : <p class="mt-3 text-sm text-ink-muted">No upzoning eligibility estimated for this property.</p>}
+          <p class="mt-3 text-xs text-ink-muted">Estimated from an in-house screen of zoning, lot size and transit distance. It is not an official determination.</p>
+        </Card>
+        <Card as="section" aria-labelledby="agent-h">
+          <h2 id="agent-h" class="text-base font-semibold">Your agent</h2>
+          <FactList class="mt-3" items={[
+            ...(page.agent_name ? [{ label: 'Name', value: page.agent_name }] : []),
+            ...(page.agent_email ? [{ label: 'Email', value: page.agent_email }] : []),
+            ...(page.agent_phone ? [{ label: 'Phone', value: page.agent_phone }] : []),
+          ]} />
+        </Card>
+      </div>}
+</AuthShell>

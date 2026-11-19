@@ -12,16 +12,16 @@ import Button from '../components/ui/Button.astro';
 import SignalFeedItem from '../components/ui/SignalFeedItem.astro';
 import ApprovalRow from '../components/ui/ApprovalRow.astro';
 import CallTaskRow from '../components/ui/CallTaskRow.astro';
-import { data } from '../lib/data';
 import { fmtDate } from '../lib/format';
 
-const feed = await data.getTodayFeed();
-const config = await data.getConfig();
+export const prerender = false;
+const feed = await Astro.locals.data.getTodayFeed();
+const config = await Astro.locals.data.getConfig();
 const recipeNames = Object.fromEntries(config.recipes.map((r) => [r.key, r.name]));
 ---
 <AppShell title="Today" active="today">
-  <PageHeader eyebrow={fmtDate(feed.as_of.slice(0, 10))} title="Good morning" description="The ten properties most worth your attention today, and what changed overnight.">
-    <Button href="/map" variant="secondary" icon="map">Open map</Button>
+  <PageHeader eyebrow={fmtDate(feed.as_of.slice(0, 10))} title="Good morning" description="Your top ten leads and what changed overnight.">
+    <Button href="/map" variant="secondary" icon="map" class="max-sm:hidden">Open map</Button>
   </PageHeader>
 
   <Stack gap={10}>
@@ -32,6 +32,7 @@ const recipeNames = Object.fromEntries(config.recipes.map((r) => [r.key, r.name]
         <Stack as="ul" gap={3}>
           {feed.top_leads.map((l, i) => <li><LeadCard lead={l} recipeNames={recipeNames} rank={i + 1} /></li>)}
         </Stack>
+        <p class="mt-4 text-sm"><a href="/leads" class="font-medium text-accent hover:underline">See all leads →</a></p>
       </Section>
 
       <Stack gap={8}>
@@ -39,17 +40,17 @@ const recipeNames = Object.fromEntries(config.recipes.map((r) => [r.key, r.name]
           <Card padded={false}>
             {feed.new_signals.length === 0
               ? <EmptyState title="Nothing new" description="No new signals were detected overnight." />
-              : <ul class="divide-y divide-line">{feed.new_signals.slice(0, 8).map((s) => <SignalFeedItem signal={s} />)}</ul>}
-            {feed.new_signals.length > 8 && <p class="border-t border-line px-5 py-3 text-xs text-ink-muted">+ {feed.new_signals.length - 8} more new signals</p>}
+              : <ul class="divide-y divide-line">{feed.new_signals.map((s) => <SignalFeedItem signal={s} />)}</ul>}
+            {feed.new_signals_total > feed.new_signals.length && <p class="border-t border-line px-5 py-3 text-xs text-ink-muted">+ {feed.new_signals_total - feed.new_signals.length} more new signals</p>}
           </Card>
         </Section>
 
-        <Section title={`Approvals waiting · ${feed.approvals_waiting.length}`} description="Drafts need a human approval before anything is sent.">
+        <Section title={`Approvals waiting · ${feed.approvals_total}`} description="Drafts need a human approval before anything is sent.">
           <Card padded={false}>
             {feed.approvals_waiting.length === 0
               ? <EmptyState title="All clear" description="No drafts are waiting for approval." />
-              : <ul class="divide-y divide-line">{feed.approvals_waiting.slice(0, 6).map((o) => <ApprovalRow item={o} />)}</ul>}
-            {feed.approvals_waiting.length > 6 && <p class="border-t border-line px-5 py-3 text-xs text-ink-muted">+ {feed.approvals_waiting.length - 6} more (approval screen arrives in Phase 5)</p>}
+              : <ul class="divide-y divide-line">{feed.approvals_waiting.map((o) => <ApprovalRow item={o} />)}</ul>}
+            {feed.approvals_total > feed.approvals_waiting.length && <p class="border-t border-line px-5 py-3 text-xs text-ink-muted">+ {feed.approvals_total - feed.approvals_waiting.length} more waiting</p>}
           </Card>
         </Section>
 

@@ -1,0 +1,27 @@
+---
+import '../../styles/global.css';
+import { brand, brandCssVars } from '../../config/brand';
+export interface Props { title: string }
+const { title } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#17294d" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2317294D'/%3E%3C/svg%3E" />
+    <title>{title} · {brand.shortName}</title>
+    <style set:html={brandCssVars()}></style>
+  </head>
+  <body class="min-h-dvh bg-canvas">
+    <main id="main" class="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-10">
+      <a href="/" class="mb-8 flex items-center gap-3 self-center">
+        <span class="grid h-10 w-10 place-items-center rounded-md bg-accent text-sm font-semibold tracking-wide text-accent-fg">{brand.initials}</span>
+        <span class="leading-tight"><span class="block text-sm font-semibold">{brand.name}</span><span class="block text-xs text-ink-muted">{brand.tagline}</span></span>
+      </a>
+      <slot />
+    </main>
+  </body>
+</html>

@@ -1,13 +1,13 @@
 ---
+export const prerender = false;
 import PrintShell from '../../components/ui/PrintShell.astro';
 import Stack from '../../components/ui/Stack.astro';
 import Section from '../../components/ui/Section.astro';
 import TrendCard from '../../components/ui/TrendCard.astro';
-import { data } from '../../lib/data';
 import { brand } from '../../config/brand';
-const config = await data.getConfig();
-const all = await data.getTrends('All');
-const byArea = await Promise.all(config.territory.neighborhoods.map((a) => data.getTrends(a)));
+const config = await Astro.locals.data.getConfig();
+const all = await Astro.locals.data.getTrends('All');
+const byArea = await Promise.all(config.territory.neighborhoods.map((a) => Astro.locals.data.getTrends(a)));
 const pick = (t: typeof all, k: string) => t.metrics.find((m) => m.key === k)!;
 ---
 <PrintShell title="Neighborhood update" backHref="/trends" backLabel="Back to trends">
@@ -15,7 +15,7 @@ const pick = (t: typeof all, k: string) => t.metrics.find((m) => m.key === k)!;
     <header>
       <p class="eyebrow">{brand.name} · Market update</p>
       <h1 class="mt-2 text-3xl font-semibold">The {config.territory.neighborhoods.join(', ').replace(/, ([^,]*)$/, ' and $1')} market, in brief</h1>
-      <p class="mt-2 text-base text-ink-muted">Twelve months to November 2026.</p>
+      <p class="mt-2 text-base text-ink-muted">Twelve months to {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.</p>
     </header>
     <Section title="Across the territory">
       <TrendCard metric={pick(all, 'turnover')} months={all.months} idPrefix="nl-all" compact />

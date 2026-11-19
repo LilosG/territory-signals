@@ -1,21 +1,19 @@
 ---
+export const prerender = false;
 import PrintShell from '../../../components/ui/PrintShell.astro';
 import FactList from '../../../components/ui/FactList.astro';
 import SignalTimeline from '../../../components/ui/SignalTimeline.astro';
 import Stack from '../../../components/ui/Stack.astro';
 import Section from '../../../components/ui/Section.astro';
-import { data } from '../../../lib/data';
 import { brand } from '../../../config/brand';
 import { fmtApn, fmtNum, fmtDate } from '../../../lib/format';
 
-export async function getStaticPaths() {
-  return (await data.getLeads()).map((l) => ({ params: { apn: l.parcel.apn } }));
-}
-const lead = (await data.getLead(Astro.params.apn!))!;
+const lead = await Astro.locals.data.getLead(Astro.params.apn ?? '');
+if (!lead) return new Response('Not found', { status: 404 });
 const p = lead.parcel;
-const trends = await data.getTrends(p.neighborhood ?? 'All');
+const trends = await Astro.locals.data.getTrends(p.neighborhood ?? 'All');
 // A listing presentation shares property and neighborhood context only: no owner, equity or mortgage data.
-const publicSignals = lead.signals.filter((s) => ['permits', 'upzoning', 'short_term_rental'].includes(s.signal_group));
+const publicSignals = lead.signals.filter((s) => ['permit_approved', 'sb9_lot_split_estimate', 'sb79_transit_estimate', 'stro_license_active', 'stro_license_removed'].includes(s.signal_type));
 ---
 <PrintShell title={`Listing presentation · ${p.situs_address}`} backHref={`/leads/${p.apn}`} backLabel="Back to brief">
   <Stack gap={10}>
@@ -33,7 +31,7 @@ const publicSignals = lead.signals.filter((s) => ['permits', 'upzoning', 'short_
     <Section title="Public-record highlights" description="Permits, upzoning screens and rental licensing on record for this parcel.">
       <SignalTimeline signals={publicSignals} />
     </Section>
-    <Section title={`${p.neighborhood} market pulse`} description={`Last 12 months to ${fmtDate('2026-11-18')}. Sample figures.`}>
+    <Section title={`${p.neighborhood} market pulse`} description={`Last 12 months to ${fmtDate(new Date().toISOString())}. ${trends.is_sample ? 'Sample figures.' : ''}`}>
       <ul class="flex flex-col gap-3">
         {trends.metrics.map((m) => <li class="border-l-2 border-accent pl-4"><p class="text-sm font-medium">{m.title}</p><p class="text-sm text-ink-muted">{m.takeaway}</p></li>)}
       </ul>
