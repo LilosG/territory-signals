@@ -204,9 +204,13 @@ def brief_handler(task, system, messages):
     recs = pk["records"]
     permit = next(r for r in recs if r["kind"] == "signal")
     owner = next((r for r in recs if r["kind"] == "owner"), recs[0])
-    return {"headline": "Recent permit and long ownership", "suggested_angle": "Offer a market update.",
-            "summary": f"{permit['text']}. {owner['text']}.",
-            "claims": [{"text": permit["text"], "record_ids": [permit["id"]]}, {"text": owner["text"], "record_ids": [owner["id"]]}]}
+    meaning = next(r for r in recs if r["kind"] == "meaning")
+    return {"headline": "Remodel-type work by a long-time owner",
+            "suggested_angle": "Ask whether the approved work is meant to get the home ready for sale.",
+            "summary": "Work that often goes in before a sale was approved on this home. The owner has held it a long time.",
+            "claims": [{"text": permit["text"], "record_ids": [permit["id"]]},
+                       {"text": owner["text"].replace(" (sample data)", ""), "record_ids": [owner["id"]]},
+                       {"text": meaning["text"].split(": ", 1)[1], "record_ids": [meaning["id"]]}]}
 
 
 def test_lead_brief_end_to_end_cites_real_ids_and_flags_sample(db):
@@ -217,6 +221,7 @@ def test_lead_brief_end_to_end_cites_real_ids_and_flags_sample(db):
     out, cited, sample, st = row
     sig_ids = {str(r[0]) for r in db.execute("select id from signals where apn='6000000000'")}
     assert st == "parcel" and set(out["claims"][0]["record_ids"]) <= sig_ids | {"parcel:6000000000"}
+    assert any(c.startswith("meaning:") for c in cited)                       # the claim citing a signal's meaning is stored
     assert cited and sample is True                                           # owner facts are sample data
     # the tax default (sensitive) never reached the model
     assert "tax" not in json.dumps(out).lower()
@@ -308,3 +313,19 @@ def test_run_py_flags():
         r.main(["--client", "kaiser-team", "--only-ai", "--skip-ai"])
     with pytest.raises(SystemExit):
         r.main(["--client", "kaiser-team"])
+
+
+def test_weekly_facts_only_compare_runs_of_the_same_scoring_model(db):
+    """After a model change a score that moved because the rules moved is not news (Phase 5G, v0.3 -> v0.4)."""
+    seed_scored(db)
+    today = date(2026, 11, 20)
+    old = db.execute("select apn, score from latest_scores").fetchall()
+    for apn, score in old:                     # an older run under the previous model, with very different scores
+        db.execute("insert into scores (apn, score, components, reason_text, recipe_matches, model_version, scored_at, "
+                   "uses_sample_data, primary_recipe) values (%s,%s,'[]','x','{}','v0.3-handset','2026-11-01T00:00:00Z',false,null)",
+                   (apn, min(100, score + 30)))
+    f = weekly_brief.compute_facts(db, today)
+    assert f["baseline"]["kind"] == "none" and f["territory"]["top_movers"] == [] and f["territory"]["new_strong_leads"] is None
+    # a second run of the SAME version is compared normally
+    run_score(db, CFG, AS_OF)
+    assert weekly_brief.compute_facts(db, today)["baseline"]["kind"] == "earliest_available"

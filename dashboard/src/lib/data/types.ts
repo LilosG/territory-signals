@@ -341,8 +341,16 @@ export interface StatSeries {
   days: { day: IsoDate; n: number }[];
   this_week: number;
   last_week: number;
+  /** Weekly totals, index 0 = this week (last 7 days), 1 = the comparison week, 2.. older. Used to spot the initial data load. */
+  weeks?: number[];
+  /** The day this metric first had data (first pull of its sources, first draft or outcome). */
+  first_day?: IsoDate | null;
 }
-export interface RecipeWeek { key: string; label: string; parcels: number; new_this_week: number }
+export interface RecipeWeek {
+  key: string; label: string; parcels: number; new_this_week: number;
+  /** Why the recipe has no matches yet ("Needs the fire hazard zone file"); null when it has matches. */
+  idle_reason?: string | null;
+}
 
 /** A row of the outreach queue. */
 export interface OutreachItem {

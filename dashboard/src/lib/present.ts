@@ -155,6 +155,33 @@ export function weekDelta(thisWeek: number, lastWeek: number): { dir: 'up' | 'do
   return { dir: pct > 0 ? 'up' : 'down', label: `${pct > 0 ? '+' : ''}${pct}% vs last week` };
 }
 
+/** Weeks of history needed to judge the comparison week: this week, the comparison week, and older ones. */
+const median = (xs: number[]): number => { if (!xs.length) return 0; const s = [...xs].sort((a, b) => a - b); const m = s.length >> 1; return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2; };
+
+/**
+ * Does the comparison week (the 7 days before this week) contain the initial data load for this metric? Then a week-over-week
+ * percentage compares a real week with a one-off import and means nothing. Two tests, both deterministic:
+ *  1. the metric's first data day (first pull of its sources, first draft or outcome) falls in the comparison week, or
+ *  2. the comparison week is more than 5x the median of the weeks after it (the weeks since; needs a non-zero median,
+ *     otherwise a quiet week after any busy one would count as an initial load).
+ * `weeks` is index 0 = this week, 1 = comparison week; `firstDay` and `today` are ISO dates (YYYY-MM-DD).
+ */
+export function isInitialLoadWeek(weeks: number[] | undefined, firstDay: string | null | undefined, today: string): boolean {
+  if (!weeks || weeks.length < 2 || !(weeks[1]! > 0)) return false;
+  if (firstDay) {
+    const ago = Math.floor((Date.parse(today) - Date.parse(firstDay)) / 86_400_000 / 7);
+    if (ago === 1) return true;
+  }
+  const later = median(weeks.slice(0, 1));
+  return later > 0 && weeks[1]! > 5 * later;
+}
+
+/** The Today tile's change line: "First full week" instead of a percentage when the comparison week holds the initial load. */
+export function statDelta(s: { this_week: number; last_week: number; weeks?: number[]; first_day?: string | null }, today: string): { dir: 'up' | 'down' | 'flat'; label: string; firstFull: boolean } {
+  if (isInitialLoadWeek(s.weeks, s.first_day, today)) return { dir: 'flat', label: 'First full week', firstFull: true };
+  return { ...weekDelta(s.this_week, s.last_week), firstFull: false };
+}
+
 /** SVG polyline points for a sparkline in a w x h box. */
 export function sparkPoints(values: number[], w: number, h: number, pad = 2): string {
   if (values.length === 0) return '';
@@ -208,5 +235,7 @@ export function claimLabel(id: string): string {
   if (UUID.test(id)) return 'Signal record';
   if (id.startsWith('owner:')) return 'Owner record';
   if (id.startsWith('parcel:')) return 'Parcel record';
+  if (id.startsWith('meaning:')) return 'What it means';
+  if (id.startsWith('recipe:')) return 'Why it matches';
   return 'Score detail';
 }

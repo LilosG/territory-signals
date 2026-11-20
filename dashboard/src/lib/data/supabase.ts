@@ -52,11 +52,16 @@ function toOutreachItem(r: Row): OutreachItem {
   };
 }
 
-/** Daily rows from today_stats -> a series with this week's and last week's totals. */
-function toSeries(rows: Row[], metric: StatSeries['metric']): StatSeries {
+/** Daily rows from today_stats -> a series with this week's and last week's totals; weekly rows from today_stat_history add the
+ *  history that tells a real week-over-week change from the initial data load. */
+function toSeries(rows: Row[], metric: StatSeries['metric'], history: Row[] = []): StatSeries {
   const days = rows.filter((r) => r.metric === metric).map((r) => ({ day: String(r.day), n: num(r.n) })).sort((a, b) => a.day.localeCompare(b.day));
   const sum = (xs: { n: number }[]) => xs.reduce((a, b) => a + b.n, 0);
-  return { metric, days, this_week: sum(days.slice(-7)), last_week: sum(days.slice(-14, -7)) };
+  const h = history.filter((r) => r.metric === metric).sort((a, b) => num(a.weeks_ago) - num(b.weeks_ago));
+  return {
+    metric, days, this_week: sum(days.slice(-7)), last_week: sum(days.slice(-14, -7)),
+    weeks: h.map((r) => num(r.n)), first_day: h.length && h[0]!.first_day ? String(h[0]!.first_day).slice(0, 10) : null,
+  };
 }
 
 const FUNNEL_KEYS = ['signal', 'contacted', 'conversation', 'appointment', 'listing'] as const;
@@ -156,10 +161,11 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
 
     async getTodayFeed(): Promise<TodayFeed> {
       const cfg = loadClientConfig();
-      const [coverage, leads, stats, recipes, counts, approvals, calls, signals] = await Promise.all([
+      const [coverage, leads, stats, history, recipes, counts, approvals, calls, signals] = await Promise.all([
         provider.getCoverage(),
         provider.getLeads({ minScore: 30 }, 1, 8),
         db.rpc('today_stats', { p_hood: hood }),
+        db.rpc('today_stat_history', { p_hood: hood }),
         db.rpc('recipe_summary', { p_hood: hood }),
         navCounts(),
         (() => { let q = db.from('outreach_queue').select('*').eq('status', 'awaiting_approval').neq('channel', 'call_task').order('created_at', { ascending: false }).limit(5); if (hood) q = q.eq('neighborhood', hood); return q; })(),
@@ -168,6 +174,7 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
       ]);
       const weeklyRow = (await aiRows('weekly_brief', undefined, 1))[0];
       const statRows = must(stats, 'today_stats') as Row[];
+      const histRows = (history.error ? [] : history.data ?? []) as Row[];     // older database: tiles simply show the plain change
       const byRecipe = new Map((must(recipes, 'recipe_summary') as Row[]).map((r) => [r.recipe, r]));
       const sigRows = must(signals, 'recent_signals') as Row[];
       const apRows = must(approvals, 'approvals') as Row[];
@@ -179,9 +186,12 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
       }));
       return {
         as_of: new Date().toISOString(), territory: hood, coverage,
-        stats: (['signals', 'active_leads', 'drafts', 'outcomes'] as const).map((m) => toSeries(statRows, m)),
+        stats: (['signals', 'active_leads', 'drafts', 'outcomes'] as const).map((m) => toSeries(statRows, m, histRows)),
         leads_total: counts.leads, top_leads: leads.items,
-        recipe_strip: cfg.recipes.filter((r) => r.enabled).map((r) => ({ key: r.key, label: r.name, parcels: num(byRecipe.get(r.key)?.parcels), new_this_week: num(byRecipe.get(r.key)?.new_this_week) })),
+        recipe_strip: cfg.recipes.filter((r) => r.enabled).map((r) => {
+          const parcels = num(byRecipe.get(r.key)?.parcels);
+          return { key: r.key, label: r.name, parcels, new_this_week: num(byRecipe.get(r.key)?.new_this_week), idle_reason: parcels > 0 ? null : idleReason(r.key, r.enabled, r.requires_data ?? []) };
+        }),
         weekly: weeklyRow ? toWeekly(weeklyRow) : null,
         approvals: apRows.map(toOutreachItem), approvals_total: counts.awaiting_approval,
         call_tasks: callRows.map(toOutreachItem), call_tasks_total: counts.call_tasks,

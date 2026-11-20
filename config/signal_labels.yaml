@@ -68,3 +68,23 @@ stages:
   listing: Listing
   not_interested: Not interested
   bad_data: Bad data
+
+# Plain meaning of each score component, for the AI lead brief (Phase 5G). The brief may explain why a signal matters
+# only with this text, and cites it as a record. Neutral and factual: nothing here guesses at an owner's reasons.
+signal_meanings:
+  "permit_approved:pre_sale_prep": "A permit for cosmetic or remodel work (kitchen, bath, windows, roof, paint, landscaping) was approved. This is the kind of work that often goes in before a sale."
+  "permit_approved:remodel_addition": "A building permit for a remodel, addition or new construction was approved, so the owner is putting money into the property."
+  "permit_approved:adu": "A permit to add an accessory dwelling unit (ADU), a second small home on the lot, was approved."
+  "permit_approved:demolition_lot_split": "A permit to demolish a structure, or to split or adjust the lot, was approved. That points to a redevelopment plan."
+  "permit_approved:solar_energy": "A solar or energy permit was approved. It shows investment in the home but is a weak sign of a plan to sell."
+  permit_stalled: "A building permit expired more than 90 days ago and was never closed, so the project may be unfinished."
+  stro_license_removed: "The short-term rental license for this address was removed, so the home may no longer earn rental income."
+  stro_license_active: "The home holds an active short-term rental license, so it is used as a short-term rental. This is context, not a sign of a sale."
+  sb9_lot_split_estimate: "An estimated screen against the SB 9 state law suggests the lot may be eligible to be split in two. It is an estimate, not an official finding."
+  sb79_transit_estimate: "An estimated screen against the SB 79 state law suggests the lot is near enough to transit that more homes may be allowed on it. It is an estimate, not an official finding."
+  fire_hazard_zone: "The home is in a mapped fire hazard severity zone, which can affect insurance."
+  "owner:years_owned": "How long the current owner has held the home. Longer ownership means more built-up equity."
+  "owner:absentee": "The owner's mailing address differs from the property, so the owner does not live there."
+  "owner:out_of_state": "The owner's mailing address is in another state."
+  "owner:mortgage_open_false": "No open mortgage is on record, so the home appears to be owned free and clear."
+  "owner:est_equity_top_quartile": "Estimated equity is in the top quarter of the territory. It is an estimate from public records, not a verified figure."

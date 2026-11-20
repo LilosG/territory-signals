@@ -35,7 +35,7 @@ const statusOptions = [{ value: '', label: 'Any status' }, ...Object.entries(LEA
 const now = new Date();
 ---
 <AppShell title="Leads" active="leads">
-  <PageHeader eyebrow={`${fmtNum(result.total)} ${result.total === 1 ? 'property' : 'properties'}`} title="Leads" description="Ranked by score unless you sort differently." />
+  <PageHeader eyebrow={`${fmtNum(result.total)} ${result.total === 1 ? 'property' : 'properties'}`} title="Leads" description={result.items.some((l) => l.ai_headline) ? 'Ranked by score unless you sort differently. Headlines written by AI.' : 'Ranked by score unless you sort differently.'} />
   <Stack gap={6}>
     <nav aria-label="Saved views" class="flex flex-wrap gap-2">
       {VIEWS.map((v) => (

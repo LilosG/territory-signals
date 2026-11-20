@@ -1,14 +1,15 @@
 ---
 import type { StatSeries } from '../../lib/data/types';
-import { weekDelta } from '../../lib/present';
+import { statDelta } from '../../lib/present';
 import { fmtNum } from '../../lib/format';
 import Card from './Card.astro';
 import Spark from './Spark.astro';
-/** One Today tile: this week's number, week-over-week change and a 14-day sparkline. */
-export interface Props { label: string; series: StatSeries | undefined }
-const { label, series } = Astro.props;
-const d = series ? weekDelta(series.this_week, series.last_week) : null;
-const tone = d?.dir === 'up' ? 'text-good' : d?.dir === 'down' ? 'text-warning' : 'text-ink-muted';
+/** One Today tile: this week's number, week-over-week change and a 14-day sparkline. When the comparison week holds the initial
+ *  data load the percentage is hidden and the tile says "First full week" (present.ts statDelta). */
+export interface Props { label: string; series: StatSeries | undefined; today?: string }
+const { label, series, today = new Date().toISOString().slice(0, 10) } = Astro.props;
+const d = series ? statDelta(series, today) : null;
+const tone = d?.firstFull ? 'text-ink-muted' : d?.dir === 'up' ? 'text-good' : d?.dir === 'down' ? 'text-warning' : 'text-ink-muted';
 ---
 <Card class="!p-4" data-stat={series?.metric}>
   <p class="t-meta text-ink-muted">{label}</p>
@@ -16,5 +17,5 @@ const tone = d?.dir === 'up' ? 'text-good' : d?.dir === 'down' ? 'text-warning' 
     <p class="text-3xl font-semibold tabular-nums tracking-tight text-ink">{fmtNum(series?.this_week ?? 0)}</p>
     {series && <Spark values={series.days.map((x) => x.n)} />}
   </div>
-  <p class:list={['mt-1 truncate text-xs font-medium', tone]}>{d?.label ?? 'No data yet'}</p>
+  <p class:list={['mt-1 truncate text-xs font-medium', tone]} data-delta={d?.firstFull ? 'first-full-week' : undefined}>{d?.label ?? 'No data yet'}</p>
 </Card>

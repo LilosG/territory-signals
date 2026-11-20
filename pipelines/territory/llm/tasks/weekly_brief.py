@@ -38,13 +38,17 @@ def week_start(today: date) -> date:
 
 
 def _runs(conn, start: datetime) -> tuple[Any, Any, str]:
-    """(latest scoring run, baseline scoring run, kind). Baseline = last run at or before the week start; if there is
-    none, the earliest earlier run available (kind says which); None when only one run exists."""
-    latest = conn.execute("select max(scored_at) from scores").fetchone()[0]
-    base = conn.execute("select max(scored_at) from scores where scored_at <= %s", (start,)).fetchone()[0]
+    """(latest scoring run, comparison run, kind). Only runs of the SAME scoring model version are compared: after a model
+    change (v0.3 -> v0.4) a score or recipe count that moved because the rules moved is not news. The comparison run is the
+    last run at or before the week start; if there is none, the earliest earlier run of that version (kind says which);
+    None when only one run of that version exists."""
+    latest, version = conn.execute(
+        "select scored_at, model_version from scores order by scored_at desc limit 1").fetchone()
+    base = conn.execute("select max(scored_at) from scores where scored_at <= %s and model_version = %s",
+                        (start, version)).fetchone()[0]
     if base is not None and base < latest:
         return latest, base, "week_start"
-    first = conn.execute("select min(scored_at) from scores").fetchone()[0]
+    first = conn.execute("select min(scored_at) from scores where model_version = %s", (version,)).fetchone()[0]
     if first is not None and first < latest:
         return latest, first, "earliest_available"
     return latest, None, "none"
@@ -117,6 +121,32 @@ def compute_facts(conn, today: date, scoring_cfg: dict | None = None, hoods: lis
     return facts
 
 
+NO_CHANGE = re.compile(
+    r"\bno (?:new|change|changes|movement)\b|\bnone (?:new|this week|recorded)\b|\bnothing (?:new|to report)\b|"
+    r"\b(?:zero|0) new\b|\bunchanged\b|\bwith none\b", re.I)
+INTERNAL_WORDS = re.compile(r"\bbaseline\b|\bwatch categor\w*|\bearliest available\b|\bplaybook\b|\brecipes?\b|\bsample data\b", re.I)
+
+
+def model_view(facts: dict) -> dict:
+    """What the model is shown (Phase 5G): only what is NEW or CHANGED, so there is nothing to say "no new ..." about, and no
+    internal comparison details. Validators still check numbers against the full facts, of which this is a subset."""
+    def scope(s: dict) -> dict:
+        out: dict[str, Any] = {"strong_leads_now": s["strong_leads_now"]}
+        for k in ("new_strong_leads", "new_pre_sale_permits", "new_str_removals"):
+            if s.get(k):
+                out[k] = s[k]
+        if s.get("tax_default_new_this_week"):
+            out["tax_default_new_this_week"], out["tax_default_total"] = s["tax_default_new_this_week"], s["tax_default_total"]
+        changed = {k: {"now": v["now"], "change": v["change"]} for k, v in (s.get("recipe_counts") or {}).items() if v.get("change")}
+        if changed:
+            out["changes_by_home_type"] = changed
+        if s.get("top_movers"):
+            out["top_movers"] = s["top_movers"]
+        return out
+    return {"week": facts["week"], "territory": scope(facts["territory"]),
+            "neighborhoods": {h: scope(s) for h, s in facts["neighborhoods"].items()}}
+
+
 def recipe_label_set() -> set[str]:
     cfg = load_scoring_config()
     return {v.get("label", k) for k, v in cfg["recipes"].items()}
@@ -140,6 +170,12 @@ def validate(out: WeeklyOut, facts: dict) -> list[str]:
         problems.append(f"newsletter paragraph has {nw} words (need 60 to 90)")
     if re.search(r"tax|default|delinquen", out.title + " " + out.intro, re.I):
         problems.append("title or intro mentions tax-default (neighborhood bullets only)")
+    internal = [t for t in texts if INTERNAL_WORDS.search(t)]
+    if internal:
+        problems.append(f"internal wording ({INTERNAL_WORDS.search(internal[0]).group(0)!r}); say what changed in plain words")
+    quiet = [t for t in [out.title, out.intro, *[b for s in out.sections for b in s.bullets]] if NO_CHANGE.search(t)]
+    if quiet:
+        problems.append(f"says what did not change ({NO_CHANGE.search(quiet[0]).group(0)!r}); leave out categories with no change")
     problems += check_numbers(texts, facts)
     problems += check_speculation(texts, facts)
     problems += [f"newsletter: {p}" for p in check_homeowner_text(out.newsletter_paragraph, recipe_labels=recipe_label_set())]
@@ -170,7 +206,7 @@ def run(conn, client: ClientConfig, provider: Provider, stats: store.TaskStats, 
     guard = store.BudgetGuard(conn, client.client_id, client.llm.monthly_budget_usd, stats)
     if not guard.allow():
         return
-    chain = at.run_chain(provider, TASK, system, json.dumps(facts, ensure_ascii=False, indent=1), WeeklyOut,
+    chain = at.run_chain(provider, TASK, system, json.dumps(model_view(facts), ensure_ascii=False, indent=1), WeeklyOut,
                          lambda v: evaluate(v, facts, sid), model, client.llm.fallback_model_for(TASK))
     at.record(stats, chain, f"week {sid}")
     for a in chain:            # keep the facts the numbers came from next to the stored prose

@@ -15,6 +15,8 @@ from typing import Any
 
 from territory.llm.base import Provider
 from territory.llm.prompts import load_prompt
+from territory.llm.validators import header_facts_in
+from territory.scoring_engine import load_scoring_config
 from territory.llm.tasks import lead_brief, permit_intent, weekly_brief
 
 CASES_DIR = Path(__file__).resolve().parents[3] / "tests" / "llm_eval"
@@ -82,13 +84,17 @@ def _forbidden(patterns: list[str], texts: list[str]) -> str | None:
     return None
 
 
+NAMES = tuple(v.get("label", k) for k, v in load_scoring_config()["recipes"].items())
+
+
 def eval_lead_brief(provider: Provider, model: str, acc: Acc, cases: list[dict] | None = None) -> dict:
     cases = cases or load_cases("lead_brief")
     system, _ = load_prompt("lead_brief")
 
     def one(c):
         real = {r["id"]: r["id"] for r in c["packet"]["records"]}       # eval ids stay as R-ids
-        pk = lead_brief.Packet("EVAL", c["address"], c["packet"], real, {r["id"]: bool(r["is_sample"]) for r in c["packet"]["records"]})
+        pk = lead_brief.Packet("EVAL", c["address"], c["packet"], real, {r["id"]: bool(r["is_sample"]) for r in c["packet"]["records"]},
+                               NAMES)
         return c, lead_brief.brief_one(provider, system, pk, model)       # retry once, no fallback
 
     results = []
@@ -103,9 +109,13 @@ def eval_lead_brief(provider: Provider, model: str, acc: Acc, cases: list[dict] 
                 ok, note = False, f"cites none of {c['must_cite_any']}"
             if ok:
                 texts = [out["headline"], out["summary"], out["suggested_angle"], *[x["text"] for x in out["claims"]]]
-                bad = _forbidden(c["forbidden"], texts)
+                bad = (_forbidden(c["forbidden"], texts) or _forbidden(c.get("forbidden_headline", []), [out["headline"]])
+                       or _forbidden(c.get("forbidden_summary", []), [out["summary"]])
+                       or _forbidden(c.get("forbidden_angle", []), [out["suggested_angle"]]))
                 if bad:
                     ok, note = False, bad
+                elif len(header_facts_in(out["summary"])) > c.get("max_header_facts", 1):
+                    ok, note = False, "summary restates the page header"
             results.append({"id": c["id"], "pass": ok, "note": note})
     return {"results": results}
 
@@ -125,7 +135,7 @@ def eval_weekly_brief(provider: Provider, model: str, acc: Acc, cases: list[dict
                 bad = _forbidden([re.escape(x) for x in c["forbidden_in_newsletter"]], [v.newsletter_paragraph])
                 problems = [bad] if bad else []
             return at.Evaluation(v.model_dump() if not problems else None, problems)
-        return c, at.run_chain(provider, "weekly_brief", system, json.dumps(c["facts"], ensure_ascii=False, indent=1),
+        return c, at.run_chain(provider, "weekly_brief", system, json.dumps(weekly_brief.model_view(c["facts"]), ensure_ascii=False, indent=1),
                                weekly_brief.WeeklyOut, check, model)               # retry once, no fallback
 
     results = []

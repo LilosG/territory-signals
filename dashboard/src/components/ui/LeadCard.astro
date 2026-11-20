@@ -8,7 +8,6 @@ import StatusPill from './StatusPill.astro';
 import SampleDataBadge from './SampleDataBadge.astro';
 import Fact from './Fact.astro';
 import Icon from './Icon.astro';
-import AiTag from './AiTag.astro';
 /** Compact lead card. Never shows distress or life-event chips (those live in the lead brief). One sample badge per card. */
 export interface Props { lead: LeadSummary; rank?: number; isNew?: boolean }
 const { lead, rank, isNew = false } = Astro.props;
@@ -36,8 +35,17 @@ const reason = reasonParts(publicReason(score.reason_text));
           <StatusPill tone={status.tone}>{status.label}</StatusPill>
         </span>
       </div>
-      {lead.ai_headline && <p class="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-ink-muted" data-ai-headline><span>{lead.ai_headline}</span><AiTag /></p>}
-      {headline && <p class="mt-1 text-base font-medium text-ink"><Fact {...headline} /></p>}
+      {lead.ai_headline
+        ? (
+          <>
+            <p class="mt-1 flex items-start gap-1.5 text-base font-semibold text-ink" data-ai-headline>
+              <span class="mt-1 shrink-0 text-accent" role="img" aria-label="AI summary" title="AI summary" data-ai-sparkle><Icon name="sparkle" size={14} /></span>
+              <span class="min-w-0">{lead.ai_headline}</span>
+            </p>
+            {headline && <p class="mt-0.5 text-sm text-ink-muted" data-top-signal><Fact {...headline} /></p>}
+          </>
+        )
+        : headline && <p class="mt-1 text-base font-medium text-ink"><Fact {...headline} /></p>}
       {chips.length > 0 && (
         <ul class="mt-2 flex flex-wrap gap-1.5">
           {chips.map((c) => <li class="rounded-md bg-sunken px-2 py-0.5 text-xs font-medium text-ink-muted"><Fact {...c} /></li>)}

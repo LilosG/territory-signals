@@ -1,13 +1,14 @@
 ---
 import { SOURCES } from '../../lib/data/catalog';
 import Icon from './Icon.astro';
-export interface Props { sourceKey: string; recordId: string; class?: string }
-const { sourceKey, recordId, class: cls } = Astro.props;
+/** `truncateId`: shorten a long record id with an ellipsis (the full id is in the tooltip). */
+export interface Props { sourceKey: string; recordId: string; class?: string; truncateId?: boolean }
+const { sourceKey, recordId, class: cls, truncateId = false } = Astro.props;
 const src = SOURCES[sourceKey];
 ---
 <a href={src?.url ?? '#'} target="_blank" rel="noopener noreferrer"
   title={`Open source: ${src?.label ?? sourceKey}. Record ${recordId}`}
-  class:list={['group inline-flex items-center gap-1 rounded text-xs text-ink-muted underline decoration-line-strong underline-offset-2 hover:text-accent hover:decoration-accent', cls]}>
-  <span class="font-medium">{src?.label ?? sourceKey}</span><span class="text-ink-faint">·</span><span class="font-mono text-2xs">{recordId}</span>
-  <Icon name="external" size={12} class="opacity-60 group-hover:opacity-100" /><span class="sr-only">(opens source in a new tab)</span>
+  class:list={['group inline-flex max-w-full items-center gap-1 rounded text-xs text-ink-muted underline decoration-line-strong underline-offset-2 hover:text-accent hover:decoration-accent', cls]}>
+  <span class="shrink-0 font-medium">{src?.label ?? sourceKey}</span><span class="text-ink-faint">·</span><span class:list={['font-mono text-2xs', truncateId && 'min-w-0 truncate']} title={recordId} data-record-id>{recordId}</span>
+  <Icon name="external" size={12} class="shrink-0 opacity-60 group-hover:opacity-100" /><span class="sr-only">(opens source in a new tab)</span>
 </a>

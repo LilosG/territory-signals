@@ -46,7 +46,7 @@ def samples(models: list[str], n_leads: int = 3) -> dict:
             r["leads"].append({"apn": apn, "status": last.status, "output": last.output, "problems": last.problems,
                                "cost": cost, "tokens": tin + tout})
             r["cost_leads"] += cost or 0
-        chain = at.run_chain(prov, "weekly_brief", wsys, json.dumps(facts, ensure_ascii=False, indent=1), weekly_brief.WeeklyOut,
+        chain = at.run_chain(prov, "weekly_brief", wsys, json.dumps(weekly_brief.model_view(facts), ensure_ascii=False, indent=1), weekly_brief.WeeklyOut,
                              lambda v: weekly_brief.evaluate(v, facts), m)
         last = chain[-1]
         tin, tout, cost = at.totals(chain)

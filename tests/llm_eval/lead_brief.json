@@ -4,7 +4,7 @@
   "address": "100 Example St",
   "packet": {
    "parcel": {
-    "neighborhood": "La Jolla"
+    "neighborhood": "Pacific Beach"
    },
    "records": [
     {
@@ -15,99 +15,17 @@
      "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Residential parcel in La Jolla, zoned RS-1-2, lot 13,000 sq ft"
+     "text": "Residential parcel in Pacific Beach, zoned RM-2-5, lot 6,250 sq ft"
     },
     {
      "id": "R2",
      "kind": "signal",
      "source": "dev_permits",
-     "date": "2026-09-14",
+     "date": "2026-11-10",
      "confidence": 0.95,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Electrical, plumbing and mechanical work approved Sep 14, 2026"
-    },
-    {
-     "id": "R3",
-     "kind": "owner",
-     "source": "sample",
-     "date": "2026-11-18",
-     "confidence": null,
-     "is_sample": true,
-     "is_estimate": false,
-     "text": "Owned 20 years (sample data)"
-    },
-    {
-     "id": "R4",
-     "kind": "owner",
-     "source": "sample",
-     "date": "2026-11-18",
-     "confidence": null,
-     "is_sample": true,
-     "is_estimate": true,
-     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $3,047,960"
-    },
-    {
-     "id": "R5",
-     "kind": "signal",
-     "source": "upzoning_estimate",
-     "date": "2026-11-18",
-     "confidence": 0.5,
-     "is_sample": false,
-     "is_estimate": true,
-     "text": "Lot may qualify for an SB 9 split (estimated)"
-    },
-    {
-     "id": "R6",
-     "kind": "recipe_match",
-     "source": "scoring",
-     "date": null,
-     "confidence": null,
-     "is_sample": false,
-     "is_estimate": false,
-     "text": "Matches the playbook: Builder bait, Pre-list prep"
-    }
-   ]
-  },
-  "must_cite_any": [
-   "R2"
-  ],
-  "forbidden": [
-   "tax",
-   "default",
-   "financ",
-   "struggl",
-   "elderly",
-   "\\bneeds? money"
-  ]
- },
- {
-  "id": "lead-2",
-  "address": "100 Example St",
-  "packet": {
-   "parcel": {
-    "neighborhood": "La Jolla"
-   },
-   "records": [
-    {
-     "id": "R1",
-     "kind": "parcel",
-     "source": "parcels",
-     "date": null,
-     "confidence": null,
-     "is_sample": false,
-     "is_estimate": false,
-     "text": "Residential parcel in La Jolla, zoned RS-1-7, lot 8,700 sq ft"
-    },
-    {
-     "id": "R2",
-     "kind": "signal",
-     "source": "dev_permits",
-     "date": "2026-08-04",
-     "confidence": 0.95,
-     "is_sample": false,
-     "is_estimate": false,
-     "text": "Electrical, plumbing and mechanical work approved Aug 4, 2026"
+     "text": "Heating, cooling or mechanical work approved Nov 10, 2026"
     },
     {
      "id": "R3",
@@ -131,16 +49,170 @@
     },
     {
      "id": "R5",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-11-10",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "2 building permits (remodel, addition or new construction) approved Nov 10, 2026"
+    },
+    {
+     "id": "R6",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-11-10",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Building permit (remodel, addition or new construction) approved Nov 10, 2026"
+    },
+    {
+     "id": "R7",
      "kind": "owner",
      "source": "sample",
      "date": "2026-11-18",
      "confidence": null,
      "is_sample": true,
      "is_estimate": true,
-     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $4,100,000"
+     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $3,420,000"
     },
     {
-     "id": "R6",
+     "id": "R8",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pre-sale prep permit approved: A permit for cosmetic or remodel work (kitchen, bath, windows, roof, paint, landscaping) was approved. This is the kind of work that often goes in before a sale."
+    },
+    {
+     "id": "R9",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Absentee owner: The owner's mailing address differs from the property, so the owner does not live there."
+    },
+    {
+     "id": "R10",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "No open mortgage: No open mortgage is on record, so the home appears to be owned free and clear."
+    },
+    {
+     "id": "R11",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "ADU permit approved: A permit to add an accessory dwelling unit (ADU), a second small home on the lot, was approved."
+    },
+    {
+     "id": "R12",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Remodel or addition permit approved: A building permit for a remodel, addition or new construction was approved, so the owner is putting money into the property."
+    },
+    {
+     "id": "R13",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Equity in the top quarter (estimated): Estimated equity is in the top quarter of the territory. It is an estimate from public records, not a verified figure."
+    },
+    {
+     "id": "R14",
+     "kind": "pattern",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pattern this home matches: A permit for cosmetic or remodel work (kitchen, bath, windows, roof, paint, landscaping) was approved in the last six months on a home the owner has held 10 or more years. This is the kind of work that often goes in before a sale."
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R2",
+   "R5",
+   "R6"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money"
+  ]
+ },
+ {
+  "id": "lead-2",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
+    "neighborhood": "Pacific Beach"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in Pacific Beach, zoned RS-1-7, lot 6,300 sq ft"
+    },
+    {
+     "id": "R2",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owned 24 years (sample data)"
+    },
+    {
+     "id": "R3",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owner is absentee (sample data)"
+    },
+    {
+     "id": "R4",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "No open mortgage (sample data)"
+    },
+    {
+     "id": "R5",
      "kind": "signal",
      "source": "stro_licenses",
      "date": "2026-11-18",
@@ -150,7 +222,7 @@
      "text": "Holds an active Tier 3 short-term rental license"
     },
     {
-     "id": "R7",
+     "id": "R6",
      "kind": "signal",
      "source": "upzoning_estimate",
      "date": "2026-11-18",
@@ -160,19 +232,81 @@
      "text": "Lot may qualify for an SB 9 split (estimated)"
     },
     {
-     "id": "R8",
+     "id": "R7",
      "kind": "signal",
      "source": "dev_permits",
-     "date": "2023-09-14",
+     "date": "2025-02-03",
      "confidence": 0.95,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Solar panels approved Sep 14, 2023"
+     "text": "Building permit (remodel, addition or new construction) approved Feb 3, 2025"
+    },
+    {
+     "id": "R8",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Years owned: How long the current owner has held the home. Longer ownership means more built-up equity."
+    },
+    {
+     "id": "R9",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Absentee owner: The owner's mailing address differs from the property, so the owner does not live there."
+    },
+    {
+     "id": "R10",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "No open mortgage: No open mortgage is on record, so the home appears to be owned free and clear."
+    },
+    {
+     "id": "R11",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Active STR license: The home holds an active short-term rental license, so it is used as a short-term rental. This is context, not a sign of a sale."
+    },
+    {
+     "id": "R12",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "SB 9 lot-split eligibility (estimated): An estimated screen against the SB 9 state law suggests the lot may be eligible to be split in two. It is an estimate, not an official finding."
+    },
+    {
+     "id": "R13",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Remodel or addition permit approved: A building permit for a remodel, addition or new construction was approved, so the owner is putting money into the property."
     }
    ]
   },
   "must_cite_any": [
-   "R2"
+   "R5",
+   "R6",
+   "R7"
   ],
   "forbidden": [
    "tax",
@@ -199,7 +333,7 @@
      "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Residential parcel in La Jolla, zoned RS-1-7, lot 9,400 sq ft"
+     "text": "Residential parcel in La Jolla, zoned RS-1-4, lot 382,128 sq ft"
     },
     {
      "id": "R2",
@@ -209,7 +343,7 @@
      "confidence": null,
      "is_sample": true,
      "is_estimate": false,
-     "text": "Owner is out of state (sample data)"
+     "text": "Owned 22 years (sample data)"
     },
     {
      "id": "R3",
@@ -219,40 +353,20 @@
      "confidence": null,
      "is_sample": true,
      "is_estimate": false,
-     "text": "Owned 27 years (sample data)"
+     "text": "Owner is absentee (sample data)"
     },
     {
      "id": "R4",
      "kind": "signal",
-     "source": "dev_permits",
-     "date": "2026-06-09",
-     "confidence": 0.95,
+     "source": "stro_licenses",
+     "date": "2026-11-18",
+     "confidence": 0.9,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Demolition approved Jun 9, 2026"
+     "text": "Holds an active Tier 3 short-term rental license"
     },
     {
      "id": "R5",
-     "kind": "signal",
-     "source": "dev_permits",
-     "date": "2026-07-28",
-     "confidence": 0.95,
-     "is_sample": false,
-     "is_estimate": false,
-     "text": "Building permit (remodel, addition or new construction) approved Jul 28, 2026"
-    },
-    {
-     "id": "R6",
-     "kind": "signal",
-     "source": "dev_permits",
-     "date": "2026-07-28",
-     "confidence": 0.95,
-     "is_sample": false,
-     "is_estimate": false,
-     "text": "Building permit (remodel, addition or new construction) approved Jul 28, 2026"
-    },
-    {
-     "id": "R7",
      "kind": "signal",
      "source": "upzoning_estimate",
      "date": "2026-11-18",
@@ -260,11 +374,145 @@
      "is_sample": false,
      "is_estimate": true,
      "text": "Lot may qualify for an SB 9 split (estimated)"
+    },
+    {
+     "id": "R6",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-02-01",
+     "confidence": 0.8,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Parcel map (lot split) approved Feb 1, 2026"
+    },
+    {
+     "id": "R7",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2024-12-02",
+     "confidence": 0.8,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Tentative subdivision map expired Dec 2, 2024 with no close date"
+    },
+    {
+     "id": "R8",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2024-09-25",
+     "confidence": 0.8,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Building permit (remodel, addition or new construction) approved Sep 25, 2024"
+    },
+    {
+     "id": "R9",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Years owned: How long the current owner has held the home. Longer ownership means more built-up equity."
+    },
+    {
+     "id": "R10",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Absentee owner: The owner's mailing address differs from the property, so the owner does not live there."
+    },
+    {
+     "id": "R11",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Active STR license: The home holds an active short-term rental license, so it is used as a short-term rental. This is context, not a sign of a sale."
+    },
+    {
+     "id": "R12",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "SB 9 lot-split eligibility (estimated): An estimated screen against the SB 9 state law suggests the lot may be eligible to be split in two. It is an estimate, not an official finding."
+    },
+    {
+     "id": "R13",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Demolition or lot-split permit approved: A permit to demolish a structure, or to split or adjust the lot, was approved. That points to a redevelopment plan."
+    },
+    {
+     "id": "R14",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Permit expired with no close date: A building permit expired more than 90 days ago and was never closed, so the project may be unfinished."
+    },
+    {
+     "id": "R15",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Remodel or addition permit approved: A building permit for a remodel, addition or new construction was approved, so the owner is putting money into the property."
+    },
+    {
+     "id": "R16",
+     "kind": "pattern",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pattern this home matches: The lot is much larger than most in its area and an estimated state-law screen says it may allow splitting the lot or building more homes. The owner has held it 20 or more years, so a builder or investor may see more in the land than a typical buyer would."
+    },
+    {
+     "id": "R17",
+     "kind": "pattern",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pattern this home matches: A building permit expired more than 90 days ago and was never closed, so the project may be unfinished."
+    },
+    {
+     "id": "R18",
+     "kind": "pattern",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pattern this home matches: The owner does not live at the property, has held it 15 or more years, and there is a sign of friction on it (an expired permit or a removed rental license). Long-held rentals with friction are homes where a conversation about selling can be timely."
     }
    ]
   },
   "must_cite_any": [
-   "R4"
+   "R4",
+   "R5",
+   "R6",
+   "R7",
+   "R8"
   ],
   "forbidden": [
    "tax",
@@ -291,7 +539,7 @@
      "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Residential parcel in Pacific Beach, zoned RS-1-7, lot 6,300 sq ft"
+     "text": "Residential parcel in Pacific Beach, zoned RS-1-7, lot 7,000 sq ft"
     },
     {
      "id": "R2",
@@ -301,7 +549,7 @@
      "confidence": null,
      "is_sample": true,
      "is_estimate": false,
-     "text": "Owner is out of state (sample data)"
+     "text": "Owned 22 years (sample data)"
     },
     {
      "id": "R3",
@@ -311,7 +559,7 @@
      "confidence": null,
      "is_sample": true,
      "is_estimate": false,
-     "text": "No open mortgage (sample data)"
+     "text": "Owner is absentee (sample data)"
     },
     {
      "id": "R4",
@@ -320,8 +568,8 @@
      "date": "2026-11-18",
      "confidence": null,
      "is_sample": true,
-     "is_estimate": true,
-     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $3,700,000"
+     "is_estimate": false,
+     "text": "No open mortgage (sample data)"
     },
     {
      "id": "R5",
@@ -331,7 +579,7 @@
      "confidence": 0.9,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Holds an active Tier 3 short-term rental license"
+     "text": "Holds an active Tier 2 short-term rental license"
     },
     {
      "id": "R6",
@@ -345,28 +593,59 @@
     },
     {
      "id": "R7",
-     "kind": "signal",
-     "source": "dev_permits",
-     "date": "2026-03-26",
-     "confidence": 0.95,
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Building permit (remodel, addition or new construction) approved Mar 26, 2026"
+     "text": "Years owned: How long the current owner has held the home. Longer ownership means more built-up equity."
     },
     {
      "id": "R8",
-     "kind": "signal",
-     "source": "dev_permits",
-     "date": "2026-03-27",
-     "confidence": 0.95,
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Solar panels approved Mar 27, 2026"
+     "text": "Absentee owner: The owner's mailing address differs from the property, so the owner does not live there."
+    },
+    {
+     "id": "R9",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "No open mortgage: No open mortgage is on record, so the home appears to be owned free and clear."
+    },
+    {
+     "id": "R10",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Active STR license: The home holds an active short-term rental license, so it is used as a short-term rental. This is context, not a sign of a sale."
+    },
+    {
+     "id": "R11",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "SB 9 lot-split eligibility (estimated): An estimated screen against the SB 9 state law suggests the lot may be eligible to be split in two. It is an estimate, not an official finding."
     }
    ]
   },
   "must_cite_any": [
-   "R5"
+   "R5",
+   "R6"
   ],
   "forbidden": [
    "tax",
@@ -382,7 +661,7 @@
   "address": "100 Example St",
   "packet": {
    "parcel": {
-    "neighborhood": "Pacific Beach"
+    "neighborhood": "La Jolla"
    },
    "records": [
     {
@@ -393,7 +672,7 @@
      "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Residential parcel in Pacific Beach, zoned RM-1-1, lot 6,300 sq ft"
+     "text": "Residential parcel in La Jolla, zoned RS-1-7, lot 6,400 sq ft"
     },
     {
      "id": "R2",
@@ -403,7 +682,7 @@
      "confidence": null,
      "is_sample": true,
      "is_estimate": false,
-     "text": "Owned 21 years (sample data)"
+     "text": "Owned 30 years (sample data)"
     },
     {
      "id": "R3",
@@ -418,67 +697,99 @@
     {
      "id": "R4",
      "kind": "signal",
-     "source": "dev_permits",
-     "date": "2026-06-02",
-     "confidence": 0.95,
+     "source": "stro_licenses",
+     "date": "2026-11-18",
+     "confidence": 0.9,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Electrical work approved Jun 2, 2026"
+     "text": "Holds an active Tier 2 short-term rental license"
     },
     {
      "id": "R5",
      "kind": "signal",
-     "source": "dev_permits",
-     "date": "2026-03-19",
-     "confidence": 0.95,
+     "source": "upzoning_estimate",
+     "date": "2026-11-18",
+     "confidence": 0.4,
      "is_sample": false,
-     "is_estimate": false,
-     "text": "Demolition approved Mar 19, 2026"
+     "is_estimate": true,
+     "text": "Within 1/2 mile of a bus rapid transit stop, which may qualify for SB 79 transit upzoning (estimated)"
     },
     {
      "id": "R6",
-     "kind": "owner",
-     "source": "sample",
+     "kind": "signal",
+     "source": "upzoning_estimate",
      "date": "2026-11-18",
-     "confidence": null,
-     "is_sample": true,
+     "confidence": 0.5,
+     "is_sample": false,
      "is_estimate": true,
-     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $3,210,000"
+     "text": "Lot may qualify for an SB 9 split (estimated)"
     },
     {
      "id": "R7",
-     "kind": "signal",
-     "source": "dev_permits",
-     "date": "2026-06-02",
-     "confidence": 0.95,
-     "is_sample": false,
-     "is_estimate": false,
-     "text": "Building permit (remodel, addition or new construction) approved Jun 2, 2026"
-    },
-    {
-     "id": "R8",
-     "kind": "signal",
-     "source": "dev_permits",
-     "date": "2026-06-02",
-     "confidence": 0.95,
-     "is_sample": false,
-     "is_estimate": false,
-     "text": "Building permit (remodel, addition or new construction) approved Jun 2, 2026"
-    },
-    {
-     "id": "R9",
-     "kind": "recipe_match",
-     "source": "scoring",
+     "kind": "meaning",
+     "source": "config",
      "date": null,
      "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Matches the playbook: Downsizer, Pre-list prep"
+     "text": "Years owned: How long the current owner has held the home. Longer ownership means more built-up equity."
+    },
+    {
+     "id": "R8",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "No open mortgage: No open mortgage is on record, so the home appears to be owned free and clear."
+    },
+    {
+     "id": "R9",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Active STR license: The home holds an active short-term rental license, so it is used as a short-term rental. This is context, not a sign of a sale."
+    },
+    {
+     "id": "R10",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "SB 79 transit eligibility (estimated): An estimated screen against the SB 79 state law suggests the lot is near enough to transit that more homes may be allowed on it. It is an estimate, not an official finding."
+    },
+    {
+     "id": "R11",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "SB 9 lot-split eligibility (estimated): An estimated screen against the SB 9 state law suggests the lot may be eligible to be split in two. It is an estimate, not an official finding."
+    },
+    {
+     "id": "R12",
+     "kind": "pattern",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pattern this home matches: The owner lives in the home, has held it 20 or more years and has no open mortgage. The team uses this profile to find owners who may want a smaller or simpler home."
     }
    ]
   },
   "must_cite_any": [
-   "R4"
+   "R4",
+   "R5",
+   "R6"
   ],
   "forbidden": [
    "tax",
@@ -505,17 +816,17 @@
      "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Residential parcel in Pacific Beach, zoned RM-2-5"
+     "text": "Residential parcel in Pacific Beach, zoned RM-2-5, lot 2,600 sq ft"
     },
     {
      "id": "R2",
-     "kind": "signal",
-     "source": "dev_permits",
-     "date": "2026-09-09",
-     "confidence": 0.95,
-     "is_sample": false,
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
      "is_estimate": false,
-     "text": "Electrical, plumbing and mechanical work approved Sep 9, 2026"
+     "text": "Owned 30 years (sample data)"
     },
     {
      "id": "R3",
@@ -529,48 +840,69 @@
     },
     {
      "id": "R4",
-     "kind": "owner",
-     "source": "sample",
-     "date": "2026-11-18",
-     "confidence": null,
-     "is_sample": true,
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-11-05",
+     "confidence": 0.95,
+     "is_sample": false,
      "is_estimate": false,
-     "text": "No open mortgage (sample data)"
+     "text": "Building permit (remodel, addition or new construction) approved Nov 5, 2026"
     },
     {
      "id": "R5",
      "kind": "signal",
      "source": "dev_permits",
-     "date": "2026-08-21",
+     "date": "2026-05-11",
      "confidence": 0.95,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Building permit (remodel, addition or new construction) approved Aug 21, 2026"
+     "text": "Demolition approved May 11, 2026"
     },
     {
      "id": "R6",
-     "kind": "owner",
-     "source": "sample",
-     "date": "2026-11-18",
-     "confidence": null,
-     "is_sample": true,
-     "is_estimate": true,
-     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $3,880,000"
-    },
-    {
-     "id": "R7",
-     "kind": "recipe_match",
-     "source": "scoring",
+     "kind": "meaning",
+     "source": "config",
      "date": null,
      "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Matches the playbook: Pre-list prep"
+     "text": "Years owned: How long the current owner has held the home. Longer ownership means more built-up equity."
+    },
+    {
+     "id": "R7",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Out-of-state owner: The owner's mailing address is in another state."
+    },
+    {
+     "id": "R8",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Remodel or addition permit approved: A building permit for a remodel, addition or new construction was approved, so the owner is putting money into the property."
+    },
+    {
+     "id": "R9",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Demolition or lot-split permit approved: A permit to demolish a structure, or to split or adjust the lot, was approved. That points to a redevelopment plan."
     }
    ]
   },
   "must_cite_any": [
-   "R2"
+   "R4",
+   "R5"
   ],
   "forbidden": [
    "tax",
@@ -586,7 +918,7 @@
   "address": "100 Example St",
   "packet": {
    "parcel": {
-    "neighborhood": "La Jolla"
+    "neighborhood": "Pacific Beach"
    },
    "records": [
     {
@@ -597,17 +929,17 @@
      "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Residential parcel in La Jolla, zoned RM-3-7, lot 1,700 sq ft"
+     "text": "Residential parcel in Pacific Beach, zoned RS-1-7, lot 6,100 sq ft"
     },
     {
      "id": "R2",
-     "kind": "signal",
-     "source": "dev_permits",
-     "date": "2026-08-06",
-     "confidence": 0.95,
-     "is_sample": false,
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
      "is_estimate": false,
-     "text": "Electrical, plumbing and mechanical work approved Aug 6, 2026"
+     "text": "Owned 24 years (sample data)"
     },
     {
      "id": "R3",
@@ -617,7 +949,7 @@
      "confidence": null,
      "is_sample": true,
      "is_estimate": false,
-     "text": "Owner is absentee (sample data)"
+     "text": "No open mortgage (sample data)"
     },
     {
      "id": "R4",
@@ -626,21 +958,11 @@
      "date": "2026-11-18",
      "confidence": null,
      "is_sample": true,
-     "is_estimate": false,
-     "text": "No open mortgage (sample data)"
+     "is_estimate": true,
+     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $3,380,000"
     },
     {
      "id": "R5",
-     "kind": "owner",
-     "source": "sample",
-     "date": "2026-11-18",
-     "confidence": null,
-     "is_sample": true,
-     "is_estimate": true,
-     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $3,570,000"
-    },
-    {
-     "id": "R6",
      "kind": "signal",
      "source": "stro_licenses",
      "date": "2026-11-18",
@@ -648,11 +970,103 @@
      "is_sample": false,
      "is_estimate": false,
      "text": "Holds an active Tier 3 short-term rental license"
+    },
+    {
+     "id": "R6",
+     "kind": "signal",
+     "source": "upzoning_estimate",
+     "date": "2026-11-18",
+     "confidence": 0.5,
+     "is_sample": false,
+     "is_estimate": true,
+     "text": "Lot may qualify for an SB 9 split (estimated)"
+    },
+    {
+     "id": "R7",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2023-07-18",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Building permit (remodel, addition or new construction) approved Jul 18, 2023"
+    },
+    {
+     "id": "R8",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Years owned: How long the current owner has held the home. Longer ownership means more built-up equity."
+    },
+    {
+     "id": "R9",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "No open mortgage: No open mortgage is on record, so the home appears to be owned free and clear."
+    },
+    {
+     "id": "R10",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Equity in the top quarter (estimated): Estimated equity is in the top quarter of the territory. It is an estimate from public records, not a verified figure."
+    },
+    {
+     "id": "R11",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Active STR license: The home holds an active short-term rental license, so it is used as a short-term rental. This is context, not a sign of a sale."
+    },
+    {
+     "id": "R12",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "SB 9 lot-split eligibility (estimated): An estimated screen against the SB 9 state law suggests the lot may be eligible to be split in two. It is an estimate, not an official finding."
+    },
+    {
+     "id": "R13",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Remodel or addition permit approved: A building permit for a remodel, addition or new construction was approved, so the owner is putting money into the property."
+    },
+    {
+     "id": "R14",
+     "kind": "pattern",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pattern this home matches: The owner lives in the home, has held it 20 or more years and has no open mortgage. The team uses this profile to find owners who may want a smaller or simpler home."
     }
    ]
   },
   "must_cite_any": [
-   "R2"
+   "R5",
+   "R6",
+   "R7"
   ],
   "forbidden": [
    "tax",
@@ -679,7 +1093,7 @@
      "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Residential parcel in La Jolla, zoned RS-1-7, lot 5,253 sq ft"
+     "text": "Residential parcel in La Jolla, zoned RS-1-7, lot 8,000 sq ft"
     },
     {
      "id": "R2",
@@ -689,7 +1103,7 @@
      "confidence": null,
      "is_sample": true,
      "is_estimate": false,
-     "text": "Owner is absentee (sample data)"
+     "text": "Owned 24 years (sample data)"
     },
     {
      "id": "R3",
@@ -699,27 +1113,27 @@
      "confidence": null,
      "is_sample": true,
      "is_estimate": false,
-     "text": "No open mortgage (sample data)"
+     "text": "Owner is absentee (sample data)"
     },
     {
      "id": "R4",
-     "kind": "owner",
-     "source": "sample",
-     "date": "2026-11-18",
-     "confidence": null,
-     "is_sample": true,
-     "is_estimate": true,
-     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $3,520,000"
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-08-19",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Building permit (remodel, addition or new construction) approved Aug 19, 2026"
     },
     {
      "id": "R5",
      "kind": "signal",
-     "source": "stro_licenses",
-     "date": "2026-11-18",
-     "confidence": 0.9,
+     "source": "dev_permits",
+     "date": "2026-08-19",
+     "confidence": 0.95,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Holds an active Tier 3 short-term rental license"
+     "text": "Building permit (remodel, addition or new construction) approved Aug 19, 2026"
     },
     {
      "id": "R6",
@@ -733,18 +1147,60 @@
     },
     {
      "id": "R7",
-     "kind": "signal",
-     "source": "dev_permits",
-     "date": "2026-10-26",
-     "confidence": 0.95,
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Solar panels approved Oct 26, 2026"
+     "text": "Years owned: How long the current owner has held the home. Longer ownership means more built-up equity."
+    },
+    {
+     "id": "R8",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Absentee owner: The owner's mailing address differs from the property, so the owner does not live there."
+    },
+    {
+     "id": "R9",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "ADU permit approved: A permit to add an accessory dwelling unit (ADU), a second small home on the lot, was approved."
+    },
+    {
+     "id": "R10",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Remodel or addition permit approved: A building permit for a remodel, addition or new construction was approved, so the owner is putting money into the property."
+    },
+    {
+     "id": "R11",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "SB 9 lot-split eligibility (estimated): An estimated screen against the SB 9 state law suggests the lot may be eligible to be split in two. It is an estimate, not an official finding."
     }
    ]
   },
   "must_cite_any": [
-   "R5"
+   "R4",
+   "R5",
+   "R6"
   ],
   "forbidden": [
    "tax",
@@ -771,17 +1227,17 @@
      "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Residential parcel in Pacific Beach, zoned RM-2-5"
+     "text": "Residential parcel in Pacific Beach, zoned RS-1-7, lot 5,400 sq ft"
     },
     {
      "id": "R2",
-     "kind": "signal",
-     "source": "dev_permits",
-     "date": "2026-10-16",
-     "confidence": 0.95,
-     "is_sample": false,
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
      "is_estimate": false,
-     "text": "Electrical, plumbing and mechanical work approved Oct 16, 2026"
+     "text": "Owned 30 years (sample data)"
     },
     {
      "id": "R3",
@@ -791,42 +1247,73 @@
      "confidence": null,
      "is_sample": true,
      "is_estimate": false,
-     "text": "Owned 29 years (sample data)"
+     "text": "Owner is out of state (sample data)"
     },
     {
      "id": "R4",
-     "kind": "owner",
-     "source": "sample",
+     "kind": "signal",
+     "source": "stro_licenses",
      "date": "2026-11-18",
-     "confidence": null,
-     "is_sample": true,
+     "confidence": 0.9,
+     "is_sample": false,
      "is_estimate": false,
-     "text": "No open mortgage (sample data)"
+     "text": "Holds an active Tier 3 short-term rental license"
     },
     {
      "id": "R5",
      "kind": "signal",
-     "source": "dev_permits",
-     "date": "2026-11-05",
-     "confidence": 0.95,
+     "source": "upzoning_estimate",
+     "date": "2026-11-18",
+     "confidence": 0.5,
      "is_sample": false,
-     "is_estimate": false,
-     "text": "Building permit (remodel, addition or new construction) approved Nov 5, 2026"
+     "is_estimate": true,
+     "text": "Lot may qualify for an SB 9 split (estimated)"
     },
     {
      "id": "R6",
-     "kind": "recipe_match",
-     "source": "scoring",
+     "kind": "meaning",
+     "source": "config",
      "date": null,
      "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Matches the playbook: Downsizer, Pre-list prep"
+     "text": "Years owned: How long the current owner has held the home. Longer ownership means more built-up equity."
+    },
+    {
+     "id": "R7",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Out-of-state owner: The owner's mailing address is in another state."
+    },
+    {
+     "id": "R8",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Active STR license: The home holds an active short-term rental license, so it is used as a short-term rental. This is context, not a sign of a sale."
+    },
+    {
+     "id": "R9",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "SB 9 lot-split eligibility (estimated): An estimated screen against the SB 9 state law suggests the lot may be eligible to be split in two. It is an estimate, not an official finding."
     }
    ]
   },
   "must_cite_any": [
-   "R2"
+   "R4",
+   "R5"
   ],
   "forbidden": [
    "tax",
@@ -842,6 +1329,286 @@
   "address": "100 Example St",
   "packet": {
    "parcel": {
+    "neighborhood": "La Jolla"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in La Jolla, zoned RS-1-2, lot 20,100 sq ft"
+    },
+    {
+     "id": "R2",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owner is absentee (sample data)"
+    },
+    {
+     "id": "R3",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "No open mortgage (sample data)"
+    },
+    {
+     "id": "R4",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2025-08-09",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Change to a building permit expired Aug 9, 2025 with no close date"
+    },
+    {
+     "id": "R5",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": true,
+     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $4,190,000"
+    },
+    {
+     "id": "R6",
+     "kind": "signal",
+     "source": "upzoning_estimate",
+     "date": "2026-11-18",
+     "confidence": 0.5,
+     "is_sample": false,
+     "is_estimate": true,
+     "text": "Lot may qualify for an SB 9 split (estimated)"
+    },
+    {
+     "id": "R7",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2022-12-30",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Change to a building permit approved Dec 30, 2022"
+    },
+    {
+     "id": "R8",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Absentee owner: The owner's mailing address differs from the property, so the owner does not live there."
+    },
+    {
+     "id": "R9",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "No open mortgage: No open mortgage is on record, so the home appears to be owned free and clear."
+    },
+    {
+     "id": "R10",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Permit expired with no close date: A building permit expired more than 90 days ago and was never closed, so the project may be unfinished."
+    },
+    {
+     "id": "R11",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Equity in the top quarter (estimated): Estimated equity is in the top quarter of the territory. It is an estimate from public records, not a verified figure."
+    },
+    {
+     "id": "R12",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "SB 9 lot-split eligibility (estimated): An estimated screen against the SB 9 state law suggests the lot may be eligible to be split in two. It is an estimate, not an official finding."
+    },
+    {
+     "id": "R13",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Remodel or addition permit approved: A building permit for a remodel, addition or new construction was approved, so the owner is putting money into the property."
+    },
+    {
+     "id": "R14",
+     "kind": "pattern",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pattern this home matches: A building permit expired more than 90 days ago and was never closed, so the project may be unfinished."
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R4",
+   "R6",
+   "R7"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money"
+  ]
+ },
+ {
+  "id": "lead-11",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
+    "neighborhood": "La Jolla"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in La Jolla, zoned RS-1-2, lot 13,000 sq ft, built 1962"
+    },
+    {
+     "id": "R2",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": 0.95,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owned 31 years (sample data)"
+    },
+    {
+     "id": "R3",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-09-14",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Plumbing work approved Sep 14, 2026"
+    },
+    {
+     "id": "R4",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": 0.95,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "No open mortgage (sample data)"
+    },
+    {
+     "id": "R5",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Years owned: How long the current owner has held the home. Longer ownership means more built-up equity."
+    },
+    {
+     "id": "R6",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pre-sale prep permit approved: A permit for cosmetic or remodel work (kitchen, bath, windows, roof, paint, landscaping) was approved. This is the kind of work that often goes in before a sale."
+    },
+    {
+     "id": "R7",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "No open mortgage: No open mortgage is on record, so the home appears to be owned free and clear."
+    },
+    {
+     "id": "R8",
+     "kind": "pattern",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pattern this home matches: A permit for cosmetic or remodel work (kitchen, bath, windows, roof, paint, landscaping) was approved in the last six months on a home the owner has held 10 or more years. This is the kind of work that often goes in before a sale."
+    },
+    {
+     "id": "R9",
+     "kind": "pattern",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pattern this home matches: The owner lives in the home, has held it 20 or more years and has no open mortgage. The team uses this profile to find owners who may want a smaller or simpler home."
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R3"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money",
+   "sample data",
+   "playbook",
+   "recipe"
+  ],
+  "max_header_facts": 1
+ },
+ {
+  "id": "lead-12",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
     "neighborhood": "Pacific Beach"
    },
    "records": [
@@ -853,24 +1620,249 @@
      "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Residential parcel in Pacific Beach, zoned RS-1-7, lot 5,700 sq ft"
+     "text": "Residential parcel in Pacific Beach, zoned RM-2-5, lot 9,800 sq ft, built 1955"
     },
     {
      "id": "R2",
      "kind": "owner",
      "source": "sample",
      "date": "2026-11-18",
-     "confidence": null,
+     "confidence": 0.95,
      "is_sample": true,
      "is_estimate": false,
-     "text": "Owned 25 years (sample data)"
+     "text": "Owned 26 years (sample data)"
     },
     {
      "id": "R3",
      "kind": "owner",
      "source": "sample",
      "date": "2026-11-18",
+     "confidence": 0.95,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owner is absentee (sample data)"
+    },
+    {
+     "id": "R4",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-11-18",
+     "confidence": 0.5,
+     "is_sample": false,
+     "is_estimate": true,
+     "text": "Lot may qualify for an SB 9 split (estimated)"
+    },
+    {
+     "id": "R5",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
      "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Years owned: How long the current owner has held the home. Longer ownership means more built-up equity."
+    },
+    {
+     "id": "R6",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Absentee owner: The owner's mailing address differs from the property, so the owner does not live there."
+    },
+    {
+     "id": "R7",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "SB 9 lot-split eligibility (estimated): An estimated screen against the SB 9 state law suggests the lot may be eligible to be split in two. It is an estimate, not an official finding."
+    },
+    {
+     "id": "R8",
+     "kind": "pattern",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pattern this home matches: The lot is much larger than most in its area and an estimated state-law screen says it may allow splitting the lot or building more homes. The owner has held it 20 or more years, so a builder or investor may see more in the land than a typical buyer would."
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R4"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money",
+   "sample data",
+   "playbook",
+   "recipe"
+  ],
+  "forbidden_headline": [
+   "SB ?\\d",
+   "RM-",
+   "zon",
+   "sq\\.? ?ft",
+   "upzon",
+   "^\\W*recent"
+  ]
+ },
+ {
+  "id": "lead-13",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
+    "neighborhood": "Pacific Beach"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in Pacific Beach, zoned RS-1-7, lot 6,700 sq ft, built 1948"
+    },
+    {
+     "id": "R2",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-08-20",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "2 building permits (remodel, addition or new construction) approved Aug 20, 2026"
+    },
+    {
+     "id": "R3",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": 0.95,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owned 24 years (sample data)"
+    },
+    {
+     "id": "R4",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-11-18",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Holds an active Tier 3 short-term rental license"
+    },
+    {
+     "id": "R5",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Remodel or addition permit approved: A building permit for a remodel, addition or new construction was approved, so the owner is putting money into the property."
+    },
+    {
+     "id": "R6",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Years owned: How long the current owner has held the home. Longer ownership means more built-up equity."
+    },
+    {
+     "id": "R7",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Active STR license: The home holds an active short-term rental license, so it is used as a short-term rental. This is context, not a sign of a sale."
+    },
+    {
+     "id": "R8",
+     "kind": "pattern",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pattern this home matches: The owner lives in the home, has held it 20 or more years and has no open mortgage. The team uses this profile to find owners who may want a smaller or simpler home."
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R2",
+   "R4"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money",
+   "sample data",
+   "playbook",
+   "recipe"
+  ],
+  "forbidden_angle": [
+   "market (update|report|overview)",
+   "inventory",
+   "recent (sales|activity)",
+   "neighbou?rhood (update|overview)"
+  ]
+ },
+ {
+  "id": "lead-14",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
+    "neighborhood": "Mission Beach"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in Mission Beach, zoned RM-3-7, lot 2,750 sq ft, built 1972"
+    },
+    {
+     "id": "R2",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-09-14",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Building permit (remodel, addition or new construction) expired Feb 10, 2026 with no close date"
+    },
+    {
+     "id": "R3",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": 0.95,
      "is_sample": true,
      "is_estimate": false,
      "text": "Owner is absentee (sample data)"
@@ -880,35 +1872,65 @@
      "kind": "owner",
      "source": "sample",
      "date": "2026-11-18",
-     "confidence": null,
+     "confidence": 0.95,
      "is_sample": true,
      "is_estimate": false,
-     "text": "No open mortgage (sample data)"
+     "text": "Owned 22 years (sample data)"
     },
     {
      "id": "R5",
-     "kind": "signal",
-     "source": "stro_licenses",
-     "date": "2026-11-18",
-     "confidence": 0.9,
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
      "is_sample": false,
      "is_estimate": false,
-     "text": "Holds an active Tier 3 short-term rental license"
+     "text": "Permit expired with no close date: A building permit expired more than 90 days ago and was never closed, so the project may be unfinished."
     },
     {
      "id": "R6",
-     "kind": "signal",
-     "source": "upzoning_estimate",
-     "date": "2026-11-18",
-     "confidence": 0.5,
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
      "is_sample": false,
-     "is_estimate": true,
-     "text": "Lot may qualify for an SB 9 split (estimated)"
+     "is_estimate": false,
+     "text": "Absentee owner: The owner's mailing address differs from the property, so the owner does not live there."
+    },
+    {
+     "id": "R7",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Years owned: How long the current owner has held the home. Longer ownership means more built-up equity."
+    },
+    {
+     "id": "R8",
+     "kind": "pattern",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pattern this home matches: The owner does not live at the property, has held it 15 or more years, and there is a sign of friction on it (an expired permit or a removed rental license). Long-held rentals with friction are homes where a conversation about selling can be timely."
+    },
+    {
+     "id": "R9",
+     "kind": "pattern",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pattern this home matches: A building permit expired more than 90 days ago and was never closed, so the project may be unfinished."
     }
    ]
   },
   "must_cite_any": [
-   "R5"
+   "R2"
   ],
   "forbidden": [
    "tax",
@@ -916,7 +1938,157 @@
    "financ",
    "struggl",
    "elderly",
-   "\\bneeds? money"
+   "\\bneeds? money",
+   "sample data",
+   "playbook",
+   "recipe"
+  ],
+  "max_header_facts": 1
+ },
+ {
+  "id": "lead-15",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
+    "neighborhood": "La Jolla"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in La Jolla, zoned RS-1-5, lot 7,500 sq ft, built 1966"
+    },
+    {
+     "id": "R2",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-11-10",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "2 building permits (remodel, addition or new construction) approved Nov 10, 2026"
+    },
+    {
+     "id": "R3",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-11-10",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Heating, cooling or mechanical work approved Nov 10, 2026"
+    },
+    {
+     "id": "R4",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": 0.95,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owned 21 years (sample data)"
+    },
+    {
+     "id": "R5",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": 0.95,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "No open mortgage (sample data)"
+    },
+    {
+     "id": "R6",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Remodel or addition permit approved: A building permit for a remodel, addition or new construction was approved, so the owner is putting money into the property."
+    },
+    {
+     "id": "R7",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pre-sale prep permit approved: A permit for cosmetic or remodel work (kitchen, bath, windows, roof, paint, landscaping) was approved. This is the kind of work that often goes in before a sale."
+    },
+    {
+     "id": "R8",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Years owned: How long the current owner has held the home. Longer ownership means more built-up equity."
+    },
+    {
+     "id": "R9",
+     "kind": "meaning",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "No open mortgage: No open mortgage is on record, so the home appears to be owned free and clear."
+    },
+    {
+     "id": "R10",
+     "kind": "pattern",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pattern this home matches: A permit for cosmetic or remodel work (kitchen, bath, windows, roof, paint, landscaping) was approved in the last six months on a home the owner has held 10 or more years. This is the kind of work that often goes in before a sale."
+    },
+    {
+     "id": "R11",
+     "kind": "pattern",
+     "source": "config",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Pattern this home matches: The owner lives in the home, has held it 20 or more years and has no open mortgage. The team uses this profile to find owners who may want a smaller or simpler home."
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R2",
+   "R3"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money",
+   "sample data",
+   "playbook",
+   "recipe"
+  ],
+  "forbidden_headline": [
+   "^\\W*recent",
+   "RS-",
+   "zon"
+  ],
+  "forbidden_angle": [
+   "market (update|report|overview)",
+   "inventory",
+   "recent (sales|activity)"
   ]
  }
 ]

@@ -133,8 +133,16 @@ Added during Phase 5D:
 
 
 Added during Phase 5F:
-- [ ] **`pre_sale_prep` permit group vs AI intent:** only 1.3% of these permits (furnace, heat pump, water heater, panel work) read as "prep to sell" to the AI; 66% read as maintenance (`docs/reports/permit-intent-agreement.md`). Decide whether to re-weight or rename the group. Shadow data only; nothing changed.
+- [x] **(done in Phase 5G, D14: permits are now grouped by description; see `docs/reports/presale-reclass.md`)** **`pre_sale_prep` permit group vs AI intent:** only 1.3% of these permits (furnace, heat pump, water heater, panel work) read as "prep to sell" to the AI; 66% read as maintenance (`docs/reports/permit-intent-agreement.md`). Decide whether to re-weight or rename the group. Shadow data only; nothing changed.
 - [ ] **permit_intent throughput:** gpt-oss-20b is a reasoning model; 8-permit batches and 32 workers run at about 400 permits a minute with a long tail of slow calls. Consider an explicit timeout of 120 s for it, or a non-reasoning model.
-- [ ] **lead_brief returns empty output for some parcels** (4 of the first 25 with deepseek-v4.1-flash: no claims). They are rejected and not shown; consider a retry on empty output.
+- [x] **(done in Phase 5G: retry with the reason, then a fallback model)** **lead_brief returns empty output for some parcels** (4 of the first 25 with deepseek-v4.1-flash: no claims). They are rejected and not shown; consider a retry on empty output.
 - [ ] **config/llm_pricing.yaml is empty:** add Anthropic prices before switching a client to the anthropic provider, or its cost is recorded as unknown.
 - [ ] **Weekly brief baseline:** with scoring runs only on 2026-11-18 locally, "top movers" compare the first and last run that day and mostly show scoring-model changes. It becomes meaningful once weekly scoring runs exist.
+
+Added during Phase 5G:
+- [ ] **Permits with no description default to `maintenance`.** About a third of the old `pre_sale_prep` group had no scope text of its own; unless the project title or scope supplies one, they now carry no weight. Real prep work filed without a description is under-counted. Revisit with ATTOM or a text field from the City if one appears.
+- [ ] **Permit text rules are regexes** (`presale_rules` in `config/permit_signal_map.yaml`). They were tuned on about 400 reads; add a regression sample (counts per group) to the permit re-derivation report so drift is visible.
+- [ ] **permit_intent still runs on the old text only** (scope, else job description); the pre-sale rules also read the project title and scope. Align them if permit_intent ever drives scores.
+- [ ] **Lead-brief eval is small (15 cases):** one miss is 7 points, so the 90% bar is noisy; run it twice before switching models.
+- [ ] **Weekly brief has no movers in the first week after a scoring-model change** (it compares only runs of the same `model_version`). It fills in from the next weekly run.
+- [ ] **"First full week" on Today** uses the first pull of the sources feeding a tile (`today_stat_history`). If a source is re-pulled from scratch the tile will say it again for that week.
