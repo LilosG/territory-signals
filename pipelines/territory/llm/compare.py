@@ -11,7 +11,7 @@ import sys
 from datetime import date
 
 from territory.db import connect
-from territory.llm.base import structured
+from territory.llm import attempts as at
 from territory.llm.eval import make_provider
 from territory.llm.prompts import load_prompt
 from territory.llm.tasks import lead_brief, weekly_brief
@@ -40,18 +40,18 @@ def samples(models: list[str], n_leads: int = 3) -> dict:
         prov = make_provider("openai_compatible", m, "https://openrouter.ai/api/v1")
         r: dict = {"leads": [], "weekly": None, "cost_leads": 0.0, "cost_weekly": 0.0}
         for apn, score, pk in packets:
-            res, status, stored, problems, cited, sample = lead_brief.brief_one(prov, lsys, pk, m)
-            r["leads"].append({"apn": apn, "status": status, "output": stored, "problems": problems, "cost": res.cost_usd,
-                               "tokens": res.input_tokens + res.output_tokens})
-            r["cost_leads"] += res.cost_usd or 0
-        res = structured(prov, "weekly_brief", wsys, json.dumps(facts, ensure_ascii=False, indent=1), weekly_brief.WeeklyOut, model=m)
-        if res.ok:
-            problems = weekly_brief.validate(res.value, facts)
-            r["weekly"] = {"status": "rejected" if problems else "valid", "problems": problems, "output": res.value.model_dump(),
-                           "cost": res.cost_usd, "tokens": res.input_tokens + res.output_tokens}
-        else:
-            r["weekly"] = {"status": "invalid", "problems": [res.error], "output": None, "cost": res.cost_usd, "tokens": res.input_tokens + res.output_tokens}
-        r["cost_weekly"] = res.cost_usd or 0
+            chain = lead_brief.brief_one(prov, lsys, pk, m)
+            last = chain[-1]
+            tin, tout, cost = at.totals(chain)
+            r["leads"].append({"apn": apn, "status": last.status, "output": last.output, "problems": last.problems,
+                               "cost": cost, "tokens": tin + tout})
+            r["cost_leads"] += cost or 0
+        chain = at.run_chain(prov, "weekly_brief", wsys, json.dumps(facts, ensure_ascii=False, indent=1), weekly_brief.WeeklyOut,
+                             lambda v: weekly_brief.evaluate(v, facts), m)
+        last = chain[-1]
+        tin, tout, cost = at.totals(chain)
+        r["weekly"] = {"status": last.status, "problems": last.problems, "output": last.output, "cost": cost, "tokens": tin + tout}
+        r["cost_weekly"] = cost or 0
         out["models"][m] = r
         print(m, [x["status"] for x in r["leads"]], r["weekly"]["status"], flush=True)
     return out

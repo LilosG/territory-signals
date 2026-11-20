@@ -9,8 +9,8 @@ from typing import Any
 from pydantic import BaseModel
 
 from territory.config import ClientConfig
-from territory.llm import store
-from territory.llm.base import LLMError, Provider, structured
+from territory.llm import attempts as at, store
+from territory.llm.base import Provider
 from territory.llm.prompts import load_prompt
 from territory.llm.validators import (
     check_addresses, check_numbers, check_speculation, strings_of,
@@ -133,15 +133,16 @@ def packet_prompt(pk: Packet) -> str:
     return json.dumps(pk.packet, ensure_ascii=False, indent=1)
 
 
-def brief_one(provider: Provider, system: str, pk: Packet, model: str | None):
-    """One brief. Returns (StructuredResult, status, stored output, problems, cited ids, uses_sample)."""
-    res = structured(provider, TASK, system, packet_prompt(pk), LeadBriefOut, model=model)
-    if not res.ok:
-        return res, "invalid", None, [res.error or "invalid output"], [], False
-    stored, problems, cited, uses_sample = validate(res.value, pk)       # type: ignore[arg-type]
-    if stored is None:
-        return res, "rejected", None, problems, [], False
-    return res, "valid", stored, [], cited, uses_sample
+def evaluate(out: LeadBriefOut, pk: Packet) -> at.Evaluation:
+    stored, problems, cited, uses_sample = validate(out, pk)
+    return at.Evaluation(stored, problems, cited, uses_sample)
+
+
+def brief_one(provider: Provider, system: str, pk: Packet, model: str | None,
+              fallback_model: str | None = None) -> list[at.Attempt]:
+    """One brief: primary, then a retry with the rejection reason appended, then the fallback model (attempts.py)."""
+    return at.run_chain(provider, TASK, system, packet_prompt(pk), LeadBriefOut, lambda v: evaluate(v, pk), model,
+                        fallback_model)
 
 
 def select_parcels(conn, top: int = 200, min_score: int = 40, limit: int | None = None) -> list[tuple]:
@@ -160,6 +161,7 @@ def select_parcels(conn, top: int = 200, min_score: int = 40, limit: int | None 
 def run(conn, client: ClientConfig, provider: Provider, stats: store.TaskStats, limit: int | None = None) -> None:
     system, version = load_prompt(TASK)
     model = client.llm.model_for(TASK)
+    fallback = client.llm.fallback_model_for(TASK)
     stats.model = model
     cfg = load_scoring_config()
     labels = {k: v.get("label", k) for k, v in cfg["recipes"].items()}
@@ -176,19 +178,6 @@ def run(conn, client: ClientConfig, provider: Provider, stats: store.TaskStats, 
             continue
         if not guard.allow():
             break
-        try:
-            res, status, out, problems, cited, uses_sample = brief_one(provider, system, pk, model)
-        except LLMError as exc:
-            stats.calls += 1
-            stats.warnings.append(f"{TASK}: provider error for one parcel: {exc}")
-            stats.status = "failed" if stats.status == "success" else stats.status
-            continue
-        stats.calls += 1
-        stats.input_tokens += res.input_tokens
-        stats.output_tokens += res.output_tokens
-        stats.add_cost(res.cost_usd)
-        setattr(stats, status, getattr(stats, status) + 1)
-        store.insert_outputs(conn, [store.OutputRow(
-            client.client_id, TASK, "parcel", apn, ihash, version, res.provider, res.model, status, output=out,
-            cited_record_ids=cited, uses_sample=uses_sample, rejection_reason="; ".join(problems)[:500] or None,
-            input_tokens=res.input_tokens, output_tokens=res.output_tokens, cost_usd=res.cost_usd)])
+        chain = brief_one(provider, system, pk, model, fallback)
+        at.record(stats, chain, f"parcel {apn}")
+        store.insert_outputs(conn, at.rows(chain, client.client_id, TASK, "parcel", apn, ihash, version))

@@ -10,8 +10,8 @@ from pydantic import BaseModel
 
 from territory.config import ClientConfig
 from territory.homeowner_text import check_homeowner_text
-from territory.llm import store
-from territory.llm.base import LLMError, Provider, structured
+from territory.llm import attempts as at, store
+from territory.llm.base import Provider
 from territory.llm.prompts import load_prompt
 from territory.llm.tasks.lead_brief import SENSITIVE_RECIPES
 from territory.llm.validators import check_addresses, check_numbers, check_speculation, strings_of
@@ -151,6 +151,11 @@ def validate(out: WeeklyOut, facts: dict) -> list[str]:
     return problems
 
 
+def evaluate(out: WeeklyOut, facts: dict, sid: str = "") -> at.Evaluation:
+    problems = validate(out, facts)
+    return at.Evaluation(out.model_dump() if not problems else None, problems, [f"week:{sid}"] if sid else [])
+
+
 def run(conn, client: ClientConfig, provider: Provider, stats: store.TaskStats, today: date | None = None) -> None:
     system, version = load_prompt(TASK)
     model = client.llm.model_for(TASK)
@@ -165,24 +170,10 @@ def run(conn, client: ClientConfig, provider: Provider, stats: store.TaskStats, 
     guard = store.BudgetGuard(conn, client.client_id, client.llm.monthly_budget_usd, stats)
     if not guard.allow():
         return
-    try:
-        res = structured(provider, TASK, system, json.dumps(facts, ensure_ascii=False, indent=1), WeeklyOut, model=model)
-    except LLMError as exc:
-        stats.calls += 1
-        stats.status = "failed"
-        stats.warnings.append(f"{TASK}: provider error: {exc}")
-        return
-    stats.calls += 1
-    stats.input_tokens += res.input_tokens
-    stats.output_tokens += res.output_tokens
-    stats.add_cost(res.cost_usd)
-    if not res.ok:
-        status, out, problems = "invalid", None, [res.error or "invalid output"]
-    else:
-        problems = validate(res.value, facts)                                    # type: ignore[arg-type]
-        status, out = ("rejected", None) if problems else ("valid", {**res.value.model_dump(), "facts": facts})  # type: ignore[union-attr]
-    setattr(stats, status, getattr(stats, status) + 1)
-    store.insert_outputs(conn, [store.OutputRow(
-        client.client_id, TASK, "territory", sid, ihash, version, res.provider, res.model, status, output=out,
-        cited_record_ids=[f"week:{sid}"] if status == "valid" else [], rejection_reason="; ".join(problems)[:500] or None,
-        input_tokens=res.input_tokens, output_tokens=res.output_tokens, cost_usd=res.cost_usd)])
+    chain = at.run_chain(provider, TASK, system, json.dumps(facts, ensure_ascii=False, indent=1), WeeklyOut,
+                         lambda v: evaluate(v, facts, sid), model, client.llm.fallback_model_for(TASK))
+    at.record(stats, chain, f"week {sid}")
+    for a in chain:            # keep the facts the numbers came from next to the stored prose
+        if a.status == "valid":
+            a.output = {**a.output, "facts": facts}
+    store.insert_outputs(conn, at.rows(chain, client.client_id, TASK, "territory", sid, ihash, version))

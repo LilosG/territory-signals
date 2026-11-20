@@ -52,6 +52,7 @@ class PermitScope(_Strict):
 
 class LlmTask(_Strict):
     model: str | None = None            # overrides llm.model for this task
+    fallback_model: str | None = None   # called when the model's reply is still rejected after one retry (Phase 5G)
     scope: PermitScope | None = None    # permit_intent only
 
 
@@ -68,6 +69,10 @@ class LlmConfig(_Strict):
     def model_for(self, task: str) -> str:
         t = self.tasks.get(task)
         return (t.model if t and t.model else self.model)
+
+    def fallback_model_for(self, task: str) -> str | None:
+        t = self.tasks.get(task)
+        return t.fallback_model if t and t.fallback_model else None
 
 
 class RecipeToggle(_Strict):

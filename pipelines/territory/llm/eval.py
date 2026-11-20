@@ -57,12 +57,14 @@ def eval_permit_intent(provider: Provider, model: str, acc: Acc, cases: list[dic
 
     def one(chunk):
         permits = [permit_intent.Permit(c["id"], c["description"], c.get("permit_type", "")) for c in chunk]
-        return chunk, *permit_intent.classify_batch(provider, system, permits, model)
+        return chunk, permit_intent.classify_batch(provider, system, permits, model)    # retry once, no fallback
 
     with ThreadPoolExecutor(4) as ex:
-        for chunk, res, outcomes in ex.map(one, chunks):
-            acc.add(res.cost_usd)
-            for c, (status, out, why) in zip(chunk, outcomes):
+        for chunk, res in ex.map(one, chunks):
+            for call in res.calls:
+                acc.add(call.cost_usd)
+            for c, last in zip(chunk, res.final):
+                status, out, why = last.status, last.output, last.reason
                 ok, note = status == "valid", why
                 if ok and out["intent"] not in c["ok"]:
                     ok, note = False, f"intent {out['intent']} not in {c['ok']}"
@@ -87,13 +89,16 @@ def eval_lead_brief(provider: Provider, model: str, acc: Acc, cases: list[dict] 
     def one(c):
         real = {r["id"]: r["id"] for r in c["packet"]["records"]}       # eval ids stay as R-ids
         pk = lead_brief.Packet("EVAL", c["address"], c["packet"], real, {r["id"]: bool(r["is_sample"]) for r in c["packet"]["records"]})
-        return c, lead_brief.brief_one(provider, system, pk, model)
+        return c, lead_brief.brief_one(provider, system, pk, model)       # retry once, no fallback
 
     results = []
     with ThreadPoolExecutor(4) as ex:
-        for c, (res, status, out, problems, cited, _) in ex.map(one, cases):
-            acc.add(res.cost_usd)
-            ok, note = status == "valid", "; ".join(problems)[:200]
+        for c, chain in ex.map(one, cases):
+            for a in chain:
+                acc.add(a.cost_usd)
+            last = chain[-1]
+            status, out, cited = last.status, last.output, last.cited
+            ok, note = status == "valid", "; ".join(last.problems)[:200]
             if ok and not set(c["must_cite_any"]) & set(cited):
                 ok, note = False, f"cites none of {c['must_cite_any']}"
             if ok:
@@ -106,29 +111,31 @@ def eval_lead_brief(provider: Provider, model: str, acc: Acc, cases: list[dict] 
 
 
 def eval_weekly_brief(provider: Provider, model: str, acc: Acc, cases: list[dict] | None = None) -> dict:
-    from territory.llm.base import structured
+    from territory.llm import attempts as at
     cases = cases or load_cases("weekly_brief")
     system, _ = load_prompt("weekly_brief")
 
     def one(c):
-        return c, structured(provider, "weekly_brief", system, json.dumps(c["facts"], ensure_ascii=False, indent=1),
-                             weekly_brief.WeeklyOut, model=model)
-
-    results = []
-    with ThreadPoolExecutor(3) as ex:
-        for c, res in ex.map(one, cases):
-            acc.add(res.cost_usd)
-            if not res.ok:
-                results.append({"id": c["id"], "pass": False, "note": f"invalid: {res.error}"[:200]})
-                continue
-            problems = weekly_brief.validate(res.value, c["facts"])      # type: ignore[arg-type]
-            covered = {s.neighborhood for s in res.value.sections}      # type: ignore[union-attr]
+        def check(v):
+            problems = weekly_brief.validate(v, c["facts"])
+            covered = {s.neighborhood for s in v.sections}
             if not problems and covered != set(c["facts"]["neighborhoods"]):
                 problems = [f"sections cover {sorted(covered)}"]
             if not problems:
-                bad = _forbidden([re.escape(x) for x in c["forbidden_in_newsletter"]], [res.value.newsletter_paragraph])  # type: ignore[union-attr]
+                bad = _forbidden([re.escape(x) for x in c["forbidden_in_newsletter"]], [v.newsletter_paragraph])
                 problems = [bad] if bad else []
-            results.append({"id": c["id"], "pass": not problems, "note": "; ".join(problems)[:200]})
+            return at.Evaluation(v.model_dump() if not problems else None, problems)
+        return c, at.run_chain(provider, "weekly_brief", system, json.dumps(c["facts"], ensure_ascii=False, indent=1),
+                               weekly_brief.WeeklyOut, check, model)               # retry once, no fallback
+
+    results = []
+    with ThreadPoolExecutor(3) as ex:
+        for c, chain in ex.map(one, cases):
+            for a in chain:
+                acc.add(a.cost_usd)
+            last = chain[-1]
+            results.append({"id": c["id"], "pass": last.status == "valid", "note": (last.reason or "")[:200],
+                            "first_try": chain[0].status == "valid"})
     return {"results": results}
 
 

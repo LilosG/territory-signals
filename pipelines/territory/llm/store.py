@@ -56,12 +56,15 @@ class OutputRow:
     input_tokens: int = 0
     output_tokens: int = 0
     cost_usd: float | None = None
+    attempt: int = 1                         # 1 = primary, 2 = retry with the reason appended, 3 = fallback model
+    is_fallback: bool = False
 
 
 INSERT_OUTPUT = (
     "insert into ai_outputs (client_id, task, subject_type, subject_id, input_hash, prompt_version, provider, model, "
-    "output, cited_record_ids, uses_sample, status, rejection_reason, input_tokens, output_tokens, cost_usd) "
-    "values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)")
+    "output, cited_record_ids, uses_sample, status, rejection_reason, input_tokens, output_tokens, cost_usd, "
+    "attempt, is_fallback) "
+    "values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)")
 
 
 def insert_outputs(conn, rows: list[OutputRow]) -> None:
@@ -71,7 +74,7 @@ def insert_outputs(conn, rows: list[OutputRow]) -> None:
         cur.executemany(INSERT_OUTPUT, [
             (r.client_id, r.task, r.subject_type, r.subject_id, r.input_hash, r.prompt_version, r.provider, r.model,
              Jsonb(r.output) if r.output is not None else None, r.cited_record_ids, r.uses_sample, r.status,
-             r.rejection_reason, r.input_tokens, r.output_tokens, r.cost_usd) for r in rows])
+             r.rejection_reason, r.input_tokens, r.output_tokens, r.cost_usd, r.attempt, r.is_fallback) for r in rows])
 
 
 @dataclass
@@ -89,6 +92,8 @@ class TaskStats:
     output_tokens: int = 0
     cost_usd: float = 0.0
     cost_unknown: bool = False
+    retried: int = 0                         # subjects that needed more than one call
+    fallbacks: int = 0                       # subjects that reached the fallback model
     warnings: list[str] = field(default_factory=list)
 
     def add_cost(self, c: float | None) -> None:
@@ -101,10 +106,11 @@ class TaskStats:
 def record_task_run(conn, client_id: str, s: TaskStats, started_at=None) -> None:
     conn.execute(
         "insert into ai_task_runs (client_id, task, started_at, finished_at, status, skip_reason, calls, cached, valid, "
-        "invalid, rejected, input_tokens, output_tokens, cost_usd, cost_unknown, warnings, model) "
-        "values (%s,%s,coalesce(%s, now()),now(),%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+        "invalid, rejected, input_tokens, output_tokens, cost_usd, cost_unknown, warnings, model, retried, fallbacks) "
+        "values (%s,%s,coalesce(%s, now()),now(),%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
         (client_id, s.task, started_at, s.status, s.skip_reason, s.calls, s.cached, s.valid, s.invalid, s.rejected,
-         s.input_tokens, s.output_tokens, round(s.cost_usd, 6), s.cost_unknown, s.warnings, s.model))
+         s.input_tokens, s.output_tokens, round(s.cost_usd, 6), s.cost_unknown, s.warnings, s.model, s.retried,
+         s.fallbacks))
 
 
 class BudgetGuard:
