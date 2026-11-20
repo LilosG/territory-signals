@@ -13,6 +13,12 @@ def input_hash(payload: Any) -> str:
     return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest()
 
 
+def text_hash(text: str) -> str:
+    """Short digest of a prompt's text. Part of a brief's cache key, so editing a prompt file without bumping its version
+    still invalidates cached outputs."""
+    return hashlib.sha256(text.encode()).hexdigest()[:12]
+
+
 def month_spend(conn, client_id: str) -> tuple[float, int]:
     """(USD spent this calendar month across all tasks, number of outputs whose cost is unknown)."""
     row = conn.execute(

@@ -194,6 +194,10 @@ def test_a_brief_may_cite_a_recipe_rationale_or_a_signal_meaning():
     ({"suggested_angle": "Offer a La Jolla market update and recent permit activity nearby."}, "generic market-update"),
     ({"suggested_angle": "Ask about the remodel. Then offer a walkthrough."}, "one sentence"),
     ({"headline": "  "}, "empty output"),
+    ({"headline": "Long-time owner prepping the home to sell"}, "intent as fact"),
+    ({"summary": "The owner is planning to sell soon. Cosmetic work was approved."}, "intent as fact"),
+    ({"summary": "Our notes read the missing mortgage as free and clear. Cosmetic work was approved."}, "own configuration or notes"),
+    ({"summary": " ".join(["Cosmetic work was approved on this home and it is the kind of work that goes in before a sale, by an owner who has held the home for a long time."] * 3)}, "words (max 80)"),
     ({"claims": [{"text": "Work of this kind often goes in before a sale.", "record_ids": ["R4"]},
                  {"text": "Owners who have held a home long may be ready to sell.", "record_ids": ["R6"]}]}, "only explanations"),
 ])
@@ -347,3 +351,26 @@ def test_a_news_led_weekly_brief_passes():
                   intro="La Jolla has 4 new pre-sale permits this week. The territory holds 12 strong leads.",
                   sections=[{"neighborhood": "La Jolla", "bullets": ["4 new pre-sale permits.", "7 strong leads now."]}])
     assert wb.validate(good, facts) == []
+
+
+def test_a_newsletter_may_not_make_claims_that_are_not_in_the_facts():
+    facts = {**FACTS, "territory": {**FACTS["territory"], "x": 31}}
+    for claim in ("Late fall is often a quieter time along the coast.", "Prices are holding steady.", "Demand is strong this season."):
+        news = NEWS.replace("Many of these projects", claim + " Many of these projects")
+        probs = wb.validate(weekly(newsletter_paragraph=news), facts)
+        assert any("general claim" in p for p in probs), (claim, probs)
+    assert not any("general claim" in p for p in wb.validate(weekly(), facts))
+
+
+@pytest.mark.parametrize("text,ok", [
+    ("Long-time owner prepping the home to sell", False),
+    ("The owner plans to sell this year.", False),
+    ("The owner is planning to list in spring.", False),
+    ("An owner who may plan to sell soon.", True),                       # hedged
+    ("Owners like this might be preparing to sell.", True),
+    ("Worth asking whether they plan to sell.", True),
+    ("Work that often goes in before a sale.", True),
+    ("Owners who may want a smaller home.", True),
+])
+def test_intent_to_sell_is_rejected_unless_hedged(text, ok):
+    assert (v.check_intent_and_meta([text]) == []) is ok

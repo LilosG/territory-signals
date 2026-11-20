@@ -176,7 +176,7 @@ recipes:
     label: Downsizer
     short_description: Long-held owner-occupant with no mortgage
     description: Owner-occupied, long-held, no open mortgage.
-    rationale: "The owner lives in the home, has held it 20 or more years and has no open mortgage. The team uses this profile to find owners who may want a smaller or simpler home."
+    rationale: "The owner lives in the home, has held it 20 or more years and has no open mortgage. Owners with this profile may want a smaller or simpler home."
     when:
       all:
         - {owner: absentee, is: false}

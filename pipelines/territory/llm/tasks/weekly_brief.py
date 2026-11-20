@@ -14,7 +14,9 @@ from territory.llm import attempts as at, store
 from territory.llm.base import Provider
 from territory.llm.prompts import load_prompt
 from territory.llm.tasks.lead_brief import SENSITIVE_RECIPES
-from territory.llm.validators import check_addresses, check_numbers, check_speculation, strings_of
+from territory.llm.validators import (
+    check_addresses, check_newsletter_generalities, check_numbers, check_speculation, strings_of,
+)
 from territory.scoring_engine import load_scoring_config
 
 TASK = "weekly_brief"
@@ -178,6 +180,7 @@ def validate(out: WeeklyOut, facts: dict) -> list[str]:
         problems.append(f"says what did not change ({NO_CHANGE.search(quiet[0]).group(0)!r}); leave out categories with no change")
     problems += check_numbers(texts, facts)
     problems += check_speculation(texts, facts)
+    problems += check_newsletter_generalities(out.newsletter_paragraph)
     problems += [f"newsletter: {p}" for p in check_homeowner_text(out.newsletter_paragraph, recipe_labels=recipe_label_set())]
     mover_addrs = [m["address"] for m in facts["territory"]["top_movers"] if m.get("address")]
     for a in mover_addrs:
@@ -199,7 +202,7 @@ def run(conn, client: ClientConfig, provider: Provider, stats: store.TaskStats, 
     today = today or date.today()
     facts = compute_facts(conn, today)
     sid = week_start(today).isoformat()
-    ihash = store.input_hash(facts)
+    ihash = store.input_hash({"facts": facts, "prompt": store.text_hash(system)})
     if store.find_cached(conn, client.client_id, TASK, sid, ihash, version):
         stats.cached += 1
         return

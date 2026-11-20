@@ -313,6 +313,19 @@ def test_run_py_flags():
         r.main(["--client", "kaiser-team", "--only-ai", "--skip-ai"])
     with pytest.raises(SystemExit):
         r.main(["--client", "kaiser-team"])
+    with pytest.raises(SystemExit):
+        r.main(["--client", "kaiser-team", "--source", "all", "--tasks", "lead_brief"])      # --tasks needs --only-ai
+    with pytest.raises(SystemExit):
+        r.main(["--client", "kaiser-team", "--only-ai", "--tasks", "scores"])                 # unknown task
+
+
+def test_only_ai_tasks_runs_just_the_named_tasks(db, monkeypatch):
+    import territory.run as r
+    seen = {}
+    monkeypatch.setattr("territory.llm.runner.run_ai", lambda conn, client, tasks=None, **kw: seen.setdefault("tasks", tasks))
+    monkeypatch.setattr("territory.db.refresh_dashboard_aggregates", lambda: True)
+    assert r.main(["--client", "kaiser-team", "--only-ai", "--tasks", "lead_brief,weekly_brief"]) == 0
+    assert seen["tasks"] == ["lead_brief", "weekly_brief"]
 
 
 def test_weekly_facts_only_compare_runs_of_the_same_scoring_model(db):
@@ -329,3 +342,14 @@ def test_weekly_facts_only_compare_runs_of_the_same_scoring_model(db):
     # a second run of the SAME version is compared normally
     run_score(db, CFG, AS_OF)
     assert weekly_brief.compute_facts(db, today)["baseline"]["kind"] == "earliest_available"
+
+
+def test_editing_a_prompt_without_bumping_its_version_does_not_serve_cached_briefs(db, monkeypatch):
+    """Phase 5G: the prompt's text is part of the cache key for lead_brief and weekly_brief."""
+    seed_scored(db)
+    assert stats_for(db, client(), FakeProvider(brief_handler), ["lead_brief"])[0].valid == 3
+    assert stats_for(db, client(), FakeProvider(brief_handler), ["lead_brief"])[0].cached == 3
+    real = lead_brief.load_prompt
+    monkeypatch.setattr(lead_brief, "load_prompt", lambda task, *a, **k: (real(task)[0] + "\nAn extra rule.", real(task)[1]))
+    s = stats_for(db, client(), FakeProvider(brief_handler), ["lead_brief"])[0]
+    assert s.cached == 0 and s.valid == 3                                        # same version label, new text: asked again

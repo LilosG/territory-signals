@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,8 +14,8 @@ from territory.llm import attempts as at, store
 from territory.llm.base import Provider
 from territory.llm.prompts import load_prompt
 from territory.llm.validators import (
-    check_addresses, check_angle, check_banned_words, check_headline, check_header_facts, check_numbers,
-    check_speculation, strings_of,
+    check_addresses, check_angle, check_banned_words, check_headline, check_header_facts, check_intent_and_meta,
+    check_numbers, check_speculation, strings_of,
 )
 from territory.scoring_engine import load_scoring_config, phrase
 
@@ -137,6 +138,9 @@ def validate(out: LeadBriefOut, pk: Packet) -> tuple[dict | None, list[str], lis
     if not 2 <= n <= 3:
         problems.append(f"summary has {n} sentences (need 2 or 3)")
     problems += check_header_facts(out.summary)
+    nwords = len(out.summary.split())
+    if nwords > 80:
+        problems.append(f"summary has {nwords} words (max 80)")
     if not out.claims:
         problems.append("no claims")
     cited: list[str] = []
@@ -152,6 +156,7 @@ def validate(out: LeadBriefOut, pk: Packet) -> tuple[dict | None, list[str], lis
         problems.append("claims cite only explanations; cite at least one record about this home itself")
     texts = [out.headline, out.summary, out.suggested_angle, *[c.text for c in out.claims]]
     problems += check_banned_words(texts)
+    problems += check_intent_and_meta([out.headline, out.summary, *[c.text for c in out.claims]])
     problems += check_angle(out.suggested_angle)
     problems += check_numbers(texts, pk.packet)
     problems += check_addresses(texts, [pk.address])
@@ -193,7 +198,10 @@ def select_parcels(conn, top: int = 200, min_score: int = 40, limit: int | None 
     return rows[:limit] if limit else rows
 
 
-def run(conn, client: ClientConfig, provider: Provider, stats: store.TaskStats, limit: int | None = None) -> None:
+def run(conn, client: ClientConfig, provider: Provider, stats: store.TaskStats, limit: int | None = None,
+        workers: int = 6) -> None:
+    """Briefs for the selected parcels. Provider calls run on `workers` threads; every database read and write stays on this
+    thread. Cached parcels (same facts and prompt version) cost nothing."""
     system, version = load_prompt(TASK)
     model = client.llm.model_for(TASK)
     fallback = client.llm.fallback_model_for(TASK)
@@ -202,18 +210,40 @@ def run(conn, client: ClientConfig, provider: Provider, stats: store.TaskStats, 
     labels = {k: v.get("label", k) for k, v in cfg["recipes"].items()}
     meanings = load_meanings()
     guard = store.BudgetGuard(conn, client.client_id, client.llm.monthly_budget_usd, stats)
+    todo: list[tuple[str, Packet, str]] = []
     for (apn, sid, score, comps, recipes, situs, hood, zoning, lot, yb) in select_parcels(conn, limit=limit):
         parcel = {"apn": apn, "situs_address": situs, "neighborhood": hood, "zoning": zoning,
                   "lot_sqft": float(lot) if lot is not None else None, "year_built": yb}
         pk = build_packet(parcel, {"id": sid, "components": comps, "recipe_matches": recipes}, labels, cfg, meanings)
         if pk is None:
             continue
-        ihash = store.input_hash({"packet": pk.packet, "real": pk.real_ids})
+        ihash = store.input_hash({"packet": pk.packet, "real": pk.real_ids, "prompt": store.text_hash(system)})
         if store.find_cached(conn, client.client_id, TASK, apn, ihash, version):
             stats.cached += 1
             continue
+        todo.append((apn, pk, ihash))
+
+    pending: dict = {}
+    queue = iter(todo)
+
+    def submit(ex) -> bool:
         if not guard.allow():
-            break
-        chain = brief_one(provider, system, pk, model, fallback)
-        at.record(stats, chain, f"parcel {apn}")
-        store.insert_outputs(conn, at.rows(chain, client.client_id, TASK, "parcel", apn, ihash, version))
+            return False
+        item = next(queue, None)
+        if item is None:
+            return False
+        pending[ex.submit(brief_one, provider, system, item[1], model, fallback)] = item
+        return True
+
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for _ in range(workers):
+            if not submit(ex):
+                break
+        while pending:
+            finished, _ = wait(pending, return_when=FIRST_COMPLETED)
+            for f in finished:
+                apn, pk, ihash = pending.pop(f)
+                chain = f.result()
+                at.record(stats, chain, f"parcel {apn}")
+                store.insert_outputs(conn, at.rows(chain, client.client_id, TASK, "parcel", apn, ihash, version))
+                submit(ex)

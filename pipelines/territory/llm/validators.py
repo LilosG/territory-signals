@@ -235,3 +235,44 @@ def check_angle(angle: str) -> list[str]:
     if len([s for s in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9])", angle.strip()) if s]) != 1:
         problems.append("suggested angle must be one sentence")
     return problems
+
+
+# Phase 5G: what a brief may not claim about the owner, and how it may talk about its own sources.
+INTENT_AS_FACT = re.compile(
+    r"\b(?:prepp?ing|preparing|getting ready|gets? ready|readying)\b[^.]{0,30}\b(?:to sell|for sale|to list|to move)\b|"
+    r"\b(?:plans?|planning|intends?|intending|wants?|wanting|looking|hoping|aims?) to (?:sell|list|move|downsize)\b|"
+    r"\bis (?:about|ready) to (?:sell|list)\b|\bwill (?:sell|list)\b", re.I)
+META_TALK = re.compile(r"\b(?:our|the) (?:configuration|config|notes|packet|methodology)\b|\baccording to (?:our|the) (?:notes|records|data)\b|\bour (?:records|data|rules)\b", re.I)
+
+
+HEDGE = re.compile(r"\b(?:may|might|could|possibly|perhaps|whether|if|ask(?:s|ing)?|about|consider(?:ing)?|any|sign of|signs of)\b[^.]{0,25}$", re.I)
+
+
+def _intent_as_fact(text: str):
+    """The first intent-to-sell phrase in `text` that is not hedged ("may plan to sell", "ask whether they plan to sell")."""
+    for m in INTENT_AS_FACT.finditer(text):
+        if not HEDGE.search(text[max(0, m.start() - 40):m.start()]):
+            return m
+    return None
+
+
+def check_intent_and_meta(texts: Iterable[str]) -> list[str]:
+    """No intent stated as fact ("prepping the home to sell"), and no talk about our own configuration or notes."""
+    out = []
+    for t in texts:
+        if m := _intent_as_fact(t):
+            out.append(f"states the owner's intent as fact ({m.group(0)!r}); say what the records show, or 'may'")
+        if m := META_TALK.search(t):
+            out.append(f"talks about our own configuration or notes ({m.group(0)!r}); state the meaning directly")
+    return out
+
+
+GENERALITIES = re.compile(
+    r"\b(?:often|usually|typically|generally|commonly|tends? to|this time of year|seasons?|seasonal|demand|prices?|"
+    r"market conditions|the market|buyers?|sellers?)\b", re.I)
+
+
+def check_newsletter_generalities(text: str) -> list[str]:
+    """A newsletter may only say what the facts say: no claims about seasons, prices, demand or what is "often" true."""
+    m = GENERALITIES.search(text)
+    return [f"newsletter makes a general claim not in the facts ({m.group(0)!r})"] if m else []
