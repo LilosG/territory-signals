@@ -43,9 +43,9 @@ llm:
   provider: openai_compatible
   base_url: https://openrouter.ai/api/v1
   api_key_env: LLM_API_KEY
-  model: MODEL_TBD            # set by Phase 5F model selection (docs/reports/model-selection.md)
+  model: deepseek/deepseek-v4.1-flash   # lead_brief and weekly_brief; chosen in Phase 5F (docs/reports/model-selection.md)
   tasks:
-    permit_intent: { model: MODEL_TBD }
+    permit_intent: { model: openai/gpt-oss-20b, scope: { months: 36, min_lead_score: 40 } }   # issued in the last 36 months OR on a parcel scoring >= 40
     lead_brief: {}
     weekly_brief: {}
   monthly_budget_usd: 20

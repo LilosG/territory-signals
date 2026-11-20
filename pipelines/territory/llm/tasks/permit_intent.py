@@ -15,7 +15,7 @@ from territory.llm.prompts import load_prompt
 from territory.llm.validators import quote_in_source
 
 TASK = "permit_intent"
-BATCH = 15
+BATCH = 8                  # reasoning models take 10-90 s for 15 permits; smaller batches stay under the 60 s timeout
 MAX_DESC = 600
 Intent = Literal["prep_to_sell", "long_term_stay", "investment_or_redevelopment", "maintenance", "unclear"]
 INTENTS = ["prep_to_sell", "long_term_stay", "investment_or_redevelopment", "maintenance", "unclear"]
@@ -56,17 +56,26 @@ def validate_item(item: PermitItem, description: str) -> tuple[dict | None, str 
             "quote": item.quote.strip(), "reason": item.reason.strip()}, None
 
 
-def load_permits(conn, limit: int | None = None) -> list[Permit]:
-    """Distinct live permit approvals with a free-text description (scope, else job description)."""
+def load_permits(conn, limit: int | None = None, scope=None, today=None) -> list[Permit]:
+    """Distinct live permit approvals with a free-text description (scope, else job description).
+    `scope` (llm.tasks.permit_intent.scope): only permits issued in the last `months` months OR on a parcel whose
+    latest score is at least `min_lead_score`. None = every permit."""
+    from datetime import date
+    from dateutil.relativedelta import relativedelta
+    where, params = "", []
+    if scope is not None:
+        where = " and (signal_date >= %s or apn in (select apn from latest_scores where score >= %s))"
+        params = [(today or date.today()) - relativedelta(months=scope.months), scope.min_lead_score]
     from territory.scoring_engine import load_permit_labels
     labels = load_permit_labels()
     rows = conn.execute(
-        """select distinct on (source_record_id) source_record_id,
+        f"""select distinct on (source_record_id) source_record_id,
                   coalesce(nullif(btrim(details->>'scope'), ''), nullif(btrim(details->>'job_description'), '')) as d,
                   details->>'approval_type'
              from signals where signal_type = 'permit_approved' and superseded_by is null
               and length(coalesce(nullif(btrim(details->>'scope'), ''), nullif(btrim(details->>'job_description'), ''), '')) >= 10
-            order by source_record_id, signal_date desc nulls last""").fetchall()
+              {where}
+            order by source_record_id, signal_date desc nulls last""", params).fetchall()
     out = [Permit(r, d[:MAX_DESC], labels.get(t) or labels.get(t or "") or (t or "")) for r, d, t in rows]
     return out[:limit] if limit else out
 
@@ -95,11 +104,12 @@ def classify_batch(provider: Provider, system: str, permits: list[Permit], model
 
 
 def run(conn, client: ClientConfig, provider: Provider, stats: store.TaskStats, limit: int | None = None,
-        workers: int = 8, batch_size: int = BATCH) -> None:
+        workers: int = 32, batch_size: int = BATCH) -> None:
     system, version = load_prompt(TASK)
     model = client.llm.model_for(TASK)
     stats.model = model
-    permits = load_permits(conn, limit)
+    task_cfg = client.llm.tasks.get(TASK)
+    permits = load_permits(conn, limit, scope=task_cfg.scope if task_cfg else None)
     done = store.cached_hashes(conn, client.client_id, TASK, version, [p.record_id for p in permits])
     todo = [p for p in permits if permit_hash(p) not in done.get(p.record_id, set())]
     stats.cached = len(permits) - len(todo)

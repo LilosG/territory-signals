@@ -187,3 +187,25 @@ def test_agreement_report_counts_per_group_and_samples_disagreements():
     assert "| pre_sale_prep | 2 | 1 | 50.0% |" in text and "| adu | 1 | 1 | 100.0% |" in text and "| other | 1 | n/a | n/a |" in text
     assert "Overall (groups with an implied intent): 2 of 3 = 66.7%" in text
     assert "1 sample disagreements (1 in total)" in text and "Replace water heater | pre_sale_prep | maintenance" in text
+
+
+def test_quote_matching_ignores_case_punctuation_and_spacing_but_not_paraphrase():
+    d = "Construction change to project 354553. Reconfigure master bathroom,  replace shower w/ tub (E) SDU."
+    assert v.quote_in_source('"Reconfigure master bathroom, replace shower w/ tub"', d) is None
+    assert v.quote_in_source("reconfigure   MASTER bathroom", d) is None
+    assert v.quote_in_source("reconfigure the master bathroom", d)            # paraphrase: rejected
+    assert v.quote_in_source("bathroom ... SDU", d)                           # stitched fragments: rejected
+
+
+def test_permit_scope_limits_to_recent_or_high_scoring_parcels(db):
+    from datetime import date
+    from test_llm_tasks_db import add_permit, seed_scored
+    from territory.config import PermitScope
+    seed_scored(db)
+    add_permit(db, "6000000000", "OLD-1", "Replace the old water heater at this house", on=date(2015, 1, 1))
+    add_permit(db, "6000000001", "NEW-1", "Replace the new water heater at this house", on=date(2026, 10, 1))
+    everything = {p.record_id for p in pi.load_permits(db)}
+    recent_only = {p.record_id for p in pi.load_permits(db, scope=PermitScope(months=36, min_lead_score=100), today=date(2026, 11, 20))}
+    with_scores = {p.record_id for p in pi.load_permits(db, scope=PermitScope(months=36, min_lead_score=0), today=date(2026, 11, 20))}
+    assert "OLD-1" in everything and "OLD-1" not in recent_only and "NEW-1" in recent_only
+    assert "OLD-1" in with_scores                                              # old permit, but the parcel scores >= the minimum

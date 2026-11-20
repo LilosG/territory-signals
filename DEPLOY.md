@@ -186,6 +186,7 @@ llm: {provider: openai_compatible, base_url: http://localhost:11434/v1, api_key_
 
 - **Off switch.** `enabled: false`, or the key variable not set, makes every AI task skip cleanly (a "skipped" row is recorded) and the dashboard shows nothing AI-related. The dashboard reads `enabled` from the config baked into the build, so redeploy it after changing the flag.
 - **Run.** `python -m territory.run --client kaiser-team --only-ai` runs permit_intent, lead_brief and weekly_brief in that order (`--skip-ai` leaves them out of a full `--source all` run). Results are cached by input and prompt version, so a rerun costs nothing unless facts changed.
+- **Permit scope.** `llm.tasks.permit_intent.scope: {months: 36, min_lead_score: 40}` limits permit_intent to permits issued in that window or on parcels scoring at least that; omit it to classify every permit.
 - **Budget.** `monthly_budget_usd` caps the month's total. A task stops before the call that would pass it and a warning shows on the Pipeline page.
 - **Run against the cloud database** (key from the macOS Keychain, service `territory-signals-llm`):
 

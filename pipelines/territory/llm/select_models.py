@@ -20,7 +20,7 @@ VARIANT = re.compile(r":free|\bfree\b|beta|preview|contributor|experimental|\bex
 SPECIALTY = re.compile(r"code|codex|coder|devstral|image|audio|-vl\b|\bvl\b|omni|legal|safeguard|multi-agent|guard|embed|-build", re.I)
 RETENTION = re.compile(r"(retain|retention|stored|logged|logs? (prompts|inputs)|used (for|to) (model )?(training|improv)|"
                        r"train(ing)? (on|data)|may be (used|collected))", re.I)
-MIN_REPORT = Path("docs/reports/model-selection.md")
+MIN_REPORT = Path(__file__).resolve().parents[3] / "docs" / "reports" / "model-selection.md"
 
 
 def fetch_models(url: str = MODELS_URL) -> list[dict]:

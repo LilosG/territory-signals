@@ -131,3 +131,10 @@ Added during Phase 5D:
 - [ ] **Playwright tests that page through Outreach and Off-market** walk up to 40 pages to find the seeded rows; add a search box to those pages if the lists keep growing.
 - [ ] **Screenshots** are saved in `dashboard/screenshots/` (git-tracked); consider git-ignoring them if the repo grows.
 
+
+Added during Phase 5F:
+- [ ] **`pre_sale_prep` permit group vs AI intent:** only 1.3% of these permits (furnace, heat pump, water heater, panel work) read as "prep to sell" to the AI; 66% read as maintenance (`docs/reports/permit-intent-agreement.md`). Decide whether to re-weight or rename the group. Shadow data only; nothing changed.
+- [ ] **permit_intent throughput:** gpt-oss-20b is a reasoning model; 8-permit batches and 32 workers run at about 400 permits a minute with a long tail of slow calls. Consider an explicit timeout of 120 s for it, or a non-reasoning model.
+- [ ] **lead_brief returns empty output for some parcels** (4 of the first 25 with deepseek-v4.1-flash: no claims). They are rejected and not shown; consider a retry on empty output.
+- [ ] **config/llm_pricing.yaml is empty:** add Anthropic prices before switching a client to the anthropic provider, or its cost is recorded as unknown.
+- [ ] **Weekly brief baseline:** with scoring runs only on 2026-11-18 locally, "top movers" compare the first and last run that day and mostly show scoring-model changes. It becomes meaningful once weekly scoring runs exist.

@@ -44,8 +44,15 @@ class TeamProfile(_Strict):
     office_address: str = ""
 
 
+class PermitScope(_Strict):
+    """Which permits permit_intent classifies: issued in the last `months` OR on a parcel scoring >= `min_lead_score`."""
+    months: int = Field(ge=1)
+    min_lead_score: int = Field(ge=0, le=100)
+
+
 class LlmTask(_Strict):
     model: str | None = None            # overrides llm.model for this task
+    scope: PermitScope | None = None    # permit_intent only
 
 
 class LlmConfig(_Strict):
