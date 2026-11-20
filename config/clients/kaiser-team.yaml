@@ -48,5 +48,5 @@ llm:
     permit_intent: { model: openai/gpt-oss-20b, scope: { months: 36, min_lead_score: 40 } }   # issued in the last 36 months OR on a parcel scoring >= 40
     lead_brief: {}
     weekly_brief: {}
-  monthly_budget_usd: 20
+  monthly_budget_usd: 5
   enabled: true
