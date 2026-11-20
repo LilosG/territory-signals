@@ -6,8 +6,9 @@ from pathlib import Path
 HOODS = ["La Jolla", "Mission Beach", "Pacific Beach"]
 
 
-def scope(strong, new, recipes, permits, tax_new, tax_total, strs, movers):
-    return {"strong_leads_now": strong, "new_strong_leads": new, "recipe_counts": recipes,
+def scope(strong, new, recipes, permits, tax_new, tax_total, strs, movers, by_type=None):
+    return {"new_permits_by_type": by_type if by_type is not None else ({"remodel or cosmetic permits": permits} if permits else {}),
+            "strong_leads_now": strong, "new_strong_leads": new, "recipe_counts": recipes,
             "new_pre_sale_permits": permits, "tax_default_new_this_week": tax_new, "tax_default_total": tax_total,
             "new_str_removals": strs, "top_movers": movers}
 
@@ -47,11 +48,27 @@ cases += [
                           "Pacific Beach": scope(3, 0, {}, 0, 0, 24, 0, [])}}},
     # the first week after a scoring-model change: no comparison run exists, so there are no movers or changes by type
     {"id": "weekly-first-week", "facts": {
-        "week": {"start": "2026-11-12", "end": "2026-11-19"}, "baseline": {"kind": "none", "compared_with": None},
+        "week": {"start": "2026-11-12", "end": "2026-11-19"}, "baseline": {"kind": "none", "compared_with": None}, "scoring_model_changed": True,
+        "top_new_signals": [{"rank": 1, "what": "short-term rental license removed", "neighborhood": "La Jolla", "date": "2026-11-17"}],
         "territory": scope(7, None, {}, 9, 0, 39, 2, []),
         "neighborhoods": {"La Jolla": scope(3, None, {}, 4, 0, 15, 1, []),
                           "Mission Beach": scope(1, None, {}, 0, 0, 0, 0, []),
                           "Pacific Beach": scope(3, None, {}, 5, 0, 24, 1, [])}}},
+]
+cases += [
+    # repetition bait (Phase 5H): the only news is one count (6 new remodel permits, all in La Jolla), so a model is tempted to state
+    # it in the intro, again in the La Jolla bullet and again as a "this week" line. Each fact must be stated once, and the scoring
+    # model changed this week, so the recalculation is said exactly once and lead counts are not compared with last week.
+    {"id": "weekly-repeat-bait", "facts": {
+        "week": {"start": "2026-11-13", "end": "2026-11-20"}, "baseline": {"kind": "earliest_available", "compared_with": "2026-11-19"},
+        "scoring_model_changed": True,
+        "top_new_signals": [{"rank": 1, "what": "2 building permits approved", "neighborhood": "La Jolla", "date": "2026-11-17"},
+                            {"rank": 2, "what": "heating, cooling or mechanical work approved", "neighborhood": "La Jolla", "date": "2026-11-16"},
+                            {"rank": 3, "what": "short-term rental license removed", "neighborhood": "Pacific Beach", "date": "2026-11-15"}],
+        "territory": scope(7, 3, {"Pre-list prep": {"now": 16, "before": 10, "change": 6}}, 6, 0, 39, 1, [mv("1260 Rhoda Dr", "La Jolla", 40, 66)], {"remodel or cosmetic permits": 6}),
+        "neighborhoods": {"La Jolla": scope(3, 3, {"Pre-list prep": {"now": 12, "before": 6, "change": 6}}, 6, 0, 15, 0, [mv("1260 Rhoda Dr", "La Jolla", 40, 66)], {"remodel or cosmetic permits": 6}),
+                          "Mission Beach": scope(1, 0, {}, 0, 0, 0, 0, []),
+                          "Pacific Beach": scope(3, 0, {}, 0, 0, 24, 1, [])}}},
 ]
 for c in cases:
     c["forbidden_in_newsletter"] = [m["address"] for m in c["facts"]["territory"]["top_movers"]] + ["tax", "default"]

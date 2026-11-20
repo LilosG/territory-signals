@@ -5,6 +5,7 @@
  * Types below the "View models" divider are dashboard-only compositions.
  */
 import type { MultiPolygon, Point } from 'geojson';
+import type { Marked } from '../present';
 
 export type Uuid = string;
 export type IsoTimestamp = string;
@@ -345,6 +346,8 @@ export interface StatSeries {
   weeks?: number[];
   /** The day this metric first had data (first pull of its sources, first draft or outcome). */
   first_day?: IsoDate | null;
+  /** Active leads only: the scoring model of this week differs from the comparison week's, so a % change would mean nothing. */
+  scoring_updated?: boolean;
 }
 export interface RecipeWeek {
   key: string; label: string; parcels: number; new_this_week: number;
@@ -380,7 +383,7 @@ export interface TodayFeed {
 export interface RecipeCard {
   key: string; name: string; description: string; enabled: boolean;
   parcels: number; new_this_week: number; strong: number;
-  top: { apn: string; score: number; situs_address: string | null; neighborhood: string | null }[];
+  top: { apn: string; score: number; situs_address: string | null; neighborhood: string | null; top_signal?: Marked | null }[];
   /** Why an enabled or disabled recipe has no matches; null when it has some. */
   idle_reason: string | null;
   is_sample: boolean;
@@ -389,6 +392,8 @@ export interface RecipeCard {
 export interface OffMarketRow {
   apn: string; situs_address: string | null; neighborhood: string | null; lot_sqft: number | null; zoning: string | null;
   year_built: number | null; land_use: string | null; kinds: string[]; upzoning: string[]; has_share_link: boolean;
+  /** The top-contribution signal line (same rule as the lead lists). */
+  top_signal?: Marked | null;
 }
 export interface ActiveShareLink { token: string; apn: string; situs_address: string | null; neighborhood: string | null; created_by: string; created_at: IsoTimestamp }
 export interface OffMarketPage { items: OffMarketRow[]; total: number; page: number; pageSize: number; links: ActiveShareLink[] }

@@ -1,4 +1,5 @@
 import { titleAddress } from '../format';
+import { topSignalLine, type Marked } from '../present';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadClientConfig } from '../config';
 import { EVENT_TYPES, INTERNAL_SOURCES, RECIPE_LABELS, SENSITIVE_TYPES, SOURCE_CATALOG, STAGES, TRAIT_TYPES, bandOf } from './catalog';
@@ -114,6 +115,12 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
     if (apns.length === 0) return new Map();
     return new Map((await aiRows('lead_brief', apns)).map((r) => [String(r.subject_id), String((r.output as Row).headline)]));
   }
+  /** Top-signal lines for a set of parcels, from their latest score components (one shared rule: topSignal in present.ts). */
+  async function topSignalLines(apns: string[]): Promise<Map<string, Marked | null>> {
+    if (apns.length === 0) return new Map();
+    const rows = must(await db.from('latest_scores').select('apn,components').in('apn', apns), 'latest_scores') as Row[];
+    return new Map(rows.map((r) => [String(r.apn), topSignalLine(r.components)]));
+  }
   const toWeekly = (r: Row): WeeklyBriefAi => {
     const o = r.output as Row;
     return { week_start: String(r.subject_id), title: o.title, intro: o.intro, sections: o.sections ?? [], newsletter_paragraph: o.newsletter_paragraph, model: r.model, created_at: r.created_at };
@@ -161,7 +168,7 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
 
     async getTodayFeed(): Promise<TodayFeed> {
       const cfg = loadClientConfig();
-      const [coverage, leads, stats, history, recipes, counts, approvals, calls, signals] = await Promise.all([
+      const [coverage, leads, stats, history, recipes, counts, approvals, calls, signals, models] = await Promise.all([
         provider.getCoverage(),
         provider.getLeads({ minScore: 30 }, 1, 8),
         db.rpc('today_stats', { p_hood: hood }),
@@ -170,10 +177,12 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
         navCounts(),
         (() => { let q = db.from('outreach_queue').select('*').eq('status', 'awaiting_approval').neq('channel', 'call_task').order('created_at', { ascending: false }).limit(5); if (hood) q = q.eq('neighborhood', hood); return q; })(),
         (() => { let q = db.from('outreach_queue').select('*').eq('channel', 'call_task').in('status', ['draft', 'awaiting_approval', 'approved']).order('created_at', { ascending: false }).limit(5); if (hood) q = q.eq('neighborhood', hood); return q; })(),
-        db.rpc('recent_signals', { p_hood: hood, p_days: 14, p_limit: 5 }),
+        db.rpc('recent_signals', { p_hood: hood, p_days: 7, p_limit: 5 }),
+        db.rpc('scoring_model_weeks'),
       ]);
       const weeklyRow = (await aiRows('weekly_brief', undefined, 1))[0];
       const statRows = must(stats, 'today_stats') as Row[];
+      const scoringUpdated = !models.error && !!((models.data ?? []) as Row[])[0]?.updated;     // older database: no flag
       const histRows = (history.error ? [] : history.data ?? []) as Row[];     // older database: tiles simply show the plain change
       const byRecipe = new Map((must(recipes, 'recipe_summary') as Row[]).map((r) => [r.recipe, r]));
       const sigRows = must(signals, 'recent_signals') as Row[];
@@ -186,7 +195,7 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
       }));
       return {
         as_of: new Date().toISOString(), territory: hood, coverage,
-        stats: (['signals', 'active_leads', 'drafts', 'outcomes'] as const).map((m) => toSeries(statRows, m, histRows)),
+        stats: (['signals', 'active_leads', 'drafts', 'outcomes'] as const).map((m) => ({ ...toSeries(statRows, m, histRows), ...(m === 'active_leads' && scoringUpdated ? { scoring_updated: true } : {}) })),
         leads_total: counts.leads, top_leads: leads.items,
         recipe_strip: cfg.recipes.filter((r) => r.enabled).map((r) => {
           const parcels = num(byRecipe.get(r.key)?.parcels);
@@ -384,12 +393,13 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
       const by = new Map((must(sum, 'recipe_summary') as Row[]).map((r) => [r.recipe, r]));
       const tops = (must(top, 'recipe_top_leads') as Row[]);
       if (sample) mark();
+      const lines = await topSignalLines([...new Set(tops.map((t) => String(t.apn)))]);
       return cfg.recipes.map((r): RecipeCard => {
         const s = by.get(r.key);
         const parcels = num(s?.parcels);
         return {
           key: r.key, name: r.name, description: r.description, enabled: r.enabled, parcels, new_this_week: num(s?.new_this_week), strong: num(s?.strong),
-          top: tops.filter((t) => t.recipe === r.key).sort((a, b) => a.rank - b.rank).map((t) => ({ apn: t.apn, score: t.score, situs_address: titleAddress(t.situs_address) || null, neighborhood: t.neighborhood })),
+          top: tops.filter((t) => t.recipe === r.key).sort((a, b) => a.rank - b.rank).map((t) => ({ apn: t.apn, score: t.score, situs_address: titleAddress(t.situs_address) || null, neighborhood: t.neighborhood, top_signal: lines.get(String(t.apn)) ?? null })),
           idle_reason: parcels > 0 ? null : idleReason(r.key, r.enabled, r.requires_data ?? []),
           is_sample: sample,
         };
@@ -402,11 +412,12 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
         (() => { let q = db.from('share_links_active').select('*').order('created_at', { ascending: false }).limit(50); if (hood) q = q.eq('neighborhood', hood); return q; })(),
       ]);
       const rows = must(inv, 'off_market_inventory') as Row[];
+      const lines = await topSignalLines(rows.map((r) => String(r.apn)));
       return {
         total: num(rows[0]?.total), page, pageSize,
         items: rows.map((r) => ({
           apn: r.apn, situs_address: titleAddress(r.situs_address) || null, neighborhood: r.neighborhood, lot_sqft: r.lot_sqft != null ? Number(r.lot_sqft) : null,
-          zoning: r.zoning, year_built: r.year_built, land_use: r.land_use, kinds: r.kinds ?? [], upzoning: r.upzoning_estimates ?? [], has_share_link: !!r.has_share_link,
+          zoning: r.zoning, year_built: r.year_built, land_use: r.land_use, kinds: r.kinds ?? [], upzoning: r.upzoning_estimates ?? [], has_share_link: !!r.has_share_link, top_signal: lines.get(String(r.apn)) ?? null,
         })),
         links: (must(links, 'share links') as Row[]).map((l) => ({ token: l.token, apn: l.apn, situs_address: titleAddress(l.situs_address) || null, neighborhood: l.neighborhood, created_by: l.created_by, created_at: l.created_at })),
       };

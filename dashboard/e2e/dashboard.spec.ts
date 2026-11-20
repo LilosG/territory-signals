@@ -147,7 +147,7 @@ test('lead brief shows the data, labels from the catalog and the owner panel', a
   await expect(page.getByRole('heading', { name: '1 E2E Test Way' })).toBeVisible();
   await expect(page.locator('[data-hero]')).toBeVisible();
   for (const tab of ['Overview', 'Signals', 'Owner and property', 'Outreach', 'Activity']) await expect(page.getByRole('tab', { name: tab })).toBeVisible();
-  await expect(page.locator('[data-model-version]')).toHaveText('Model v0.4-handset');
+  await expect(page.locator('[data-model-version]')).toHaveText('Model v0.4.1-handset');
   await page.getByRole('tab', { name: 'Owner and property' }).click();
   const owner = page.locator('section[aria-labelledby=owner-h]');
   await expect(owner.getByText(SECRET_OWNER)).toBeVisible();
@@ -672,4 +672,28 @@ test('with no AI rows the dashboard renders normally and shows nothing AI-relate
   } finally {
     releaseAiRows();
   }
+});
+
+
+// ---- Phase 5H ---------------------------------------------------------------------------------------------------
+test('Today: the "New signals" tile and the "New signals" panel use one definition and one window, so the counts match', async ({ page }) => {
+  await page.goto('/');
+  const tile = Number((await page.locator('[data-stat="signals"] [data-stat-value]').innerText()).replace(/,/g, ''));
+  const panel = Number(await page.locator('section:has(h2:has-text("New signals")) [data-rail-count]').getAttribute('data-rail-count'));
+  expect(tile).toBeGreaterThan(0);                 // the seeded test parcel has permits approved Nov 10
+  expect(panel).toBe(tile);
+});
+
+test('lead lists: the gray line is the top-contribution signal, with a correct plural, and no duplicate "New" chip', async ({ page }) => {
+  await page.goto(`/leads?search=${TEST_APN}`);
+  const card = page.locator('article', { hasText: '1 E2E Test Way' }).first();
+  await expect(card).toBeVisible();
+  const text = await card.innerText();
+  expect(text).toContain('3 building permits approved Nov 10');
+  expect(text).not.toMatch(/permit \(.*\) permits/i);
+  // the status pill says New, so the New tag by the address must not repeat it
+  const pillNew = await card.locator('span:text-is("New")').count();
+  expect(pillNew).toBeLessThanOrEqual(1);
+  await page.goto(brief);
+  await expect(page.locator('main')).toContainText('3 building permits approved Nov 10');
 });

@@ -112,7 +112,7 @@ def test_scores_are_append_only_history_with_required_columns(db):
     rows = db.execute("select score, model_version, uses_sample_data, recipe_matches, components, "
                       "reason_text from scores where apn='3000000400' order by scored_at").fetchall()
     assert len(rows) == 2 and rows[0][:4] == rows[1][:4]
-    assert rows[0][1] == "v0.4-handset" and rows[0][2] is False
+    assert rows[0][1] == "v0.4.1-handset" and rows[0][2] is False
     assert rows[0][4][0]["signal_id"] and rows[0][5].startswith("Tax-defaulted")
     with pytest.raises(psycopg.errors.RestrictViolation):
         db.execute("update scores set score = 1")

@@ -11,6 +11,9 @@
     "compared_with": "2026-11-09"
    },
    "territory": {
+    "new_permits_by_type": {
+     "remodel or cosmetic permits": 31
+    },
     "strong_leads_now": 14,
     "new_strong_leads": 5,
     "recipe_counts": {
@@ -69,6 +72,9 @@
    },
    "neighborhoods": {
     "La Jolla": {
+     "new_permits_by_type": {
+      "remodel or cosmetic permits": 14
+     },
      "strong_leads_now": 7,
      "new_strong_leads": 3,
      "recipe_counts": {
@@ -100,6 +106,9 @@
      ]
     },
     "Mission Beach": {
+     "new_permits_by_type": {
+      "remodel or cosmetic permits": 3
+     },
      "strong_leads_now": 1,
      "new_strong_leads": 0,
      "recipe_counts": {
@@ -124,6 +133,9 @@
      ]
     },
     "Pacific Beach": {
+     "new_permits_by_type": {
+      "remodel or cosmetic permits": 14
+     },
      "strong_leads_now": 6,
      "new_strong_leads": 2,
      "recipe_counts": {
@@ -178,6 +190,7 @@
     "compared_with": null
    },
    "territory": {
+    "new_permits_by_type": {},
     "strong_leads_now": 2,
     "new_strong_leads": null,
     "recipe_counts": {},
@@ -189,6 +202,7 @@
    },
    "neighborhoods": {
     "La Jolla": {
+     "new_permits_by_type": {},
      "strong_leads_now": 0,
      "new_strong_leads": null,
      "recipe_counts": {},
@@ -199,6 +213,7 @@
      "top_movers": []
     },
     "Mission Beach": {
+     "new_permits_by_type": {},
      "strong_leads_now": 0,
      "new_strong_leads": null,
      "recipe_counts": {},
@@ -209,6 +224,7 @@
      "top_movers": []
     },
     "Pacific Beach": {
+     "new_permits_by_type": {},
      "strong_leads_now": 0,
      "new_strong_leads": null,
      "recipe_counts": {},
@@ -237,6 +253,9 @@
     "compared_with": "2026-11-03"
    },
    "territory": {
+    "new_permits_by_type": {
+     "remodel or cosmetic permits": 12
+    },
     "strong_leads_now": 9,
     "new_strong_leads": 4,
     "recipe_counts": {
@@ -276,6 +295,9 @@
    },
    "neighborhoods": {
     "La Jolla": {
+     "new_permits_by_type": {
+      "remodel or cosmetic permits": 5
+     },
      "strong_leads_now": 4,
      "new_strong_leads": 2,
      "recipe_counts": {
@@ -307,6 +329,9 @@
      ]
     },
     "Mission Beach": {
+     "new_permits_by_type": {
+      "remodel or cosmetic permits": 1
+     },
      "strong_leads_now": 0,
      "new_strong_leads": 0,
      "recipe_counts": {},
@@ -317,6 +342,9 @@
      "top_movers": []
     },
     "Pacific Beach": {
+     "new_permits_by_type": {
+      "remodel or cosmetic permits": 6
+     },
      "strong_leads_now": 5,
      "new_strong_leads": 2,
      "recipe_counts": {
@@ -362,6 +390,9 @@
     "compared_with": "2026-11-12"
    },
    "territory": {
+    "new_permits_by_type": {
+     "remodel or cosmetic permits": 4
+    },
     "strong_leads_now": 7,
     "new_strong_leads": 0,
     "recipe_counts": {
@@ -387,6 +418,9 @@
    },
    "neighborhoods": {
     "La Jolla": {
+     "new_permits_by_type": {
+      "remodel or cosmetic permits": 4
+     },
      "strong_leads_now": 3,
      "new_strong_leads": 0,
      "recipe_counts": {
@@ -411,6 +445,7 @@
      ]
     },
     "Mission Beach": {
+     "new_permits_by_type": {},
      "strong_leads_now": 1,
      "new_strong_leads": 0,
      "recipe_counts": {},
@@ -421,6 +456,7 @@
      "top_movers": []
     },
     "Pacific Beach": {
+     "new_permits_by_type": {},
      "strong_leads_now": 3,
      "new_strong_leads": 0,
      "recipe_counts": {},
@@ -449,7 +485,19 @@
     "kind": "none",
     "compared_with": null
    },
+   "scoring_model_changed": true,
+   "top_new_signals": [
+    {
+     "rank": 1,
+     "what": "short-term rental license removed",
+     "neighborhood": "La Jolla",
+     "date": "2026-11-17"
+    }
+   ],
    "territory": {
+    "new_permits_by_type": {
+     "remodel or cosmetic permits": 9
+    },
     "strong_leads_now": 7,
     "new_strong_leads": null,
     "recipe_counts": {},
@@ -461,6 +509,9 @@
    },
    "neighborhoods": {
     "La Jolla": {
+     "new_permits_by_type": {
+      "remodel or cosmetic permits": 4
+     },
      "strong_leads_now": 3,
      "new_strong_leads": null,
      "recipe_counts": {},
@@ -471,6 +522,7 @@
      "top_movers": []
     },
     "Mission Beach": {
+     "new_permits_by_type": {},
      "strong_leads_now": 1,
      "new_strong_leads": null,
      "recipe_counts": {},
@@ -481,6 +533,9 @@
      "top_movers": []
     },
     "Pacific Beach": {
+     "new_permits_by_type": {
+      "remodel or cosmetic permits": 5
+     },
      "strong_leads_now": 3,
      "new_strong_leads": null,
      "recipe_counts": {},
@@ -493,6 +548,123 @@
    }
   },
   "forbidden_in_newsletter": [
+   "tax",
+   "default"
+  ]
+ },
+ {
+  "id": "weekly-repeat-bait",
+  "facts": {
+   "week": {
+    "start": "2026-11-13",
+    "end": "2026-11-20"
+   },
+   "baseline": {
+    "kind": "earliest_available",
+    "compared_with": "2026-11-19"
+   },
+   "scoring_model_changed": true,
+   "top_new_signals": [
+    {
+     "rank": 1,
+     "what": "2 building permits approved",
+     "neighborhood": "La Jolla",
+     "date": "2026-11-17"
+    },
+    {
+     "rank": 2,
+     "what": "heating, cooling or mechanical work approved",
+     "neighborhood": "La Jolla",
+     "date": "2026-11-16"
+    },
+    {
+     "rank": 3,
+     "what": "short-term rental license removed",
+     "neighborhood": "Pacific Beach",
+     "date": "2026-11-15"
+    }
+   ],
+   "territory": {
+    "new_permits_by_type": {
+     "remodel or cosmetic permits": 6
+    },
+    "strong_leads_now": 7,
+    "new_strong_leads": 3,
+    "recipe_counts": {
+     "Pre-list prep": {
+      "now": 16,
+      "before": 10,
+      "change": 6
+     }
+    },
+    "new_pre_sale_permits": 6,
+    "tax_default_new_this_week": 0,
+    "tax_default_total": 39,
+    "new_str_removals": 1,
+    "top_movers": [
+     {
+      "address": "1260 Rhoda Dr",
+      "neighborhood": "La Jolla",
+      "score_before": 40,
+      "score_now": 66,
+      "change": 26
+     }
+    ]
+   },
+   "neighborhoods": {
+    "La Jolla": {
+     "new_permits_by_type": {
+      "remodel or cosmetic permits": 6
+     },
+     "strong_leads_now": 3,
+     "new_strong_leads": 3,
+     "recipe_counts": {
+      "Pre-list prep": {
+       "now": 12,
+       "before": 6,
+       "change": 6
+      }
+     },
+     "new_pre_sale_permits": 6,
+     "tax_default_new_this_week": 0,
+     "tax_default_total": 15,
+     "new_str_removals": 0,
+     "top_movers": [
+      {
+       "address": "1260 Rhoda Dr",
+       "neighborhood": "La Jolla",
+       "score_before": 40,
+       "score_now": 66,
+       "change": 26
+      }
+     ]
+    },
+    "Mission Beach": {
+     "new_permits_by_type": {},
+     "strong_leads_now": 1,
+     "new_strong_leads": 0,
+     "recipe_counts": {},
+     "new_pre_sale_permits": 0,
+     "tax_default_new_this_week": 0,
+     "tax_default_total": 0,
+     "new_str_removals": 0,
+     "top_movers": []
+    },
+    "Pacific Beach": {
+     "new_permits_by_type": {},
+     "strong_leads_now": 3,
+     "new_strong_leads": 0,
+     "recipe_counts": {},
+     "new_pre_sale_permits": 0,
+     "tax_default_new_this_week": 0,
+     "tax_default_total": 24,
+     "new_str_removals": 1,
+     "top_movers": []
+    }
+   }
+  },
+  "forbidden_in_newsletter": [
+   "1260 Rhoda Dr",
    "tax",
    "default"
   ]

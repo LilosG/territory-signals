@@ -13,7 +13,8 @@ use is a residential code, or the record's own PROJECT_TYPE / APPROVAL_TYPE says
 Pre-sale prep (v0.4, D14): the electrical / plumbing / mechanical types are only candidates. The permit's
 text decides (presale_rules in the map): cosmetic or remodel scope stays pre_sale_prep, solar goes to
 solar_energy, non-residential work to other, and everything else (like-for-like systems work, or no text)
-to `maintenance`, which carries no score weight.
+to `maintenance`, which carries no score weight. v0.4.1: an MEP permit whose text names an ADU, accessory
+dwelling, conversion into units or new attached/detached units goes to `adu` (adu_scope), not pre_sale_prep.
 
 Stalled: a permit counts as stalled only when
   - its group is remodel_addition, adu or demolition_lot_split,
@@ -58,7 +59,7 @@ def load_map(path: str | Path | None = None) -> dict[str, Any]:
     rules = data.get("presale_rules") or {}
     # A map without presale_rules (older or test maps) leaves pre_sale_prep types as the bare type says.
     compiled = {k: [re.compile(p, re.I) for p in rules.get(k, [])]
-                for k in ("non_residential", "new_construction", "solar", "cosmetic_scope", "weak_scope",
+                for k in ("non_residential", "new_construction", "solar", "adu_scope", "cosmetic_scope", "weak_scope",
                           "systems_work")} if rules else None
     return {"status": data.get("status"), "approval_types": mapping,
             "residential_remodel_types": res_types, "presale_rules": compiled}
@@ -103,6 +104,8 @@ def refine_pre_sale(text: str, rules: Mapping[str, Any]) -> str:
         return "other"
     if _any(rules["solar"], text):
         return "solar_energy"
+    if _any(rules["adu_scope"], text):
+        return "adu"
     if _any(rules["cosmetic_scope"], text):
         return "pre_sale_prep"
     if _any(rules["weak_scope"], text) and not _any(rules["systems_work"], text):

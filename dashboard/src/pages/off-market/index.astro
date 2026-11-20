@@ -1,4 +1,5 @@
 ---
+import Fact from '../../components/ui/Fact.astro';
 import AppShell from '../../components/ui/AppShell.astro';
 import PageHeader from '../../components/ui/PageHeader.astro';
 import Card from '../../components/ui/Card.astro';
@@ -64,6 +65,7 @@ const KIND_LABEL: Record<string, string> = { builder_bait: 'Builder bait', tired
                         <span class="t-meta text-ink-muted">{p.neighborhood}</span>
                         {p.has_share_link && <StatusPill tone="good">Link active</StatusPill>}
                       </div>
+                      {p.top_signal && <p class="mt-0.5 text-sm text-ink-muted" data-top-signal><Fact {...p.top_signal} /></p>}
                       {facts && <p class="mt-0.5 text-sm text-ink-muted">{facts}</p>}
                       <ul class="mt-2 flex flex-wrap gap-1.5">
                         {p.kinds.map((k) => <li class="rounded-md bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">{KIND_LABEL[k] ?? k}</li>)}

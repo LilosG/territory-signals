@@ -43,7 +43,7 @@ def all_labels(cat):
 
 
 def test_catalog_contents_and_counts():
-    assert CAT["model_version"] == CFG["model_version"] == "v0.4-handset"
+    assert CAT["model_version"] == CFG["model_version"] == "v0.4.1-handset"
     assert CAT["client_id"] == "kaiser-team"
     assert {t["key"] for t in CAT["signal_types"]} == set(CFG["signals"]) | {"ownership_transfer"}
     assert len(CAT["permit_types"]) == len(CFG["permit_labels"]) == 147

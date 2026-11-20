@@ -15,7 +15,7 @@ from territory.llm.base import Provider
 from territory.llm.prompts import load_prompt
 from territory.llm.tasks.lead_brief import SENSITIVE_RECIPES
 from territory.llm.validators import (
-    check_addresses, check_newsletter_generalities, check_numbers, check_speculation, strings_of,
+    check_addresses, check_newsletter_generalities, check_numbers, check_repetition, check_speculation, strings_of,
 )
 from territory.scoring_engine import load_scoring_config
 
@@ -56,6 +56,48 @@ def _runs(conn, start: datetime) -> tuple[Any, Any, str]:
     return latest, None, "none"
 
 
+def model_changed(conn, start: datetime) -> bool:
+    """True when the scoring model changed this week: more than one model version scored since the week began, or the model that
+    scored this week is not the one in force when the week began. Lead counts are not comparable across such a change."""
+    in_week = {r[0] for r in conn.execute("select distinct model_version from scores where scored_at > %s", (start,))}
+    prior = conn.execute("select model_version from scores where scored_at <= %s order by scored_at desc limit 1", (start,)).fetchone()
+    return len(in_week | ({prior[0]} if prior else set())) > 1
+
+
+PERMIT_WORDS = {"pre_sale_prep": "remodel or cosmetic permits", "adu": "ADU permits", "remodel_addition": "remodel or addition permits",
+                "demolition_lot_split": "demolition or lot-split permits", "solar_energy": "solar permits"}
+
+
+def _plain_permits(label: str, n: int) -> str:
+    """"2 building permits" / "heating, cooling or mechanical work": the label without its parenthetical, counted when n > 1."""
+    base = re.sub(r"\s*\([^)]*\)", "", label).strip()
+    base = base[:1].lower() + base[1:]
+    if n <= 1:
+        return base
+    return f"{n} {base + 's' if base.endswith('permit') else base + ' permits'}"
+
+
+def top_new_signals(conn, latest, start_d: date, end_d: date, n: int = 3) -> list[dict]:
+    """The n new signals of the week (selling-relevant: approved permits, removed STR licenses) that add the most to a score, with the
+    neighborhood. No addresses or parcel numbers. Ties go to the most recent date. Tax-default and ownership components are not
+    included (they may only appear in a neighborhood bullet)."""
+    rows = conn.execute(
+        """select c ->> 'key', c -> 'facts', (c ->> 'signal_date')::date, (c ->> 'contribution')::numeric, coalesce(p.neighborhood, p.planning_area)
+             from scores s join parcels p using (apn), jsonb_array_elements(s.components) c
+            where s.scored_at = %s and c ->> 'kind' = 'signal' and (c ->> 'contribution')::numeric > 0
+              and (c ->> 'key' like 'permit_approved%%' or c ->> 'key' = 'stro_license_removed')
+              and (c ->> 'signal_date')::date > %s and (c ->> 'signal_date')::date <= %s
+            order by (c ->> 'contribution')::numeric desc, (c ->> 'signal_date')::date desc, s.apn limit %s""",
+        (latest, start_d, end_d, n)).fetchall()
+    out = []
+    for i, (key, f, d, _pts, hood) in enumerate(rows, 1):
+        f = f or {}
+        what = ("short-term rental license removed" if key == "stro_license_removed"
+                else f"{_plain_permits(str(f.get('permit_label') or 'permit'), int(f.get('permit_count') or 1))} approved")
+        out.append({"rank": i, "what": what, "neighborhood": hood, "date": d.isoformat()})
+    return out
+
+
 def compute_facts(conn, today: date, scoring_cfg: dict | None = None, hoods: list[str] | None = None) -> dict:
     """Everything the briefing may say, from SQL. Deterministic for a given database state."""
     cfg = scoring_cfg or load_scoring_config()
@@ -68,6 +110,8 @@ def compute_facts(conn, today: date, scoring_cfg: dict | None = None, hoods: lis
         "week": {"start": start_d.isoformat(), "end": end_d.isoformat()},
         "baseline": {"kind": kind, "compared_with": base.date().isoformat() if base else None},
         "territory": None, "neighborhoods": {},
+        "scoring_model_changed": model_changed(conn, start),
+        "top_new_signals": top_new_signals(conn, latest, start_d, end_d),
     }
 
     def scope_facts(hood: str | None) -> dict[str, Any]:
@@ -105,6 +149,11 @@ def compute_facts(conn, today: date, scoring_cfg: dict | None = None, hoods: lis
             "select count(*) from signals s join parcels p using (apn) where s.signal_type='stro_license_removed' "
             "and s.superseded_by is null and s.signal_date > %s and s.signal_date <= %s "
             "and (%s::text is null or coalesce(p.neighborhood,p.planning_area)=%s)", (start_d, end_d, h, h)).fetchone()[0]
+        by_group = {PERMIT_WORDS[g]: n for g, n in conn.execute(
+            "select s.signal_group, count(distinct s.source_record_id) from signals s join parcels p using (apn) "
+            "where s.signal_type='permit_approved' and s.signal_group = any(%s) and s.superseded_by is null "
+            "and s.signal_date > %s and s.signal_date <= %s and (%s::text is null or coalesce(p.neighborhood,p.planning_area)=%s) "
+            "group by 1 order by 1", (list(PERMIT_WORDS), start_d, end_d, h, h)) if n}
         movers = []
         if base is not None:
             movers = [{"address": r[0], "neighborhood": r[1], "score_before": r[2], "score_now": r[3], "change": r[3] - r[2]}
@@ -115,7 +164,8 @@ def compute_facts(conn, today: date, scoring_cfg: dict | None = None, hoods: lis
                     order by abs(s.score-b.score) desc, p.apn limit 5""", {"l": latest, "b": base, "h": h})]
         return {"strong_leads_now": strong_now, "new_strong_leads": new_strong, "recipe_counts": recipes,
                 "new_pre_sale_permits": permits, "tax_default_new_this_week": tax_new, "tax_default_total": tax_total,
-                "new_str_removals": str_new, "top_movers": movers}
+                "new_str_removals": str_new, "top_movers": movers,
+                "new_permits_by_type": by_group}
 
     facts["territory"] = scope_facts(None)
     for hname in hoods:
@@ -126,27 +176,42 @@ def compute_facts(conn, today: date, scoring_cfg: dict | None = None, hoods: lis
 NO_CHANGE = re.compile(
     r"\bno (?:new|change|changes|movement)\b|\bnone (?:new|this week|recorded)\b|\bnothing (?:new|to report)\b|"
     r"\b(?:zero|0) new\b|\bunchanged\b|\bwith none\b", re.I)
+RECALC = re.compile(r"\brecalculat\w*", re.I)
 INTERNAL_WORDS = re.compile(r"\bbaseline\b|\bwatch categor\w*|\bearliest available\b|\bplaybook\b|\brecipes?\b|\bsample data\b", re.I)
 
 
 def model_view(facts: dict) -> dict:
-    """What the model is shown (Phase 5G): only what is NEW or CHANGED, so there is nothing to say "no new ..." about, and no
-    internal comparison details. Validators still check numbers against the full facts, of which this is a subset."""
+    """What the model is shown (Phase 5G/5H): only what is NEW or CHANGED, so there is nothing to say "no new ..." about, and no
+    internal comparison details. Validators still check numbers against the full facts, of which this is a subset. New permits,
+    short-term rental removals and tax-default changes are ONE block, `new_this_week`, so a fact is stated in one place only.
+    When the scoring model changed this week nothing that compares lead counts with last week is shown."""
+    changed = bool(facts.get("scoring_model_changed"))
+
     def scope(s: dict) -> dict:
         out: dict[str, Any] = {"strong_leads_now": s["strong_leads_now"]}
-        for k in ("new_strong_leads", "new_pre_sale_permits", "new_str_removals"):
-            if s.get(k):
-                out[k] = s[k]
+        new: dict[str, Any] = dict(s.get("new_permits_by_type") or {})
+        if s.get("new_str_removals"):
+            new["short-term rental licenses removed"] = s["new_str_removals"]
+        if new:
+            out["new_this_week"] = new
+        if s.get("new_strong_leads") and not changed:
+            out["new_strong_leads"] = s["new_strong_leads"]
         if s.get("tax_default_new_this_week"):
             out["tax_default_new_this_week"], out["tax_default_total"] = s["tax_default_new_this_week"], s["tax_default_total"]
-        changed = {k: {"now": v["now"], "change": v["change"]} for k, v in (s.get("recipe_counts") or {}).items() if v.get("change")}
-        if changed:
-            out["changes_by_home_type"] = changed
-        if s.get("top_movers"):
-            out["top_movers"] = s["top_movers"]
+        if not changed:
+            ch = {k: {"now": v["now"], "change": v["change"]} for k, v in (s.get("recipe_counts") or {}).items() if v.get("change")}
+            if ch:
+                out["changes_by_home_type"] = ch
+            if s.get("top_movers"):
+                out["top_movers"] = s["top_movers"]
         return out
-    return {"week": facts["week"], "territory": scope(facts["territory"]),
-            "neighborhoods": {h: scope(s) for h, s in facts["neighborhoods"].items()}}
+    view: dict[str, Any] = {"week": facts["week"], "territory": scope(facts["territory"])}
+    if changed:
+        view["scoring_model_changed"] = True
+    if facts.get("top_new_signals"):
+        view["top_new_signals"] = facts["top_new_signals"]
+    view["neighborhoods"] = {h: scope(s) for h, s in facts["neighborhoods"].items()}
+    return view
 
 
 def recipe_label_set() -> set[str]:
@@ -165,8 +230,8 @@ def validate(out: WeeklyOut, facts: dict) -> list[str]:
     if not out.sections:
         problems.append("no sections")
     nsent = len([x for x in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9])", out.intro.strip()) if x])
-    if nsent != 2:
-        problems.append(f"intro has {nsent} sentences (need 2)")
+    if not 1 <= nsent <= 2:
+        problems.append(f"intro has {nsent} sentences (need 1 or 2)")
     nw = len(out.newsletter_paragraph.split())
     if not 60 <= nw <= 90:
         problems.append(f"newsletter paragraph has {nw} words (need 60 to 90)")
@@ -178,6 +243,15 @@ def validate(out: WeeklyOut, facts: dict) -> list[str]:
     quiet = [t for t in [out.title, out.intro, *[b for s in out.sections for b in s.bullets]] if NO_CHANGE.search(t)]
     if quiet:
         problems.append(f"says what did not change ({NO_CHANGE.search(quiet[0]).group(0)!r}); leave out categories with no change")
+    problems += check_repetition([[out.title, out.intro], *[s.bullets for s in out.sections], [out.newsletter_paragraph]])
+    recalc = len(RECALC.findall(" ".join([out.title, out.intro, *[b for s in out.sections for b in s.bullets]])))
+    if facts.get("scoring_model_changed"):
+        if recalc != 1:
+            problems.append(f"the scoring model changed this week: say once, in plain words, that lead counts were recalculated (found {recalc})")
+        if RECALC.search(out.newsletter_paragraph):
+            problems.append("the newsletter must not mention the recalculation")
+    elif recalc:
+        problems.append("says counts were recalculated, but the scoring model did not change")
     problems += check_numbers(texts, facts)
     problems += check_speculation(texts, facts)
     problems += check_newsletter_generalities(out.newsletter_paragraph)

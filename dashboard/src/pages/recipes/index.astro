@@ -8,6 +8,7 @@ import ScoreRing from '../../components/ui/ScoreRing.astro';
 import SampleDataBadge from '../../components/ui/SampleDataBadge.astro';
 import Button from '../../components/ui/Button.astro';
 import Icon from '../../components/ui/Icon.astro';
+import Fact from '../../components/ui/Fact.astro';
 import { enabledRecipeCount, loadClientConfig } from '../../lib/config';
 import { fmtNum } from '../../lib/format';
 export const prerender = false;
@@ -39,7 +40,7 @@ const where = Astro.locals.territory ?? 'the whole territory';
               {r.top.slice(0, 5).map((t) => (
                 <li><a href={`/leads/${t.apn}`} class="flex items-center gap-3 rounded-md py-1 hover:text-accent">
                   <ScoreRing score={t.score} size="xs" />
-                  <span class="min-w-0 flex-1 truncate text-sm font-medium">{t.situs_address}</span>
+                  <span class="min-w-0 flex-1"><span class="block truncate text-sm font-medium">{t.situs_address}</span>{t.top_signal && <span class="block truncate text-xs text-ink-muted" data-top-signal><Fact {...t.top_signal} /></span>}</span>
                   <span class="t-meta shrink-0 text-ink-muted max-sm:hidden">{t.neighborhood}</span>
                 </a></li>
               ))}

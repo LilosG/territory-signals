@@ -9,13 +9,13 @@ import Spark from './Spark.astro';
 export interface Props { label: string; series: StatSeries | undefined; today?: string }
 const { label, series, today = new Date().toISOString().slice(0, 10) } = Astro.props;
 const d = series ? statDelta(series, today) : null;
-const tone = d?.firstFull ? 'text-ink-muted' : d?.dir === 'up' ? 'text-good' : d?.dir === 'down' ? 'text-warning' : 'text-ink-muted';
+const tone = d?.firstFull || d?.scoringUpdated ? 'text-ink-muted' : d?.dir === 'up' ? 'text-good' : d?.dir === 'down' ? 'text-warning' : 'text-ink-muted';
 ---
 <Card class="!p-4" data-stat={series?.metric}>
   <p class="t-meta text-ink-muted">{label}</p>
   <div class="mt-1 flex items-end justify-between gap-2">
-    <p class="text-3xl font-semibold tabular-nums tracking-tight text-ink">{fmtNum(series?.this_week ?? 0)}</p>
+    <p class="text-3xl font-semibold tabular-nums tracking-tight text-ink" data-stat-value>{fmtNum(series?.this_week ?? 0)}</p>
     {series && <Spark values={series.days.map((x) => x.n)} />}
   </div>
-  <p class:list={['mt-1 truncate text-xs font-medium', tone]} data-delta={d?.firstFull ? 'first-full-week' : undefined}>{d?.label ?? 'No data yet'}</p>
+  <p class:list={['mt-1 truncate text-xs font-medium', tone]} data-delta={d?.firstFull ? 'first-full-week' : d?.scoringUpdated ? 'scoring-updated' : undefined}>{d?.label ?? 'No data yet'}</p>
 </Card>

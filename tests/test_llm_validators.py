@@ -258,7 +258,8 @@ def test_weekly_structure_rules():
     facts = {**FACTS, "territory": {**FACTS["territory"], "x": 31}}
     assert any("more than 4" in p for p in wb.validate(weekly(sections=[{"neighborhood": "La Jolla", "bullets": ["a"] * 5}]), facts))
     assert any("unknown neighborhood" in p for p in wb.validate(weekly(sections=[{"neighborhood": "Nowhere", "bullets": ["a"]}]), facts))
-    assert any("2)" in p for p in wb.validate(weekly(intro="Only one sentence."), facts))
+    assert not any("intro has" in p for p in wb.validate(weekly(intro="Only one sentence."), facts))      # 5H: at most 2, not exactly 2
+    assert any("intro has 3" in p for p in wb.validate(weekly(intro="One thing. Two things. Three things."), facts))
     assert any("tax-default" in p for p in wb.validate(weekly(intro="Tax default counts rose. Second sentence."), facts))
 
 
@@ -304,6 +305,7 @@ FULL = {"week": {"start": "2026-11-12", "end": "2026-11-19"}, "baseline": {"kind
                                         "Downsizer": {"now": 9, "before": None, "change": None}},
                       "top_movers": [{"address": "1260 Rhoda Dr", "neighborhood": "La Jolla", "score_before": 66, "score_now": 37, "change": -29}]},
         "neighborhoods": {"La Jolla": {"strong_leads_now": 3, "new_strong_leads": 0, "new_pre_sale_permits": 4, "new_str_removals": 0,
+                                       "new_permits_by_type": {"remodel or cosmetic permits": 4},
                                        "tax_default_new_this_week": 1, "tax_default_total": 15, "recipe_counts": {}, "top_movers": []},
                           "Mission Beach": {"strong_leads_now": 1, "new_strong_leads": None, "new_pre_sale_permits": 0, "new_str_removals": 0,
                                             "tax_default_new_this_week": 0, "tax_default_total": 0, "recipe_counts": {}, "top_movers": []}}}
@@ -312,10 +314,9 @@ FULL = {"week": {"start": "2026-11-12", "end": "2026-11-19"}, "baseline": {"kind
 def test_the_model_sees_only_what_is_new_or_changed():
     view = wb.model_view(FULL)
     assert "baseline" not in view
-    assert view["territory"] == {"strong_leads_now": 7, "new_pre_sale_permits": 4,
-                                 "changes_by_home_type": {"Builder bait": {"now": 364, "change": -2}},
+    assert view["territory"] == {"strong_leads_now": 7, "changes_by_home_type": {"Builder bait": {"now": 364, "change": -2}},
                                  "top_movers": FULL["territory"]["top_movers"]}
-    assert view["neighborhoods"]["La Jolla"] == {"strong_leads_now": 3, "new_pre_sale_permits": 4,
+    assert view["neighborhoods"]["La Jolla"] == {"strong_leads_now": 3, "new_this_week": {"remodel or cosmetic permits": 4},
                                                  "tax_default_new_this_week": 1, "tax_default_total": 15}
     assert view["neighborhoods"]["Mission Beach"] == {"strong_leads_now": 1}             # nothing new: only the count
     text = json.dumps(view)
@@ -347,10 +348,12 @@ def test_weekly_must_not_use_internal_wording(text):
 
 def test_a_news_led_weekly_brief_passes():
     facts = {**FACTS, "territory": {**FACTS["territory"], "new_pre_sale_permits": 4, "x": 31}}
-    good = weekly(title="4 new pre-sale permits in La Jolla",
+    good = weekly(title="Pre-sale permits lead La Jolla",
                   intro="La Jolla has 4 new pre-sale permits this week. The territory holds 12 strong leads.",
                   sections=[{"neighborhood": "La Jolla", "bullets": ["4 new pre-sale permits.", "7 strong leads now."]}])
     assert wb.validate(good, facts) == []
+    # the same count stated twice in the title and intro is rejected (Phase 5H)
+    assert any("repeats the count 4" in p for p in wb.validate(weekly(title="4 new pre-sale permits in La Jolla", intro=good.intro, sections=[{"neighborhood": "La Jolla", "bullets": ["7 strong leads now."]}]), facts))
 
 
 def test_a_newsletter_may_not_make_claims_that_are_not_in_the_facts():
@@ -374,3 +377,20 @@ def test_a_newsletter_may_not_make_claims_that_are_not_in_the_facts():
 ])
 def test_intent_to_sell_is_rejected_unless_hedged(text, ok):
     assert (v.check_intent_and_meta([text]) == []) is ok
+
+
+# ---- repetition (Phase 5H) ----------------------------------------------------------------------------------------------
+from territory.llm.validators import check_repetition
+
+
+def test_repetition_flags_the_same_count_about_the_same_thing():
+    p = check_repetition([["Busy week in La Jolla.", "There are 4 new pre-sale permits. 4 remodel permits were approved."]])
+    assert len(p) == 1 and "count 4" in p[0]
+    assert check_repetition([["Four new permits arrived. Then 4 more permits were filed."]])         # spelled-out numbers count
+
+
+def test_repetition_allows_different_facts_dates_scores_and_separate_blocks():
+    assert not check_repetition([["5 new permits arrived.", "5 homes reached a strong score."]])    # same number, different things
+    assert not check_repetition([["Permits approved Nov 10, 2026.", "More permits approved Nov 10, 2026."]])   # a date is not a count
+    assert not check_repetition([["1260 Rhoda Dr: 40 to 66.", "1300 Rhoda Dr: 40 to 66."]])         # score moves are not counts
+    assert not check_repetition([["2 new permits in La Jolla."], ["2 new permits in Pacific Beach."]])   # blocks are separate (one per neighborhood)

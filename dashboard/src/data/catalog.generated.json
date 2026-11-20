@@ -1,7 +1,7 @@
 {
   "catalog_version": 1,
   "client_id": "kaiser-team",
-  "model_version": "v0.4-handset",
+  "model_version": "v0.4.1-handset",
   "signal_types": [
     {
       "key": "fire_hazard_zone",
