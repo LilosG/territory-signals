@@ -267,6 +267,10 @@ def test_weekly_facts_are_sql_computed_and_stable(db):
     assert t["new_pre_sale_permits"] == 3 and t["tax_default_new_this_week"] == 1       # all dated 2026-11-18, inside the week
     assert f1["baseline"]["kind"] == "none" and t["new_strong_leads"] is None and t["top_movers"] == []
     assert t["tax_default_total"] == 1
+    assert t["new_permits_by_type"] == {"remodel or cosmetic permits": 3}               # Phase 5H: new signals by type, per neighborhood
+    assert f1["neighborhoods"]["La Jolla"]["new_permits_by_type"] == {"remodel or cosmetic permits": 3}
+    assert f1["scoring_model_changed"] is False
+    assert all(set(x) == {"rank", "what", "neighborhood", "date"} for x in f1["top_new_signals"])       # no address, no parcel number
 
 
 def test_weekly_brief_end_to_end(db):
@@ -275,7 +279,7 @@ def test_weekly_brief_end_to_end(db):
 
     def handler(task, system, messages):
         facts = json.loads(messages[0]["content"])
-        n = facts["territory"]["new_pre_sale_permits"]
+        n = facts["territory"]["new_this_week"]["remodel or cosmetic permits"]
         return {"title": "A steady week", "intro": f"We saw {n} new pre-sale permits. Activity looks steady.",
                 "sections": [{"neighborhood": "La Jolla", "bullets": [f"{n} new pre-sale permits."]}], "newsletter_paragraph": NEWS}
     s = stats_for(db, client(), FakeProvider(handler), ["weekly_brief"], today=today)[0]
@@ -353,3 +357,36 @@ def test_editing_a_prompt_without_bumping_its_version_does_not_serve_cached_brie
     monkeypatch.setattr(lead_brief, "load_prompt", lambda task, *a, **k: (real(task)[0] + "\nAn extra rule.", real(task)[1]))
     s = stats_for(db, client(), FakeProvider(brief_handler), ["lead_brief"])[0]
     assert s.cached == 0 and s.valid == 3                                        # same version label, new text: asked again
+
+
+def test_weekly_model_view_drops_comparisons_when_the_scoring_model_changed():
+    base = {"strong_leads_now": 7, "new_strong_leads": 3, "recipe_counts": {"Pre-list prep": {"now": 16, "before": 10, "change": 6}},
+            "new_pre_sale_permits": 6, "tax_default_new_this_week": 0, "tax_default_total": 39, "new_str_removals": 1,
+            "new_permits_by_type": {"remodel or cosmetic permits": 6}, "top_movers": [{"address": "1 A St", "score_before": 1, "score_now": 2, "change": 1}]}
+    facts = {"week": {"start": "a", "end": "b"}, "territory": base, "neighborhoods": {"La Jolla": base}, "top_new_signals": [{"rank": 1}]}
+    v = weekly_brief.model_view(facts)
+    assert v["territory"]["new_this_week"] == {"remodel or cosmetic permits": 6, "short-term rental licenses removed": 1}
+    assert v["territory"]["new_strong_leads"] == 3 and "changes_by_home_type" in v["territory"] and "scoring_model_changed" not in v
+    changed = weekly_brief.model_view({**facts, "scoring_model_changed": True})
+    assert changed["scoring_model_changed"] is True
+    for k in ("new_strong_leads", "changes_by_home_type", "top_movers"):
+        assert k not in changed["territory"] and k not in changed["neighborhoods"]["La Jolla"]
+    assert changed["territory"]["strong_leads_now"] == 7 and changed["top_new_signals"] == [{"rank": 1}]
+
+
+def test_weekly_validate_requires_the_recalculation_sentence_exactly_once_after_a_model_change():
+    facts = {"scoring_model_changed": True, "neighborhoods": {"La Jolla": {}}, "week": {}, "territory": {"top_movers": []}}
+    mk = lambda intro, bullets=("A bullet.",): weekly_brief.WeeklyOut(title="Busy week", intro=intro, newsletter_paragraph=NEWS,
+                                                                     sections=[weekly_brief.Section(neighborhood="La Jolla", bullets=list(bullets))])
+    assert not [p for p in weekly_brief.validate(mk("Lead counts were recalculated this week."), facts) if "recalculat" in p]
+    assert any("recalculat" in p for p in weekly_brief.validate(mk("Busy week."), facts))
+    assert any("recalculat" in p for p in weekly_brief.validate(mk("Counts were recalculated.", ["Recalculated again."]), facts))
+    assert any("did not change" in p for p in weekly_brief.validate(mk("Counts were recalculated."), {**facts, "scoring_model_changed": False}))
+
+
+def test_weekly_validate_rejects_the_same_count_stated_twice():
+    facts = {"scoring_model_changed": False, "neighborhoods": {"La Jolla": {}}, "week": {}, "territory": {"top_movers": []},
+             "x": "4 5"}
+    out = weekly_brief.WeeklyOut(title="Permits lead the week", intro="La Jolla has 4 new remodel permits. That is 4 remodel permits approved.",
+                                 newsletter_paragraph=NEWS, sections=[weekly_brief.Section(neighborhood="La Jolla", bullets=["Fine."])])
+    assert any("repeats the count 4" in p for p in weekly_brief.validate(out, facts))

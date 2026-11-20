@@ -230,7 +230,12 @@ def test_today_stat_history_buckets_weeks_and_reports_the_first_data_day(d):
         hood = d.execute("select weeks_ago, n from today_stat_history('Nowhere') where metric = 'signals' order by weeks_ago limit 3").fetchall()
     sig = [r for r in rows if r[0] == "signals"]
     assert [r[1] for r in sig] == list(range(13))
-    assert [r[2] for r in sig][:4] == [3, 5, 5, 0]                                 # 2 + 1 | 4 + 1 | 5 | none
+    assert [r[2] for r in sig][:4] == [2, 2, 1, 0]                                 # events (same-day signals of a kind on a parcel count once): 1+1 | 1+1 | 1 | none
+    with as_user(d, MEMBER):                  # Phase 5H: the tile, its history and the panel share one definition and window
+        tile = d.execute("select coalesce(sum(n), 0) from today_stats(null) where metric = 'signals' and day > current_date - 7").fetchone()[0]
+        panel = d.execute("select coalesce(max(total), 0) from recent_signals(null, 7, 5)").fetchone()[0]
+        history = d.execute("select n from today_stat_history(null) where metric = 'signals' and weeks_ago = 0").fetchone()[0]
+    assert tile == panel == history == 2
     assert {r[3] for r in sig} == {today - timedelta(days=9)}                      # first successful pull of dev_permits / stro, not tax_default
     assert {r[0] for r in rows} == {"signals", "drafts", "outcomes", "active_leads"}
     assert all(r[3] is None for r in rows if r[0] == "outcomes")                   # no outcome ever logged

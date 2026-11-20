@@ -119,4 +119,35 @@ def test_maintenance_is_a_known_group_with_no_weight():
     cfg = yaml.safe_load((rules.MAP_PATH.parent / "scoring.yaml").read_text())
     assert "maintenance" in rules.SIGNAL_GROUPS
     assert cfg["signals"]["permit_approved"]["by_group"]["maintenance"]["weight"] == 0
-    assert cfg["model_version"] == "v0.4-handset"
+    assert cfg["model_version"] == "v0.4.1-handset"
+
+
+# ---- v0.4.1: MEP permits for ADU work are ADU permits (same weight as other ADU permits) ---------------------
+ADU_TEXTS = [
+    # the real 1505 Felspar St permits
+    ("Mechanical Pmt", "***SCOPE CHANGE_04/10/2026***- Mechanical work associated with the proposed conversion of existing storages and garages into (5) new attached ADUs at a lot with an existing detached MDU building."),
+    ("Electrical Pmt", "***SCOPE CHANGE_04/10/2026***- Electrical work associated with the proposed conversion of existing storages and garages into (5) new attached ADUs at a lot with an existing detached MDU building."),
+    ("Plumbing Pmt", "***SCOPE CHANGE_04/10/2026***- Plumbing work associated with the proposed conversion of existing storages and garages into (5) new attached ADUs at a lot with an existing detached MDU building."),
+    (COMBO, "Electrical and plumbing for a new accessory dwelling unit in the backyard"),
+    (COMBO, "JADU conversion of existing bedroom"),
+    ("Mechanical Permit", "Mechanical for conversion of garage into 2 units"),
+    ("Electrical Pmt", "Electrical work for new detached rear units"),
+]
+
+
+@pytest.mark.parametrize("atype,text", ADU_TEXTS)
+def test_mep_permit_for_adu_work_goes_to_adu(atype, text):
+    assert group(text, atype) == "adu"
+
+
+def test_adu_rule_does_not_catch_other_scopes():
+    assert group("Replace furnace and ducts", "Mechanical Permit") == "maintenance"
+    assert group("Kitchen remodel with new plumbing", "Plumbing Permit ") == "pre_sale_prep"
+    assert group("Garage conversion to family room", COMBO) == "pre_sale_prep"
+    assert group("Tenant improvement conversion into 3 office units", COMBO) == "other"
+
+
+def test_adu_group_weight_is_the_same_for_every_adu_permit():
+    import yaml
+    cfg = yaml.safe_load((rules.MAP_PATH.parent / "scoring.yaml").read_text())
+    assert cfg["signals"]["permit_approved"]["by_group"]["adu"]["weight"] == 10

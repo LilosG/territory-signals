@@ -50,12 +50,40 @@ export interface Marked { text: string; sample?: boolean; estimate?: boolean }
 
 const shortDate = (s: string | null | undefined) => (s ? new Date(`${s.slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : '');
 
-/** One line from the largest non-sensitive signal component, built only from that component's stored facts. */
+const isSensitiveKey = (key: string) => key.startsWith('tax_default') || key === 'owner:ownership_transfer';
+
+/**
+ * The signal that earned the parcel the most score: highest contribution, never one with zero (or less) weight, never a
+ * sensitive one. Ties go to the most recent signal date. Deterministic; the same pick feeds every list and the lead header.
+ */
+export function topSignal(components: TopComponent[]): TopComponent | null {
+  const ranked = components
+    .filter((c) => c.points > 0 && !isSensitiveKey(c.key))
+    .sort((a, b) => b.points - a.points || (b.signal_date ?? '').localeCompare(a.signal_date ?? ''));
+  return ranked[0] ?? null;
+}
+
+/** The top-signal line for a parcel from its stored score components (raw `scores.components` JSON), or null. */
+export function topSignalLine(components: unknown): Marked | null {
+  const top = topSignal(((components ?? []) as Record<string, unknown>[]).filter((c) => c.kind === 'signal').map((c) => ({
+    key: String(c.key), facts: (c.facts ?? null) as Record<string, unknown> | null, points: Number(c.contribution ?? 0),
+    signal_date: (c.signal_date as string | null | undefined) ?? null, is_sample: !!c.is_sample, is_estimate: !!c.is_estimate })));
+  return top ? componentLine(top) : null;
+}
+
+/** One line from the top-contribution signal, built only from that component's stored facts. */
 export function leadHeadline(l: LeadSummary): Marked | null {
-  const top = l.top_components.find((c) => !c.key.startsWith('tax_default') && c.key !== 'owner:ownership_transfer');
+  const top = topSignal(l.top_components);
   if (top) return componentLine(top);
   const first = reasonParts(publicReason(l.score.reason_text))[0];
   return first ? { text: first.text.replace(/[.,]$/, ''), sample: first.sample, estimate: first.estimate } : null;
+}
+
+/** "2 building permits approved": the label without its parenthetical, lowercased and pluralized. */
+export function pluralPermitLabel(label: string, n: number): string {
+  const base = label.replace(/\s*\([^)]*\)/g, '').trim();
+  const lc = base.charAt(0).toLowerCase() + base.slice(1);
+  return `${n} ${/permit$/i.test(lc) ? `${lc}s` : `${lc} permits`}`;
 }
 
 function componentLine(c: TopComponent): Marked {
@@ -64,7 +92,8 @@ function componentLine(c: TopComponent): Marked {
   const base = { sample: c.is_sample, estimate: c.is_estimate };
   if (c.key.startsWith('permit_approved')) {
     const n = Number(f.permit_count ?? 1);
-    return { ...base, text: `${n > 1 ? `${n} ` : ''}${String(f.permit_label ?? 'Permit')}${n > 1 ? ' permits' : ''} approved${date ? ` ${date}` : ''}` };
+    const label = String(f.permit_label ?? 'Permit');
+    return { ...base, text: `${n > 1 ? pluralPermitLabel(label, n) : label} approved${date ? ` ${date}` : ''}` };
   }
   if (c.key === 'permit_stalled') return { ...base, text: 'Permit expired with no close date' };
   if (c.key === 'stro_license_active') return { ...base, text: `Active short-term rental license${f.tier ? ` (${f.tier})` : ''}` };
@@ -177,7 +206,9 @@ export function isInitialLoadWeek(weeks: number[] | undefined, firstDay: string 
 }
 
 /** The Today tile's change line: "First full week" instead of a percentage when the comparison week holds the initial load. */
-export function statDelta(s: { this_week: number; last_week: number; weeks?: number[]; first_day?: string | null }, today: string): { dir: 'up' | 'down' | 'flat'; label: string; firstFull: boolean } {
+export function statDelta(s: { this_week: number; last_week: number; weeks?: number[]; first_day?: string | null; scoring_updated?: boolean }, today: string): { dir: 'up' | 'down' | 'flat'; label: string; firstFull: boolean; scoringUpdated?: boolean } {
+  // A different scoring model in the two weeks makes the two counts incomparable: say so instead of showing a %.
+  if (s.scoring_updated) return { dir: 'flat', label: 'Scoring updated', firstFull: false, scoringUpdated: true };
   if (isInitialLoadWeek(s.weeks, s.first_day, today)) return { dir: 'flat', label: 'First full week', firstFull: true };
   return { ...weekDelta(s.this_week, s.last_week), firstFull: false };
 }
@@ -208,13 +239,12 @@ export function blockedLabel(reason: string): string {
 }
 
 /* ── lead brief ── */
-/** One-line headline for the brief hero: the largest non-sensitive signal component, from its stored facts only. */
+/** One-line headline for the brief hero: the top-contribution signal (same pick as the lists), from its stored facts only. */
 export function detailHeadline(lead: LeadDetail): Marked | null {
   const date = (id: string | null | undefined) => lead.signals.find((s) => s.id === id)?.signal_date ?? null;
-  const top = (lead.score.components ?? [])
-    .filter((c) => c.kind === 'signal' && c.contribution > 0 && !c.key.startsWith('tax_default') && c.key !== 'owner:ownership_transfer')
-    .sort((a, b) => b.contribution - a.contribution)[0];
-  if (top) return componentLine({ key: top.key, facts: top.facts ?? null, points: top.contribution, signal_date: date(top.signal_id), is_sample: top.is_sample, is_estimate: top.is_estimate });
+  const top = topSignal((lead.score.components ?? []).filter((c) => c.kind === 'signal')
+    .map((c) => ({ key: c.key, facts: c.facts ?? null, points: c.contribution, signal_date: date(c.signal_id), is_sample: c.is_sample, is_estimate: c.is_estimate })));
+  if (top) return componentLine(top);
   const first = reasonParts(publicReason(lead.score.reason_text))[0];
   return first ? { text: first.text.replace(/[.,]$/, ''), sample: first.sample, estimate: first.estimate } : null;
 }

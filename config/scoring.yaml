@@ -1,6 +1,6 @@
 # Deterministic scoring model. No AI is used anywhere in scoring (CLAUDE.md AI rules).
 # Score = min(100, round_half_up(weighted_sum x stacking_multiplier)).
-model_version: "v0.4-handset"
+model_version: "v0.4.1-handset"
 
 # ---- Residential filter ------------------------------------------------------------
 # Only parcels whose parcels.land_use is one of these codes are scored.

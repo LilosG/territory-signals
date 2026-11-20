@@ -46,6 +46,8 @@ residential_remodel_types:
 # Rules are case-insensitive regexes, applied in this order, first match wins:
 #   1. non_residential, new_construction -> other   (tenant improvements, offices, gas stations, cell sites, new buildings)
 #   2. solar           -> solar_energy      (a solar or battery install filed under an MEP type)
+#   2b. adu_scope      -> adu               (v0.4.1: an MEP permit for an ADU, accessory dwelling, conversion into units,
+#                                            or new attached/detached units is ADU work; same weight as other ADU permits)
 #   3. cosmetic_scope  -> pre_sale_prep     (remodel, renovation, paint, flooring, landscaping/hardscape, facade,
 #                                            addition, interior improvement)
 #   4. weak_scope      -> pre_sale_prep     (kitchen, bath, windows/doors, roof, stucco, deck ...) unless a
@@ -65,10 +67,14 @@ presale_rules:
   solar:
     - '\b(solar(?![- ](ready|rated))|photovoltaic|pvs?|modules?|roof[- ]?mount\w*|powerwalls?|batter(y|ies)|energy storage|ESS)\b'
     - '\bkw\b.{0,40}\b(dc|ac|inverter|modules?)\b'
+  adu_scope:
+    - '\b(j?adus?|accessory dwelling\w*|junior accessory\w*)\b'
+    - '\bconver\w*\b.{0,60}\b(into|to)\b.{0,25}\bunits?\b'
+    - '\bnew (attached|detached)\b.{0,40}\bunits?\b'
   cosmetic_scope:
     - '\b(remodel(s|ed|ing)?|re-?model|renovat\w*|rehab\w*|re-?stucco|paint(ing|ed)?|flooring|hardwood|hardscape|landscap\w*|fa[cç]ade|(?<!load )additions?|new floor plan)\b'
     - '\badd(ing)? (a )?(new )?(bed|bath)room\b'
-    - '\b(adus?|accessory dwelling\w*|garage[- ]conversion|convert\w* .{0,30}(garage|carport))\b'
+    - '\b(garage[- ]conversion|convert\w* .{0,30}(garage|carport))\b'
     - '\binterior (improvements?|alterations?|upgrades?|work|finish\w*)\b'
     - '\bfloor (finish\w*|tiles?)\b'
   weak_scope:

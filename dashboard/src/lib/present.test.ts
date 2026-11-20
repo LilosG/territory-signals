@@ -63,3 +63,70 @@ test('AI claim labels for the new explanation records', () => {
   assert.equal(claimLabel('recipe:builder_bait'), 'Why it matches');
   assert.equal(claimLabel('owner:years_owned'), 'Owner record');
 });
+
+/* ── Phase 5H: top signal line ── */
+import { detailHeadline, leadHeadline, pluralPermitLabel, topSignal, topSignalLine } from './present.ts';
+import type { LeadSummary, TopComponent } from './data/types.ts';
+
+const BLDG = 'Building permit (remodel, addition or new construction)';
+const comp = (key: string, points: number, date: string | null, facts: Record<string, unknown> = {}): TopComponent =>
+  ({ key, facts, points, signal_date: date, is_sample: false, is_estimate: false });
+const lead = (top_components: TopComponent[]) => ({ top_components, score: { reason_text: 'Heating, cooling or mechanical work approved Nov 10, 2026' } }) as unknown as LeadSummary;
+
+test('1505 Felspar St: the line is the building permits, never the heating, cooling or mechanical permit', () => {
+  // v0.4.1 components of 1505 Felspar St (the mechanical permits are ADU work now, grouped with the building permits)
+  const felspar = [
+    comp('permit_approved:adu', 9.1411, '2026-11-10', { permit_label: BLDG, permit_count: 2, issue_date: '2026-11-10' }),
+    comp('permit_approved:remodel_addition', 7.3129, '2026-11-10', { permit_label: BLDG, permit_count: 1 }),
+  ];
+  const h = leadHeadline(lead(felspar))!;
+  assert.equal(h.text, '2 building permits approved Nov 10');
+  assert.doesNotMatch(h.text, /heating|mechanical/i);
+});
+
+test('the highest contribution wins, whatever the order of the list', () => {
+  const a = comp('stro_license_active', 12, '2026-11-01'); const b = comp('permit_approved:adu', 15, '2026-10-01', { permit_label: 'Demolition', permit_count: 1 });
+  assert.equal(topSignal([a, b])!.key, 'permit_approved:adu');
+  assert.equal(topSignal([b, a])!.key, 'permit_approved:adu');
+});
+
+test('a zero-weight signal is never shown, even when it is the only one', () => {
+  const maint = comp('permit_approved:maintenance', 0, '2026-11-10', { permit_label: 'Heating, cooling or mechanical work', permit_count: 1 });
+  assert.equal(topSignal([maint]), null);
+  const h = leadHeadline(lead([maint, comp('sb9_lot_split_estimate', 5, '2026-11-01')]))!;
+  assert.equal(h.text, 'SB 9 lot-split eligibility');
+});
+
+test('a tie goes to the most recent signal', () => {
+  const older = comp('stro_license_active', 10, '2026-09-01'); const newer = comp('sb9_lot_split_estimate', 10, '2026-11-01');
+  assert.equal(topSignal([older, newer])!.key, 'sb9_lot_split_estimate');
+  assert.equal(topSignal([newer, older])!.key, 'sb9_lot_split_estimate');
+});
+
+test('sensitive components never headline', () => {
+  assert.equal(topSignal([comp('tax_default', 30, '2026-11-01'), comp('owner:ownership_transfer', 25, null)]), null);
+});
+
+test('plural permit wording', () => {
+  assert.equal(pluralPermitLabel(BLDG, 2), '2 building permits');
+  assert.equal(pluralPermitLabel('Electrical, plumbing and mechanical work', 3), '3 electrical, plumbing and mechanical work permits');
+  assert.equal(leadHeadline(lead([comp('permit_approved:adu', 9, '2026-11-10', { permit_label: BLDG, permit_count: 1 })]))!.text, `${BLDG} approved Nov 10`);
+});
+
+test('the lead page header uses the same pick (raw score components, zero-weight dropped)', () => {
+  const components = [
+    { key: 'permit_approved:maintenance', kind: 'signal', contribution: 0, facts: { permit_label: 'Heating, cooling or mechanical work', permit_count: 1 }, signal_id: 'x', is_sample: false, is_estimate: false },
+    { key: 'permit_approved:adu', kind: 'signal', contribution: 9.1, facts: { permit_label: BLDG, permit_count: 2 }, signal_id: 'y', signal_date: '2026-11-10', is_sample: false, is_estimate: false },
+  ];
+  const d = detailHeadline({ signals: [{ id: 'y', signal_date: '2026-11-10' }], score: { components, reason_text: null } } as never)!;
+  assert.equal(d.text, '2 building permits approved Nov 10');
+  assert.equal(topSignalLine(components)!.text, d.text);
+});
+
+test('a scoring-model change shows "Scoring updated" instead of a percentage', () => {
+  const s = { this_week: 40, last_week: 10, weeks: [40, 10, 9], first_day: '2026-01-01', scoring_updated: true };
+  const d = statDelta(s, TODAY);
+  assert.equal(d.label, 'Scoring updated');
+  assert.doesNotMatch(d.label, /%/);
+  assert.equal(statDelta({ ...s, scoring_updated: false }, TODAY).label, '+300% vs last week');
+});

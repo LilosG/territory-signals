@@ -32,7 +32,7 @@ QUERIES = {
     "search_leads (address)": "select * from search_leads('la jolla sh', null, 8)",
     "search_leads (apn)": "select * from search_leads('358070', null, 8)",
     "today_stats": "select * from today_stats(null)",
-    "recent_signals": "select * from recent_signals(null, 14, 5)",
+    "recent_signals": "select * from recent_signals(null, 7, 5)",
     "funnel_by agent": "select * from funnel_by('agent', null)",
     "funnel_by recipe": "select * from funnel_by('recipe', null)",
     "coverage_weekly": "select * from coverage_weekly(12, null)",

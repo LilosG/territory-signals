@@ -194,8 +194,10 @@ llm: {provider: openai_compatible, base_url: http://localhost:11434/v1, api_key_
 cd ~/territory-signals && source .venv/bin/activate \
   && export SUPABASE_DB_URL="postgresql://postgres:$(security find-generic-password -a mike -s territory-signals-kaiser-db -w)@db.ukpfksabatofcczdrphm.supabase.co:5432/postgres?sslmode=require" \
   && export LLM_API_KEY="$(security find-generic-password -a mike -s territory-signals-llm -w)" \
-  && cd pipelines && python -m territory.run --client kaiser-team --only-ai
+  && cd pipelines && python -m territory.run --client kaiser-team --only-ai --cloud
 ```
+
+**Cloud guard (Phase 5H).** Every pipeline command (`run`, `score`, `permit_rederive`, `outreach`, `owner_data.load`, the AI tasks) refuses to connect to any database host other than 127.0.0.1/localhost unless `--cloud` is passed, and exits naming the host. A shell that still has `SUPABASE_DB_URL` exported will therefore never write to the cloud by accident; for local work run `env -u SUPABASE_DB_URL ...`.
 
 ## Runtime notes
 

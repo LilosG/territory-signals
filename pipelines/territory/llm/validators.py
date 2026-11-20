@@ -276,3 +276,40 @@ def check_newsletter_generalities(text: str) -> list[str]:
     """A newsletter may only say what the facts say: no claims about seasons, prices, demand or what is "often" true."""
     m = GENERALITIES.search(text)
     return [f"newsletter makes a general claim not in the facts ({m.group(0)!r})"] if m else []
+
+
+# ---- repetition (Phase 5H) ----------------------------------------------------------------------------------------------
+_NUMWORDS = {w: str(i) for i, w in enumerate(
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty".split())}
+_MONTHS = r"(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?"
+_GENERIC = {"new", "this", "that", "the", "and", "for", "with", "from", "week", "were", "was", "are", "has", "have", "had", "its", "their",
+            "more", "than", "also", "most", "now", "last", "all", "one", "approved", "across", "territory", "neighborhood", "homes", "home"}
+
+
+def _counts_in(sentence: str) -> set[str]:
+    """Counts a sentence states: numbers (digits or spelled out), without dates, years or a 'X to Y' score pair."""
+    t = sentence.lower()
+    t = re.sub(rf"{_MONTHS}\s+\d{{1,2}}(?:,?\s+\d{{4}})?", " ", t)                 # "Nov 10, 2026"
+    t = re.sub(r"\b(?:19|20)\d\d\b", " ", t)                                        # years
+    t = re.sub(r"\b\d+\s+to\s+\d+\b", " ", t)                                      # "52 to 66" (a score move)
+    t = re.sub(r"\b(" + "|".join(_NUMWORDS) + r")\b", lambda m: _NUMWORDS[m.group(1)], t)
+    return {n.replace(",", "") for n in re.findall(r"\b\d[\d,]*\b", t)}
+
+
+def _words(sentence: str) -> set[str]:
+    return {w.rstrip("s") for w in re.findall(r"[a-z][a-z-]{2,}", sentence.lower()) if w not in _GENERIC and w.rstrip("s") not in _GENERIC}
+
+
+def check_repetition(blocks: Iterable[Iterable[str]]) -> list[str]:
+    """Within each block of text (the title and intro; one neighborhood's bullets; the newsletter), no two sentences may state the
+    same count about the same thing: they carry the same number AND share a content word ('4 new pre-sale permits' then
+    '4 remodel permits approved'). The same fact in other words is still the same fact."""
+    out: list[str] = []
+    for block in blocks:
+        sents = [x.strip() for t in block for x in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9])", t.strip()) if x.strip()]
+        for i, a in enumerate(sents):
+            for b in sents[i + 1:]:
+                shared_n = _counts_in(a) & _counts_in(b)
+                if shared_n and _words(a) & _words(b):
+                    out.append(f"repeats the count {sorted(shared_n)[0]} in two sentences ({a[:50]!r} / {b[:50]!r}); state each fact once")
+    return out

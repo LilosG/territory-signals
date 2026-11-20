@@ -42,7 +42,7 @@ def score(signals=(), own=None, snap=None, cutoff=None, data=()):
 
 # ---- config ------------------------------------------------------------------------------
 def test_config_matches_the_spec():
-    assert CFG["model_version"] == "v0.4-handset"
+    assert CFG["model_version"] == "v0.4.1-handset"
     s = CFG["signals"]
     assert (s["tax_default"]["weight"], s["tax_default"]["half_life_days"]) == (30, 365)
     assert (s["stro_license_removed"]["weight"], s["stro_license_removed"]["half_life_days"]) == (25, 90)

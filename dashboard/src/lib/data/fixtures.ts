@@ -1,4 +1,5 @@
 import raw from '../../data/fixtures.json';
+import { leadHeadline } from '../present';
 import { loadClientConfig } from '../config';
 import { EVENT_TYPES, RECIPE_LABELS, SENSITIVE_TYPES, SOURCE_CATALOG, STAGES, TRAIT_TYPES, bandOf } from './catalog';
 import type { DataProvider, MarkSample, SharePageReader } from './provider';
@@ -178,7 +179,7 @@ export function fixturesProvider(mark: MarkSample, territory: string | null = nu
       return loadClientConfig().recipes.map((r) => {
         const apns = ranked({}).filter((a) => (scoreBy.get(a)!.recipe_matches ?? []).includes(r.key));
         return { key: r.key, name: r.name, description: r.description, enabled: r.enabled, parcels: apns.length, new_this_week: 0, strong: apns.filter((a) => scoreBy.get(a)!.score >= 60).length,
-          top: apns.slice(0, 5).map((a) => ({ apn: a, score: scoreBy.get(a)!.score, situs_address: parcelBy.get(a)!.situs_address, neighborhood: parcelBy.get(a)!.neighborhood })),
+          top: apns.slice(0, 5).map((a) => ({ apn: a, score: scoreBy.get(a)!.score, situs_address: parcelBy.get(a)!.situs_address, neighborhood: parcelBy.get(a)!.neighborhood, top_signal: leadHeadline(summary(a)) })),
           idle_reason: apns.length ? null : 'No matching properties yet', is_sample: true };
       });
     },
@@ -187,7 +188,7 @@ export function fixturesProvider(mark: MarkSample, territory: string | null = nu
       const apns = ranked({}).filter((a) => (scoreBy.get(a)!.recipe_matches ?? []).some((r) => kinds.includes(r)));
       return { total: apns.length, page, pageSize, links: [], items: apns.slice((page - 1) * pageSize, page * pageSize).map((a) => { const p = parcelBy.get(a)!;
         return { apn: a, situs_address: p.situs_address, neighborhood: p.neighborhood, lot_sqft: p.lot_sqft, zoning: p.zoning, year_built: p.year_built, land_use: p.land_use,
-          kinds: (scoreBy.get(a)!.recipe_matches ?? []).filter((r) => kinds.includes(r)), upzoning: (signalsBy.get(a) ?? []).filter((s) => s.is_estimate).map((s) => s.signal_type), has_share_link: db.share_links.some((l) => l.apn === a && !l.revoked_at) }; }) };
+          kinds: (scoreBy.get(a)!.recipe_matches ?? []).filter((r) => kinds.includes(r)), upzoning: (signalsBy.get(a) ?? []).filter((s) => s.is_estimate).map((s) => s.signal_type), has_share_link: db.share_links.some((l) => l.apn === a && !l.revoked_at), top_signal: leadHeadline(summary(a)) }; }) };
     },
     async searchLeads(q): Promise<SearchHit[]> {
       const t = q.trim().toLowerCase(); if (t.length < 2) return [];

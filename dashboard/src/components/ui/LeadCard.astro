@@ -27,7 +27,7 @@ const reason = reasonParts(publicReason(score.reason_text));
       <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <div class="flex min-w-0 flex-wrap items-baseline gap-x-2">
           <h3 class="truncate text-base font-semibold text-ink group-hover:text-accent">{p.situs_address}</h3>
-          {isNew && <span class="new-marker">New</span>}
+          {isNew && lead.status !== 'new' && <span class="new-marker">New</span>}
           <span class="t-meta text-ink-muted">{p.neighborhood}</span>
         </div>
         <span class="flex items-center gap-2">
