@@ -46,7 +46,7 @@ Indexes: GIST on `neighborhoods.geom`, `parcels.geom`, `parcels.centroid`; btree
 6. ATTOM owner data and backtest
 
 ## Scoring (Phase 3)
-Deterministic only: no AI, no randomness (CLAUDE.md AI rules). Config: `config/scoring.yaml` (`model_version` v0.3-handset). Code: `territory/scoring_engine.py` (pure functions), `territory/score.py` (database + CLI), `territory/permit_rules.py` and `territory/permit_rederive.py` (permit groups and the stalled rule), `territory/owner_data/load.py` (owner layer).
+Deterministic only: no AI, no randomness (CLAUDE.md AI rules). Config: `config/scoring.yaml` (`model_version` v0.4-handset). Code: `territory/scoring_engine.py` (pure functions), `territory/score.py` (database + CLI), `territory/permit_rules.py` and `territory/permit_rederive.py` (permit groups and the stalled rule), `territory/owner_data/load.py` (owner layer).
 
 Steps, in order: `python -m territory.run ...` (collect) -> `python -m territory.permit_rederive --client <id>` -> `python -m territory.owner_data.load --client <id>` -> `python -m territory.score --client <id>`. Run from `pipelines/`.
 

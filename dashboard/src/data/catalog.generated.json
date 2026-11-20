@@ -1,7 +1,7 @@
 {
   "catalog_version": 1,
   "client_id": "kaiser-team",
-  "model_version": "v0.3-handset",
+  "model_version": "v0.4-handset",
   "signal_types": [
     {
       "key": "fire_hazard_zone",
@@ -56,6 +56,10 @@
     {
       "key": "life_event",
       "label": "Life events"
+    },
+    {
+      "key": "maintenance",
+      "label": "Routine systems work"
     },
     {
       "key": "other",

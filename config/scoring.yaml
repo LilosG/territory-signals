@@ -1,6 +1,6 @@
 # Deterministic scoring model. No AI is used anywhere in scoring (CLAUDE.md AI rules).
 # Score = min(100, round_half_up(weighted_sum x stacking_multiplier)).
-model_version: "v0.3-handset"
+model_version: "v0.4-handset"
 
 # ---- Residential filter ------------------------------------------------------------
 # Only parcels whose parcels.land_use is one of these codes are scored.
@@ -52,7 +52,8 @@ signals:
   permit_approved:
     family: permits
     by_group:
-      pre_sale_prep:        {weight: 20, half_life_days: 120}
+      pre_sale_prep:        {weight: 20, half_life_days: 120}   # v0.4: cosmetic/remodel scope only (D14)
+      maintenance:          {weight: 0,  half_life_days: 180}   # v0.4: like-for-like systems work, no weight
       demolition_lot_split: {weight: 15, half_life_days: 180}
       adu:                  {weight: 10, half_life_days: 180}
       remodel_addition:     {weight: 8,  half_life_days: 180}

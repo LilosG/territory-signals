@@ -7,7 +7,7 @@ from helpers import FIXTURES, RUN_DATE, add_parcel, add_territory, all_text, run
 
 FIXTURE = FIXTURES / "approvals_issued_fixture.csv"
 MAP = Path(__file__).resolve().parents[1] / "config" / "permit_signal_map.yaml"
-GROUPS = {"pre_sale_prep", "remodel_addition", "adu", "demolition_lot_split", "solar_energy", "other"}
+GROUPS = {"pre_sale_prep", "maintenance", "remodel_addition", "adu", "demolition_lot_split", "solar_energy", "other"}
 
 
 def _setup(db):
@@ -66,7 +66,12 @@ def test_signal_groups_come_from_the_map_and_unknown_types_are_other(db, tmp_pat
                       "where signal_type='permit_approved'").fetchall()
     for atype, group, adu in rows:
         # the map decides the group; APPROVAL_ADU_TOTAL > 0 regroups a permit as adu (Phase 3)
-        assert group == ("adu" if adu and float(adu) > 0 else mapping.get(atype, "other"))
+        mapped = mapping.get(atype, "other")
+        if mapped == "pre_sale_prep" and not (adu and float(adu) > 0):
+            # Phase 5G (D14): the type only makes a permit a candidate; its text decides
+            assert group in {"pre_sale_prep", "maintenance", "solar_energy", "other"}
+        else:
+            assert group == ("adu" if adu and float(adu) > 0 else mapped)
     assert ("Brand New Approval Type", "other") in [(r[0], r[1]) for r in rows]
 
 

@@ -147,7 +147,7 @@ test('lead brief shows the data, labels from the catalog and the owner panel', a
   await expect(page.getByRole('heading', { name: '1 E2E Test Way' })).toBeVisible();
   await expect(page.locator('[data-hero]')).toBeVisible();
   for (const tab of ['Overview', 'Signals', 'Owner and property', 'Outreach', 'Activity']) await expect(page.getByRole('tab', { name: tab })).toBeVisible();
-  await expect(page.locator('[data-model-version]')).toHaveText('Model v0.3-handset');
+  await expect(page.locator('[data-model-version]')).toHaveText('Model v0.4-handset');
   await page.getByRole('tab', { name: 'Owner and property' }).click();
   const owner = page.locator('section[aria-labelledby=owner-h]');
   await expect(owner.getByText(SECRET_OWNER)).toBeVisible();

@@ -69,7 +69,7 @@ def rederive(conn, run_id: str, run_date: date, map_path=None) -> dict:
             apn, conf, method, source_key = link[aid]
             derived = {s["signal_type"]: s for s in rules.derive(
                 payload, aid, mapping["approval_types"], run_date, apn in res_apns,
-                mapping["residential_remodel_types"])}
+                mapping["residential_remodel_types"], mapping["presale_rules"])}
             for stype in PERMIT_TYPES:
                 old, new = by_key.get((aid, stype)), derived.get(stype)
                 same = (old is not None and new is not None and old[3] == new["group"]

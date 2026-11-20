@@ -15,7 +15,7 @@ export default async function globalSetup(config: FullConfig) {
   await rest('/auth/v1/admin/users', { method: 'POST', json: { email: TEST_EMAIL, email_confirm: true } });
 
   await rest('/rest/v1/parcels', { method: 'POST', json: { apn: TEST_APN, situs_address: '1 E2E Test Way', zip: '92037', planning_area: 'La Jolla', neighborhood: 'La Jolla', lot_sqft: 6400, land_use: '11', zoning: 'RS-1-7', year_built: 1962 } });
-  await rest('/rest/v1/scores', { method: 'POST', json: { apn: TEST_APN, score: 55, components: [], reason_text: 'Tax default (Jul 2026)', recipe_matches: ['builder_bait', 'financial_pressure'], primary_recipe: 'financial_pressure', model_version: 'v0.3-handset', uses_sample_data: true } });
+  await rest('/rest/v1/scores', { method: 'POST', json: { apn: TEST_APN, score: 55, components: [], reason_text: 'Tax default (Jul 2026)', recipe_matches: ['builder_bait', 'financial_pressure'], primary_recipe: 'financial_pressure', model_version: 'v0.4-handset', uses_sample_data: true } });
   await rest('/rest/v1/owners', { method: 'POST', json: { apn: TEST_APN, owner_name: SECRET_OWNER, mailing_address: '9 Secret Mailing Ln, Seattle, WA 98101', owner_occupied: false, absentee: true, out_of_state: true, last_sale_date: '2012-05-01', last_sale_price: 777777, mortgage_open: true, est_value: 3100000, est_equity: 2000000, provider: 'sample', is_sample: true, as_of: '2026-11-18' } });
   await rest('/rest/v1/sales_history', { method: 'POST', json: { apn: TEST_APN, sale_date: '2012-05-01', sale_price: 777777, doc_type: 'grant deed', provider: 'sample', is_sample: true } });
   const seeded = await rest('/rest/v1/signals', { method: 'POST', json: [
@@ -46,7 +46,7 @@ export default async function globalSetup(config: FullConfig) {
 
   // A second parcel in Pacific Beach, with its own unblocked draft (bulk approve) and owner data (share link must not leak it).
   await rest('/rest/v1/parcels', { method: 'POST', json: { apn: TEST_APN2, situs_address: '2 E2E Beach Walk', zip: '92109', planning_area: 'Pacific Beach', neighborhood: 'Pacific Beach', lot_sqft: 5200, land_use: '11', zoning: 'RS-1-7', year_built: 1958 } });
-  await rest('/rest/v1/scores', { method: 'POST', json: { apn: TEST_APN2, score: 45, components: [], reason_text: 'Older home on a large lot', recipe_matches: ['builder_bait'], primary_recipe: 'builder_bait', model_version: 'v0.3-handset', uses_sample_data: false } });
+  await rest('/rest/v1/scores', { method: 'POST', json: { apn: TEST_APN2, score: 45, components: [], reason_text: 'Older home on a large lot', recipe_matches: ['builder_bait'], primary_recipe: 'builder_bait', model_version: 'v0.4-handset', uses_sample_data: false } });
   await rest('/rest/v1/owners', { method: 'POST', json: { apn: TEST_APN2, owner_name: SECRET_OWNER, mailing_address: '9 Secret Mailing Ln, Seattle, WA 98101', owner_occupied: false, absentee: true, out_of_state: true, mortgage_open: true, est_value: 3100000, est_equity: 2000000, provider: 'sample', is_sample: true, as_of: '2026-11-18' } });
   await rest('/rest/v1/outreach', { method: 'POST', json: { apn: TEST_APN2, recipe: 'builder_bait', uses_sample_data: false, channel: 'mail', status: 'draft', content: 'Hello neighbor,\n\nE2E bulk letter.', source_facts: [{ kind: 'parcel_field', parcel_field: 'neighborhood', value: 'Pacific Beach', apn: TEST_APN2 }], blocked_reason: null } });
   refreshAggregates(); // lists, search and counts read the materialized view
