@@ -5,7 +5,7 @@ import { EVENT_TYPES, INTERNAL_SOURCES, RECIPE_LABELS, SENSITIVE_TYPES, SOURCE_C
 import type { DataProvider, MarkSample, SharePageReader } from './provider';
 import { buildTrends, leadStatus, scoreItems, yearsSince, type TrendRows } from './shared';
 import type {
-  Backtest, ClientConfig, Coverage, FunnelRow, LeadDetail, LeadFilters, LeadPage, LeadSummary, MapData, NavCounts, OffMarketPage,
+  AiStatus, AiTaskRow, WeeklyBriefAi, Backtest, ClientConfig, Coverage, FunnelRow, LeadDetail, LeadFilters, LeadPage, LeadSummary, MapData, NavCounts, OffMarketPage,
   Outreach, OutreachItem, OutreachPage, Performance, Pipeline, RecentOutcome, RecipeCard, SearchHit, SharePage,
   SignalEvent, SourceCard, StatSeries, TeamMember, TodayFeed, Trends,
 } from './types';
@@ -97,6 +97,43 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
     return { leads: num(c.leads), drafts: num(c.drafts), awaiting_approval: num(c.awaiting_approval), approved: num(c.approved), call_tasks: num(c.call_tasks), off_market: num(c.off_market) };
   };
 
+  // ---- AI layer (Phase 5F). Everything here returns null/empty when llm.enabled is false. ----
+  const aiOn = () => loadClientConfig().ai.enabled;
+  async function aiRows(task: string, subjectIds?: string[], limit = 60): Promise<Row[]> {
+    if (!aiOn()) return [];
+    let q = db.from('latest_ai_outputs').select('subject_id,output,uses_sample,model,created_at').eq('task', task).eq('client_id', loadClientConfig().client_id);
+    if (subjectIds) q = q.in('subject_id', subjectIds); else q = q.order('subject_id', { ascending: false }).limit(limit);
+    return must(await q, `ai ${task}`) as Row[];
+  }
+  async function aiHeadlines(apns: string[]): Promise<Map<string, string>> {
+    if (apns.length === 0) return new Map();
+    return new Map((await aiRows('lead_brief', apns)).map((r) => [String(r.subject_id), String((r.output as Row).headline)]));
+  }
+  const toWeekly = (r: Row): WeeklyBriefAi => {
+    const o = r.output as Row;
+    return { week_start: String(r.subject_id), title: o.title, intro: o.intro, sections: o.sections ?? [], newsletter_paragraph: o.newsletter_paragraph, model: r.model, created_at: r.created_at };
+  };
+
+  async function aiStatus(): Promise<AiStatus | null> {
+    const cfg = loadClientConfig();
+    if (!cfg.ai.enabled) return null;
+    const [runs, spend] = await Promise.all([
+      db.from('ai_task_runs').select('*').eq('client_id', cfg.client_id).order('started_at', { ascending: false }).limit(60),
+      db.from('ai_month_spend').select('task,cost_usd').eq('client_id', cfg.client_id),
+    ]);
+    const runRows = must(runs, 'ai_task_runs') as Row[];
+    const monthBy = new Map((must(spend, 'ai_month_spend') as Row[]).map((r) => [String(r.task), num(r.cost_usd)]));
+    if (runRows.length === 0) return null;
+    const tasks: AiTaskRow[] = (['permit_intent', 'lead_brief', 'weekly_brief'] as const).flatMap((t) => {
+      const r = runRows.find((x) => x.task === t);
+      if (!r) return [];
+      return [{ task: t, model: r.model, status: r.status, skip_reason: r.skip_reason, last_run_at: r.started_at, calls: num(r.calls), cached: num(r.cached), invalid: num(r.invalid), rejected: num(r.rejected),
+        tokens: num(r.input_tokens) + num(r.output_tokens), cost_run: r.cost_unknown ? null : num(r.cost_usd), cost_unknown: !!r.cost_unknown, cost_month: monthBy.get(t) ?? 0, warnings: (r.warnings as string[]) ?? [] }];
+    });
+    const warnings = [...new Set(tasks.flatMap((t) => t.warnings))];
+    return { tasks, monthly_budget_usd: cfg.ai.monthly_budget_usd, cost_month: [...monthBy.values()].reduce((a, b) => a + b, 0), warnings };
+  }
+
   const provider: DataProvider = {
     name: 'supabase',
     territory: hood,
@@ -111,6 +148,8 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
       }), 'leads_list') as Row[];
       const t = now();
       const items = rows.map((r) => toLead(r, t));
+      const heads = await aiHeadlines(items.map((l) => l.parcel.apn));
+      for (const l of items) l.ai_headline = heads.get(l.parcel.apn) ?? null;
       if (items.some((l) => l.is_sample)) mark();
       return { items, total: num(rows[0]?.total), page, pageSize } satisfies LeadPage;
     },
@@ -127,6 +166,7 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
         (() => { let q = db.from('outreach_queue').select('*').eq('channel', 'call_task').in('status', ['draft', 'awaiting_approval', 'approved']).order('created_at', { ascending: false }).limit(5); if (hood) q = q.eq('neighborhood', hood); return q; })(),
         db.rpc('recent_signals', { p_hood: hood, p_days: 14, p_limit: 5 }),
       ]);
+      const weeklyRow = (await aiRows('weekly_brief', undefined, 1))[0];
       const statRows = must(stats, 'today_stats') as Row[];
       const byRecipe = new Map((must(recipes, 'recipe_summary') as Row[]).map((r) => [r.recipe, r]));
       const sigRows = must(signals, 'recent_signals') as Row[];
@@ -142,6 +182,7 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
         stats: (['signals', 'active_leads', 'drafts', 'outcomes'] as const).map((m) => toSeries(statRows, m)),
         leads_total: counts.leads, top_leads: leads.items,
         recipe_strip: cfg.recipes.filter((r) => r.enabled).map((r) => ({ key: r.key, label: r.name, parcels: num(byRecipe.get(r.key)?.parcels), new_this_week: num(byRecipe.get(r.key)?.new_this_week) })),
+        weekly: weeklyRow ? toWeekly(weeklyRow) : null,
         approvals: apRows.map(toOutreachItem), approvals_total: counts.awaiting_approval,
         call_tasks: callRows.map(toOutreachItem), call_tasks_total: counts.call_tasks,
         new_signals, new_signals_total: sigRows.length ? num(sigRows[0]!.total) : 0,
@@ -177,7 +218,10 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
       };
       const isSample = !!sc.uses_sample_data || !!o?.is_sample || sl.some((s) => s.is_sample);
       if (isSample) mark();
+      const briefRow = (await aiRows('lead_brief', [apn]))[0];
+      const bo = briefRow?.output as Row | undefined;
       return {
+        ai_brief: briefRow && bo ? { headline: bo.headline, summary: bo.summary, claims: bo.claims ?? [], suggested_angle: bo.suggested_angle, uses_sample: !!briefRow.uses_sample, model: briefRow.model, created_at: briefRow.created_at } : null,
         parcel: { ...p, situs_address: titleAddress(p.situs_address) || null, geom: null, centroid: p.centroid ?? null } as LeadDetail['parcel'],
         score: sc as LeadDetail['score'],
         score_items: scoreItems(sc.components),
@@ -237,7 +281,11 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
       }));
       const is_sample = (await anySample()) && num(o?.signal) > 0;
       if (is_sample) mark();
-      return { overall: funnelRow('All leads', o), has_events: num(o?.signal) > 0, recent: recentOut, by_agent: [], by_recipe: [], is_sample };
+      return { ai: await aiStatus(), overall: funnelRow('All leads', o), has_events: num(o?.signal) > 0, recent: recentOut, by_agent: [], by_recipe: [], is_sample };
+    },
+
+    async getBriefings(): Promise<WeeklyBriefAi[]> {
+      return (await aiRows('weekly_brief', undefined, 60)).map(toWeekly);
     },
 
     async getPerformance(): Promise<Performance> {

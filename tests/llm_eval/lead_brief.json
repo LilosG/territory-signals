@@ -1,0 +1,922 @@
+[
+ {
+  "id": "lead-1",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
+    "neighborhood": "La Jolla"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in La Jolla, zoned RS-1-2, lot 13,000 sq ft"
+    },
+    {
+     "id": "R2",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-09-14",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Electrical, plumbing and mechanical work approved Sep 14, 2026"
+    },
+    {
+     "id": "R3",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owned 20 years (sample data)"
+    },
+    {
+     "id": "R4",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": true,
+     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $3,047,960"
+    },
+    {
+     "id": "R5",
+     "kind": "signal",
+     "source": "upzoning_estimate",
+     "date": "2026-11-18",
+     "confidence": 0.5,
+     "is_sample": false,
+     "is_estimate": true,
+     "text": "Lot may qualify for an SB 9 split (estimated)"
+    },
+    {
+     "id": "R6",
+     "kind": "recipe_match",
+     "source": "scoring",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Matches the playbook: Builder bait, Pre-list prep"
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R2"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money"
+  ]
+ },
+ {
+  "id": "lead-2",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
+    "neighborhood": "La Jolla"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in La Jolla, zoned RS-1-7, lot 8,700 sq ft"
+    },
+    {
+     "id": "R2",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-08-04",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Electrical, plumbing and mechanical work approved Aug 4, 2026"
+    },
+    {
+     "id": "R3",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owner is absentee (sample data)"
+    },
+    {
+     "id": "R4",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "No open mortgage (sample data)"
+    },
+    {
+     "id": "R5",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": true,
+     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $4,100,000"
+    },
+    {
+     "id": "R6",
+     "kind": "signal",
+     "source": "stro_licenses",
+     "date": "2026-11-18",
+     "confidence": 0.9,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Holds an active Tier 3 short-term rental license"
+    },
+    {
+     "id": "R7",
+     "kind": "signal",
+     "source": "upzoning_estimate",
+     "date": "2026-11-18",
+     "confidence": 0.5,
+     "is_sample": false,
+     "is_estimate": true,
+     "text": "Lot may qualify for an SB 9 split (estimated)"
+    },
+    {
+     "id": "R8",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2023-09-14",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Solar panels approved Sep 14, 2023"
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R2"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money"
+  ]
+ },
+ {
+  "id": "lead-3",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
+    "neighborhood": "La Jolla"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in La Jolla, zoned RS-1-7, lot 9,400 sq ft"
+    },
+    {
+     "id": "R2",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owner is out of state (sample data)"
+    },
+    {
+     "id": "R3",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owned 27 years (sample data)"
+    },
+    {
+     "id": "R4",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-06-09",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Demolition approved Jun 9, 2026"
+    },
+    {
+     "id": "R5",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-07-28",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Building permit (remodel, addition or new construction) approved Jul 28, 2026"
+    },
+    {
+     "id": "R6",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-07-28",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Building permit (remodel, addition or new construction) approved Jul 28, 2026"
+    },
+    {
+     "id": "R7",
+     "kind": "signal",
+     "source": "upzoning_estimate",
+     "date": "2026-11-18",
+     "confidence": 0.5,
+     "is_sample": false,
+     "is_estimate": true,
+     "text": "Lot may qualify for an SB 9 split (estimated)"
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R4"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money"
+  ]
+ },
+ {
+  "id": "lead-4",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
+    "neighborhood": "Pacific Beach"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in Pacific Beach, zoned RS-1-7, lot 6,300 sq ft"
+    },
+    {
+     "id": "R2",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owner is out of state (sample data)"
+    },
+    {
+     "id": "R3",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "No open mortgage (sample data)"
+    },
+    {
+     "id": "R4",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": true,
+     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $3,700,000"
+    },
+    {
+     "id": "R5",
+     "kind": "signal",
+     "source": "stro_licenses",
+     "date": "2026-11-18",
+     "confidence": 0.9,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Holds an active Tier 3 short-term rental license"
+    },
+    {
+     "id": "R6",
+     "kind": "signal",
+     "source": "upzoning_estimate",
+     "date": "2026-11-18",
+     "confidence": 0.5,
+     "is_sample": false,
+     "is_estimate": true,
+     "text": "Lot may qualify for an SB 9 split (estimated)"
+    },
+    {
+     "id": "R7",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-03-26",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Building permit (remodel, addition or new construction) approved Mar 26, 2026"
+    },
+    {
+     "id": "R8",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-03-27",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Solar panels approved Mar 27, 2026"
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R5"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money"
+  ]
+ },
+ {
+  "id": "lead-5",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
+    "neighborhood": "Pacific Beach"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in Pacific Beach, zoned RM-1-1, lot 6,300 sq ft"
+    },
+    {
+     "id": "R2",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owned 21 years (sample data)"
+    },
+    {
+     "id": "R3",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "No open mortgage (sample data)"
+    },
+    {
+     "id": "R4",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-06-02",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Electrical work approved Jun 2, 2026"
+    },
+    {
+     "id": "R5",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-03-19",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Demolition approved Mar 19, 2026"
+    },
+    {
+     "id": "R6",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": true,
+     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $3,210,000"
+    },
+    {
+     "id": "R7",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-06-02",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Building permit (remodel, addition or new construction) approved Jun 2, 2026"
+    },
+    {
+     "id": "R8",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-06-02",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Building permit (remodel, addition or new construction) approved Jun 2, 2026"
+    },
+    {
+     "id": "R9",
+     "kind": "recipe_match",
+     "source": "scoring",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Matches the playbook: Downsizer, Pre-list prep"
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R4"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money"
+  ]
+ },
+ {
+  "id": "lead-6",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
+    "neighborhood": "Pacific Beach"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in Pacific Beach, zoned RM-2-5"
+    },
+    {
+     "id": "R2",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-09-09",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Electrical, plumbing and mechanical work approved Sep 9, 2026"
+    },
+    {
+     "id": "R3",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owner is out of state (sample data)"
+    },
+    {
+     "id": "R4",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "No open mortgage (sample data)"
+    },
+    {
+     "id": "R5",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-08-21",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Building permit (remodel, addition or new construction) approved Aug 21, 2026"
+    },
+    {
+     "id": "R6",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": true,
+     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $3,880,000"
+    },
+    {
+     "id": "R7",
+     "kind": "recipe_match",
+     "source": "scoring",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Matches the playbook: Pre-list prep"
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R2"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money"
+  ]
+ },
+ {
+  "id": "lead-7",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
+    "neighborhood": "La Jolla"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in La Jolla, zoned RM-3-7, lot 1,700 sq ft"
+    },
+    {
+     "id": "R2",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-08-06",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Electrical, plumbing and mechanical work approved Aug 6, 2026"
+    },
+    {
+     "id": "R3",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owner is absentee (sample data)"
+    },
+    {
+     "id": "R4",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "No open mortgage (sample data)"
+    },
+    {
+     "id": "R5",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": true,
+     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $3,570,000"
+    },
+    {
+     "id": "R6",
+     "kind": "signal",
+     "source": "stro_licenses",
+     "date": "2026-11-18",
+     "confidence": 0.9,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Holds an active Tier 3 short-term rental license"
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R2"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money"
+  ]
+ },
+ {
+  "id": "lead-8",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
+    "neighborhood": "La Jolla"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in La Jolla, zoned RS-1-7, lot 5,253 sq ft"
+    },
+    {
+     "id": "R2",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owner is absentee (sample data)"
+    },
+    {
+     "id": "R3",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "No open mortgage (sample data)"
+    },
+    {
+     "id": "R4",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": true,
+     "text": "Equity in the top quarter of the territory (sample data, estimated); estimated equity about $3,520,000"
+    },
+    {
+     "id": "R5",
+     "kind": "signal",
+     "source": "stro_licenses",
+     "date": "2026-11-18",
+     "confidence": 0.9,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Holds an active Tier 3 short-term rental license"
+    },
+    {
+     "id": "R6",
+     "kind": "signal",
+     "source": "upzoning_estimate",
+     "date": "2026-11-18",
+     "confidence": 0.5,
+     "is_sample": false,
+     "is_estimate": true,
+     "text": "Lot may qualify for an SB 9 split (estimated)"
+    },
+    {
+     "id": "R7",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-10-26",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Solar panels approved Oct 26, 2026"
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R5"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money"
+  ]
+ },
+ {
+  "id": "lead-9",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
+    "neighborhood": "Pacific Beach"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in Pacific Beach, zoned RM-2-5"
+    },
+    {
+     "id": "R2",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-10-16",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Electrical, plumbing and mechanical work approved Oct 16, 2026"
+    },
+    {
+     "id": "R3",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owned 29 years (sample data)"
+    },
+    {
+     "id": "R4",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "No open mortgage (sample data)"
+    },
+    {
+     "id": "R5",
+     "kind": "signal",
+     "source": "dev_permits",
+     "date": "2026-11-05",
+     "confidence": 0.95,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Building permit (remodel, addition or new construction) approved Nov 5, 2026"
+    },
+    {
+     "id": "R6",
+     "kind": "recipe_match",
+     "source": "scoring",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Matches the playbook: Downsizer, Pre-list prep"
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R2"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money"
+  ]
+ },
+ {
+  "id": "lead-10",
+  "address": "100 Example St",
+  "packet": {
+   "parcel": {
+    "neighborhood": "Pacific Beach"
+   },
+   "records": [
+    {
+     "id": "R1",
+     "kind": "parcel",
+     "source": "parcels",
+     "date": null,
+     "confidence": null,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Residential parcel in Pacific Beach, zoned RS-1-7, lot 5,700 sq ft"
+    },
+    {
+     "id": "R2",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owned 25 years (sample data)"
+    },
+    {
+     "id": "R3",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "Owner is absentee (sample data)"
+    },
+    {
+     "id": "R4",
+     "kind": "owner",
+     "source": "sample",
+     "date": "2026-11-18",
+     "confidence": null,
+     "is_sample": true,
+     "is_estimate": false,
+     "text": "No open mortgage (sample data)"
+    },
+    {
+     "id": "R5",
+     "kind": "signal",
+     "source": "stro_licenses",
+     "date": "2026-11-18",
+     "confidence": 0.9,
+     "is_sample": false,
+     "is_estimate": false,
+     "text": "Holds an active Tier 3 short-term rental license"
+    },
+    {
+     "id": "R6",
+     "kind": "signal",
+     "source": "upzoning_estimate",
+     "date": "2026-11-18",
+     "confidence": 0.5,
+     "is_sample": false,
+     "is_estimate": true,
+     "text": "Lot may qualify for an SB 9 split (estimated)"
+    }
+   ]
+  },
+  "must_cite_any": [
+   "R5"
+  ],
+  "forbidden": [
+   "tax",
+   "default",
+   "financ",
+   "struggl",
+   "elderly",
+   "\\bneeds? money"
+  ]
+ }
+]

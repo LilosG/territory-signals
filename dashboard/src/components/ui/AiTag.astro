@@ -1,0 +1,6 @@
+---
+/** Marks anything written by the AI layer. Always shown next to AI text (Phase 5F). */
+export interface Props { class?: string }
+const { class: cls } = Astro.props;
+---
+<span data-ai-tag title="Written by AI from the stored records. Scores, counts and eligibility are computed separately." class:list={['inline-flex items-center rounded-full border border-accent/30 bg-accent-soft px-2 py-px text-2xs font-semibold uppercase tracking-wide text-accent whitespace-nowrap align-middle', cls]}>AI summary</span>

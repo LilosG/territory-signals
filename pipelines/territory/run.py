@@ -33,9 +33,17 @@ def run_one(client, key: str, run_date: date | None = None, **ctx_kwargs) -> Run
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="territory.run")
     ap.add_argument("--client", required=True)
-    ap.add_argument("--source", required=True, help="source key or 'all'")
+    ap.add_argument("--source", help="source key or 'all' (not needed with --only-ai)")
+    ap.add_argument("--only-ai", action="store_true", help="skip collection; run only the AI tasks")
+    ap.add_argument("--skip-ai", action="store_true", help="never run the AI tasks")
     args = ap.parse_args(argv)
+    if args.only_ai and args.skip_ai:
+        ap.error("--only-ai and --skip-ai cannot be combined")
+    if not args.only_ai and not args.source:
+        ap.error("--source is required unless --only-ai is given")
     client = load_client(args.client)
+    if args.only_ai:
+        return run_ai_step(client)
     keys = ORDER if args.source == "all" else [args.source]
     outcomes = [run_one(client, k) for k in keys]
     bad = 0
@@ -45,7 +53,19 @@ def main(argv: list[str] | None = None) -> int:
               + (f"  error={o.error}" if o.error else ""))
         if o.status == "failed" and o.error != AWAITING_MESSAGE:
             bad += 1
+    if args.source == "all" and not args.skip_ai:     # full pipeline: AI runs last (after scoring and aggregate refresh)
+        run_ai_step(client)
     return 1 if bad else 0
+
+
+def run_ai_step(client) -> int:
+    """permit_intent, lead_brief, weekly_brief, in that order. Skips cleanly when AI is disabled or has no key."""
+    from territory.db import connect, refresh_dashboard_aggregates
+    from territory.llm.runner import run_ai
+    refresh_dashboard_aggregates()
+    with connect(autocommit=True) as conn:
+        run_ai(conn, client)
+    return 0
 
 
 if __name__ == "__main__":

@@ -2,6 +2,10 @@ import { psql, refreshAggregates, rest, TEST_APN, TEST_APN2, TEST_EMAIL } from '
 
 const SQL = `
 set session_replication_role = replica;  -- the append-only triggers are skipped for this cleanup only
+delete from ai_outputs where input_hash = 'e2e';
+delete from ai_task_runs where model = 'e2e-model';
+update ai_outputs set client_id = replace(client_id, '-hold', '') where client_id like '%-hold';
+update ai_task_runs set client_id = replace(client_id, '-hold', '') where client_id like '%-hold';
 delete from stage_events where apn in ('${TEST_APN}', '${TEST_APN2}');
 delete from share_links where apn in ('${TEST_APN}', '${TEST_APN2}');
 delete from outreach where apn in ('${TEST_APN}', '${TEST_APN2}');

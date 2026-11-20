@@ -36,3 +36,8 @@ export function psql(sql: string) {
 
 /** The dashboard lists read a materialized view; refresh it after seeding or removing test rows. */
 export const refreshAggregates = () => psql('select private.refresh_dashboard_aggregates();');
+
+/** Hide every AI row for the client (tests the dashboard with no AI rows), then put them back. */
+export const holdAiRows = () => psql("set session_replication_role = replica; update ai_outputs set client_id = client_id || '-hold' where client_id = 'kaiser-team'; update ai_task_runs set client_id = client_id || '-hold' where client_id = 'kaiser-team';");
+export const releaseAiRows = () => psql("set session_replication_role = replica; update ai_outputs set client_id = replace(client_id, '-hold', '') where client_id like '%-hold'; update ai_task_runs set client_id = replace(client_id, '-hold', '') where client_id like '%-hold';");
+export const TEST_WEEK = '2099-01-05';

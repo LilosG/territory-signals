@@ -25,18 +25,11 @@ SHORT_SALUTATION = "To the owners of 2651 Greentree Ln,"                       #
 LONG_SALUTATION = "To the Trustee of the John, Mary and James Smith Revocable Family Trust,"   # the longest
 SITUS = "2651 Greentree Ln"
 
-BANNED = [
-    r"\bneighbors?\b", r"public records?", r"records show", r"our records", r"we (know|noticed|saw|found)",
-    r"according to", r"\bdeath\b", r"\bdied\b", r"\bdeceased\b", r"passed away", r"inherit", r"probate",
-    r"\bestate of\b", r"tax[- ]default", r"delinquen", r"\bdebt", r"foreclos", r"non-?renewal", r"insurance",
-    r"\blien", r"\bmortgage", r"distress", r"\bdefault", r"\bbankrupt", r"\bpower[- ]to[- ]sell",
-]
+from territory.homeowner_text import BANNED, INTERNAL_LABELS      # one list, shared with the Phase 5F newsletter check
 TEAM_CLAIMS = [r"\byears? in (the )?business\b", r"\btop[- ]producer", r"#\s?1\b", r"number one", r"\branked\b",
                r"\baward", r"\bsold \d", r"\d+ homes", r"\bvolume\b", r"\bsales record", r"\bexperience[d]? with \d"]
 MARKET_CLAIMS = [r"\brising\b", r"\bappreciat", r"\bdemand\b", r"\bbuilders?\b", r"paying more", r"\bhot market",
                  r"\bbooming\b", r"\bskyrocket", r"\bsurg", r"low inventory", r"\bmultiple offers", r"\bbidding"]
-INTERNAL_LABELS = [r"\(estimated\)", r"\(sample data\)", r"\bestimated\b", r"\bsample\b", r"\bscores?\b",
-                   r"\bsignals?\b", r"\btier\b", r"\brecipe\b", r"\bSB ?9\b", r"\bSB ?79\b", r"\bconfidence\b"]
 
 
 def internal_names():

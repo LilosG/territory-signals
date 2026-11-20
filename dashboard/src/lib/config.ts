@@ -11,6 +11,7 @@ interface RawClient {
   team_profile: { display_name: string; brokerage?: string; office_address?: string };
   recipes: Record<string, { enabled: boolean }>;
   outreach: { mode: 'preview'; weekly_send_cap_per_agent: number; drafts_per_run: number; cooldown_days: number; approval_required_recipes?: string[] };
+  llm?: { enabled?: boolean; monthly_budget_usd?: number };
 }
 
 const files = import.meta.glob('../../../config/clients/*.yaml', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
@@ -35,6 +36,8 @@ export function loadClientConfig(): ClientConfig {
     team_profile: { display_name: raw.team_profile.display_name, brokerage: raw.team_profile.brokerage ?? '', office_address: raw.team_profile.office_address ?? '' },
     // Names come from the catalog; on/off comes from this client's config file.
     recipes: RECIPES.map((r) => ({ key: r.key, name: r.label, description: r.short_description, enabled: raw.recipes[r.key]?.enabled ?? r.enabled, requires_data: r.requires_data })),
+    // AI layer: when it is off, every AI row is ignored and nothing AI-related is shown.
+    ai: { enabled: raw.llm?.enabled === true, monthly_budget_usd: raw.llm?.monthly_budget_usd ?? 0 },
     team_members: (raw.team_members ?? []).map((m) => ({ email: m.email.toLowerCase(), name: m.name, role: m.role, phone: m.phone })),
   };
   return cached;

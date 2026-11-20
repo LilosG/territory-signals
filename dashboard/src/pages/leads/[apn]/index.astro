@@ -20,6 +20,7 @@ import DraftView from '../../../components/ui/DraftView.astro';
 import DataTable from '../../../components/ui/DataTable.astro';
 import EmptyState from '../../../components/ui/EmptyState.astro';
 import SampleDataBadge from '../../../components/ui/SampleDataBadge.astro';
+import AiBriefCard from '../../../components/ui/AiBriefCard.astro';
 import { OUTCOME_LABELS, RECIPE_LABELS, LEAD_STATUS, signalLabel } from '../../../lib/data/catalog';
 import { landUseLabel } from '../../../data/landUse';
 import { collapseSignals, detailHeadline, docTypeLabel, eventTitle, isSensitiveComponent, publicReason, publicRecipes, reasonParts, type ReasonPart } from '../../../lib/present';
@@ -127,6 +128,7 @@ const sensitiveLine = (t: string, d: string | null) =>
 
   <Tabs label="Lead brief" tabs={[{ id: 'overview', label: 'Overview' }, { id: 'signals', label: 'Signals' }, { id: 'owner', label: 'Owner and property' }, { id: 'outreach', label: 'Outreach' }, { id: 'activity', label: 'Activity' }]}>
     <TabPanel id="overview" active>
+      {lead.ai_brief && <AiBriefCard brief={lead.ai_brief} apn={p.apn} />}
       <Grid split="main-aside" gap={6}>
         <Card as="section" aria-labelledby="why-h">
           <h2 id="why-h" class="t-h2">Why this lead</h2>
@@ -164,7 +166,8 @@ const sensitiveLine = (t: string, d: string | null) =>
                       <span class:list={['mt-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-surface', e.is_estimate ? 'border-2 border-gold bg-surface' : 'bg-gold']}></span>
                       {i < events.length - 1 && <span class="absolute bottom-[-1.25rem] top-4 w-px bg-line"></span>}
                     </span>
-                    <div class="min-w-0">
+                    <div class="min-w-0" id={`rec-${group[0]!.id}`}>
+                      {group.slice(1).map((s) => <span id={`rec-${s.id}`}></span>)}
                       <p class="flex flex-wrap items-baseline gap-x-3 text-sm font-medium text-ink"><span>{eventTitle(e, false)}</span><time class="t-meta text-ink-muted" datetime={e.date}>{fmtDate(e.date)}</time>{e.is_sample && <span class="sample-fact t-meta text-ink-muted" title="Based on sample data, not a real record">sample</span>}</p>
                       <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1"><SourceLink sourceKey={e.source_key} recordId={e.source_record_id} /><ConfidenceIndicator confidence={group[0]!.confidence} method={group[0]!.match_method} /></div>
                       {group.length > 1 && (
@@ -185,7 +188,7 @@ const sensitiveLine = (t: string, d: string | null) =>
           <Card as="section" aria-labelledby="trait-h">
             <h2 id="trait-h" class="t-h2">Property traits</h2>
             <p class="mb-3 mt-0.5 text-sm text-ink-muted">Latest status from the monitored datasets.</p>
-            <ul class="flex flex-wrap gap-2">{traits.map((t) => <li><SignalChip type={t.signal_type} details={t.details} estimate={t.is_estimate} /></li>)}</ul>
+            <ul class="flex flex-wrap gap-2">{traits.map((t) => <li id={`rec-${t.id}`}><SignalChip type={t.signal_type} details={t.details} estimate={t.is_estimate} /></li>)}</ul>
           </Card>
         )}
       </Stack>

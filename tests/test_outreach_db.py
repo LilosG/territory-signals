@@ -120,6 +120,8 @@ def test_cooldown_blocks_a_second_run_and_dry_run_writes_nothing(db):
     run_outreach(db, client(), CFG, now=NOW)
     again = run_outreach(db, client(), CFG, now=NOW)
     assert again["parcels"] == 0 and len(rows(db)) == 3
+    # Rows get the database's real created_at; pin them to the test clock so the test does not depend on today's date.
+    db.execute("update outreach set created_at = %s where content <> 'old'", (NOW,))
     later = run_outreach(db, client(), CFG, now=NOW + timedelta(days=91))      # cooldown over
     assert later["parcels"] == 4                                               # P6's old row has aged out too
 

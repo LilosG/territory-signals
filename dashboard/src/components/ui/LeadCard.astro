@@ -8,6 +8,7 @@ import StatusPill from './StatusPill.astro';
 import SampleDataBadge from './SampleDataBadge.astro';
 import Fact from './Fact.astro';
 import Icon from './Icon.astro';
+import AiTag from './AiTag.astro';
 /** Compact lead card. Never shows distress or life-event chips (those live in the lead brief). One sample badge per card. */
 export interface Props { lead: LeadSummary; rank?: number; isNew?: boolean }
 const { lead, rank, isNew = false } = Astro.props;
@@ -35,6 +36,7 @@ const reason = reasonParts(publicReason(score.reason_text));
           <StatusPill tone={status.tone}>{status.label}</StatusPill>
         </span>
       </div>
+      {lead.ai_headline && <p class="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-ink-muted" data-ai-headline><span>{lead.ai_headline}</span><AiTag /></p>}
       {headline && <p class="mt-1 text-base font-medium text-ink"><Fact {...headline} /></p>}
       {chips.length > 0 && (
         <ul class="mt-2 flex flex-wrap gap-1.5">

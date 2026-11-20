@@ -7,6 +7,7 @@
 | Connect | Match records to parcels and normalize into signals | `pipelines/` | `parcels`, `neighborhoods`, `signals`, `owners`, `sales_history` |
 | Score | Deterministic scoring and recipe matching | `pipelines/` | `scores`, `suppressions` |
 | Act | Draft outreach for human approval; record outcomes | `pipelines/` | `outreach`, `outcomes`, `team_members` |
+| Explain (AI) | Provider-agnostic text layer: classify permit text, write lead and weekly briefs. Validated, shadow-labeled, never scores | `pipelines/territory/llm/` | `ai_outputs`, `ai_task_runs` |
 | Show | Dashboard (Astro + Tailwind) | `dashboard/` (Phase 4) | reads all via RLS |
 
 ## Data flow
@@ -86,3 +87,17 @@ Astro 7, server output (`@astrojs/cloudflare`, hosted on Cloudflare Workers; see
 - **Bulk actions.** `/actions/approve-bulk` and `/actions/share-bulk` (capped at 50) call the same `approve_outreach` and `create_share_link` functions one item at a time, so every database rule still applies; blocked drafts are skipped and named.
 - **Presentation rules** live in `lib/present.ts` and `data/landUse.ts`: no distress or life-event chips on cards or lists (only in the brief's "Sensitive records" card), one sample badge per card, sample facts dotted-underlined, estimates tagged "est.", land use labels, same-day permits collapsed, the "other" permit group never shown.
 - **Tests.** Playwright (`npm run e2e`) covers the sign-in flows, Today, navigation, the Outreach bulk approve with a blocked draft, Recipes links, Off-market share link with no owner data, the territory switcher, Cmd+K search and every page. Its setup seeds two synthetic parcels and refreshes the materialized view; teardown removes them and refreshes again.
+
+
+## AI layer (Phase 5F)
+```
+facts (SQL / DB rows only) -> packet (records R1..Rn: source, date, confidence, is_sample, is_estimate)
+   -> cache check (input_hash + prompt_version) -> budget guard -> provider.complete(json_schema)
+   -> pydantic parse (1 retry) -> deterministic validators -> ai_outputs (valid | rejected | invalid, append-only)
+   -> latest_ai_outputs view -> dashboard ("AI summary" tag, claims link to their records)
+```
+- **Code.** `llm/base.py` (interface, structured-output wrapper), `openai_compatible.py`, `anthropic_provider.py`, `fake.py`, `factory.py` (provider from the client config; returns "skip" when `llm.enabled` is false or the key env var is missing), `pricing.py`, `prompts.py` (`config/prompts/<task>/v<N>.md`; `prompt_version` is the file name), `store.py` (writes, cache, monthly spend, budget guard), `validators.py`, `tasks/{permit_intent,lead_brief,weekly_brief}.py`, `runner.py`, `eval.py`, `select_models.py`.
+- **Tasks.** `permit_intent` (shadow mode; 15 permits per call; one row per permit), `lead_brief` (every parcel with latest score at least 40, plus the top 200; one row per parcel), `weekly_brief` (SQL facts per neighborhood and territory; one row per week, `subject_type = territory`, `subject_id` = the week's first day). Order in `python -m territory.run --client <id> --source all` and `--only-ai`: permit_intent, lead_brief, weekly_brief, after the aggregate refresh. `--skip-ai` leaves them out.
+- **Tables.** `ai_outputs` (append-only, RLS like the other tables): id, client_id, task, subject_type (parcel|permit|territory), subject_id, input_hash, prompt_version, provider, model, output jsonb, cited_record_ids text[] (signal ids, `owner:<field>`, `parcel:<apn>`, `score:<id>`, `week:<date>`), uses_sample, status (valid|invalid|rejected), rejection_reason, token counts, cost_usd (null = unknown). `ai_task_runs` (one row per task per run: calls, cached, invalid, rejected, tokens, cost, warnings; read by the Pipeline page). Views: `latest_ai_outputs` (latest valid row per task and subject), `ai_month_spend`.
+- **Budget guard.** Before each call, the month's `cost_usd` plus the average cost per call so far in the run must stay under `llm.monthly_budget_usd`; otherwise the task stops, the run is `budget_stopped` and a warning appears on the Pipeline page.
+- **Dashboard.** Reads `latest_ai_outputs` only when the client config has `llm.enabled: true`. With the layer off (or no rows) nothing AI-related renders. Lead brief: AI summary card on Overview (tag, Sample badge when it cites sample records, each claim linking to its record on the Signals or Owner tab). Leads: headline under the address. Today: "This week" card. Reports: Briefings archive (`/reports/briefings`, one page per week). Trends newsletter: the latest newsletter paragraph. Pipeline: per-task row (calls, cached, invalid, rejected, tokens, cost this run, month vs budget).

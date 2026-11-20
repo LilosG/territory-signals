@@ -36,3 +36,17 @@ outreach:
   drafts_per_run: 50
   cooldown_days: 90
   approval_required_recipes: [quiet_inheritance, financial_pressure, insurance_squeeze]
+
+# AI layer (Phase 5F, D13). Client data is sent to this provider, so the provider is a per-client choice.
+# Switching providers is a config change only; a new provider or model must score >= 90% on the eval first (DEPLOY.md).
+llm:
+  provider: openai_compatible
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: LLM_API_KEY
+  model: deepseek/deepseek-v4.1-flash   # lead_brief and weekly_brief; chosen in Phase 5F (docs/reports/model-selection.md)
+  tasks:
+    permit_intent: { model: openai/gpt-oss-20b, scope: { months: 36, min_lead_score: 40 } }   # issued in the last 36 months OR on a parcel scoring >= 40
+    lead_brief: {}
+    weekly_brief: {}
+  monthly_budget_usd: 20
+  enabled: true
