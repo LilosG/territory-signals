@@ -8,7 +8,7 @@ status: reviewed   # finalized in Phase 3 from the rules in the Phase 3 prompt; 
 # (territory.permit_rederive): a permit with APPROVAL_ADU_TOTAL > 0 is grouped as adu.
 # Changes from the proposed map: pipelines/territory/sources/reports/permit_map_changes.md
 
-signal_groups: [pre_sale_prep, remodel_addition, adu, demolition_lot_split, solar_energy, other]
+signal_groups: [pre_sale_prep, maintenance, remodel_addition, adu, demolition_lot_split, solar_energy, other]
 
 # Discretionary land-use approvals. They stay 'other' below, but become remodel_addition when the
 # record is residential (residential land-use parcel, or the record's own PROJECT_TYPE/APPROVAL_TYPE
@@ -37,6 +37,44 @@ residential_remodel_types:
   - "La Jolla Shores Planned Dist."
   - "La Jolla Planned District"
   - "Hillside Review Overlay Zone"
+
+# ---- Pre-sale prep refinement (Phase 5G, D14) -------------------------------------------------------------
+# The 7 types mapped to pre_sale_prep below are electrical / plumbing / mechanical permits. Most of them are
+# like-for-like systems work (furnace, water heater, AC, panel, repipe, sewer lateral, undergrounding), which
+# is maintenance, not preparation to sell. So the TYPE only makes a permit a candidate; the DESCRIPTION decides.
+# Text read (first non-blank): APPROVAL_SCOPE, JOB_BC_CODE_DESCRIPTION, then PROJECT_TITLE + PROJECT_SCOPE.
+# Rules are case-insensitive regexes, applied in this order, first match wins:
+#   1. non_residential, new_construction -> other   (tenant improvements, offices, gas stations, cell sites, new buildings)
+#   2. solar           -> solar_energy      (a solar or battery install filed under an MEP type)
+#   3. cosmetic_scope  -> pre_sale_prep     (remodel, renovation, paint, flooring, landscaping/hardscape, facade,
+#                                            addition, interior improvement)
+#   4. weak_scope      -> pre_sale_prep     (kitchen, bath, windows/doors, roof, stucco, deck ...) unless a
+#                                            systems_work word (repipe, drain, water heater, furnace ...) is present
+#   5. everything else, including a blank description -> maintenance (weight 0)
+presale_rules:
+  non_residential:
+    - '\btenant improvements?\b'
+    - '\bT\.?I\.?\b'
+    - '\b(commercial|office|retail|restaurant|cafe|café|shop|salon|gym|clinic|taproom|store|gas station|self[- ]storage|bank branch|dental|medical|vivarium|laborator(y|ies)|warehouse|hotel|church|school|lobby)\b'
+    - '\bnon-?residential\b'
+    - '\b(wireless|antennas?|WCF|spectrum act|cell (site|tower))\b'
+  new_construction:
+    - '\bnew (single|two|three|four|\d)[- ]?(story|stor(y|ies)|unit|family|dwelling)\b'
+    - '\bnew (sdu|sfd|mdu|sfr)\b'
+    - '\bnew construction\b'
+  solar:
+    - '\b(solar(?![- ](ready|rated))|photovoltaic|pvs?|modules?|roof[- ]?mount\w*|powerwalls?|batter(y|ies)|energy storage|ESS)\b'
+    - '\bkw\b.{0,40}\b(dc|ac|inverter|modules?)\b'
+  cosmetic_scope:
+    - '\b(remodel(s|ed|ing)?|re-?model|renovat\w*|rehab\w*|re-?stucco|paint(ing|ed)?|flooring|hardwood|hardscape|landscap\w*|fa[cç]ade|(?<!load )additions?|new floor plan)\b'
+    - '\badd(ing)? (a )?(new )?(bed|bath)room\b'
+    - '\b(adus?|accessory dwelling\w*|garage[- ]conversion|convert\w* .{0,30}(garage|carport))\b'
+    - '\binterior (improvements?|alterations?|upgrades?|work|finish\w*)\b'
+    - '\bfloor (finish\w*|tiles?)\b'
+  weak_scope:
+    - '\b(kitchens?|bath(room)?s?|showers?|bathtub|tubs?|vanity|cabinet\w*|countertops?|backsplash|tile|tiling|windows?|doors?|roof(ing)?|re-?roof|stucco|siding|decks?|patio)\b'
+  systems_work:
+    - '\b(re-?pipe\w*|drains?|drainage|sewer|water heaters?|tankless|furnaces?|FAU|heat pumps?|air handlers?|duct(s|work|ing)?|mini-?splits?|a/?c|hvac|condenser|boiler|sub-?panel|panel|meter|service upgrade|amps?|overhead|underground\w*|oh to ug|gas (line|piping|meter)|water (line|service)|backflow|valve|compressor|thermostat|equipment|roof-?top|damage\w*)\b'
 
 approval_types:
   # ---- pre_sale_prep (7 types, 10405 approvals in territory)

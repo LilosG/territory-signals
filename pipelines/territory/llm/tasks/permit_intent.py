@@ -6,11 +6,11 @@ from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from territory.config import ClientConfig
-from territory.llm import store
-from territory.llm.base import LLMError, Provider, structured
+from territory.llm import attempts as at, store
+from territory.llm.base import LLMError, Provider, schema_of
 from territory.llm.prompts import load_prompt
 from territory.llm.validators import quote_in_source
 
@@ -84,29 +84,125 @@ def permit_hash(p: Permit) -> str:
     return store.input_hash({"d": p.description, "t": p.permit_type})
 
 
-def classify_batch(provider: Provider, system: str, permits: list[Permit], model: str | None):
-    """One call for several permits. Returns (StructuredResult, per-permit outcomes)."""
-    user = json.dumps([{"id": i + 1, "permit_type": p.permit_type, "description": p.description}
-                       for i, p in enumerate(permits)], ensure_ascii=False)
-    res = structured(provider, TASK, system, user, PermitBatch, model=model)
-    outcomes: list[tuple[str, dict | None, str | None]] = []     # (status, output, reason) per permit
-    if not res.ok:
-        return res, [("invalid", None, res.error)] * len(permits)
-    by_id = {it.id: it for it in res.value.items}                # type: ignore[union-attr]
-    for i, p in enumerate(permits):
-        it = by_id.get(i + 1)
+@dataclass
+class Call:
+    """One provider call covering several permits."""
+    n: int
+    role: str
+    model: str
+    provider: str
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cost_usd: float | None = 0.0
+    permits: int = 1                  # how many permits this call covered (cost and tokens are shared between them)
+
+
+@dataclass
+class PermitAttempt:
+    call: Call
+    status: str                       # valid | invalid | rejected
+    output: dict | None
+    reason: str | None
+    provider_error: bool = False
+
+
+@dataclass
+class BatchResult:
+    calls: list[Call]
+    per_permit: list[list[PermitAttempt]]      # attempts for each permit, in order
+
+    @property
+    def final(self) -> list[PermitAttempt]:
+        return [a[-1] for a in self.per_permit]
+
+
+def _request(permits: list[Permit], ids: list[int]) -> str:
+    return json.dumps([{"id": i + 1, "permit_type": permits[i].permit_type, "description": permits[i].description}
+                       for i in ids], ensure_ascii=False)
+
+
+def _ask(provider: Provider, system: str, messages: list[dict], model: str | None, n: int, role: str,
+         permits: list[Permit], ids: list[int], remap: dict[int, int] | None = None):
+    """One call. Returns (Call, {permit index: PermitAttempt}, raw reply). `remap` maps the ids the model saw to
+    permit indexes (the fallback call renumbers the permits it is given)."""
+    call = Call(n, role, model or "", getattr(provider, "name", ""), permits=len(ids))
+    out: dict[int, PermitAttempt] = {}
+    remap = remap or {i + 1: i for i in ids}
+
+    def fail(status: str, why: str, provider_error: bool = False):
+        for i in ids:
+            out[i] = PermitAttempt(call, status, None, why, provider_error)
+        return call, out, None
+
+    try:
+        res = provider.complete(TASK, system, messages, schema_of(PermitBatch), model=model)
+    except LLMError as exc:
+        return fail("invalid", f"provider error: {str(exc)[:300]}", True)
+    call.model, call.provider = res.get("model") or call.model, res.get("provider") or call.provider
+    call.input_tokens, call.output_tokens, call.cost_usd = res.get("input_tokens") or 0, res.get("output_tokens") or 0, res.get("cost_usd")
+    raw = res.get("raw")
+    if not (raw or "").strip():
+        return call, {i: PermitAttempt(call, "rejected", None, "empty output") for i in ids}, raw
+    try:
+        if res.get("output") is None:
+            raise ValueError("reply was not valid JSON")
+        value = PermitBatch.model_validate(res["output"])
+    except (ValidationError, ValueError) as exc:
+        return call, {i: PermitAttempt(call, "invalid", None, str(exc)[:600]) for i in ids}, raw
+    by_id = {remap[it.id]: it for it in value.items if it.id in remap}
+    for i in ids:
+        it = by_id.get(i)
         if it is None:
-            outcomes.append(("invalid", None, "missing from the reply"))
+            out[i] = PermitAttempt(call, "invalid", None, "missing from the reply")
             continue
-        out, problem = validate_item(it, p.description)
-        outcomes.append(("valid", out, None) if out else ("rejected", {"intent": it.intent, "quote": it.quote}, problem))
-    return res, outcomes
+        stored, problem = validate_item(it, permits[i].description)
+        out[i] = PermitAttempt(call, "valid", stored, None) if stored else PermitAttempt(
+            call, "rejected", {"intent": it.intent, "quote": it.quote}, problem)
+    return call, out, raw
+
+
+def classify_batch(provider: Provider, system: str, permits: list[Permit], model: str | None,
+                   fallback_model: str | None = None) -> BatchResult:
+    """One call for several permits, then Phase 5G retry + fallback for the permits that failed:
+    retry the same model once for only those permits with the reasons appended, then ask the fallback model
+    (fresh) for those still failing. Valid permits are never asked again."""
+    calls: list[Call] = []
+    per: list[list[PermitAttempt]] = [[] for _ in permits]
+    everyone = list(range(len(permits)))
+    user = _request(permits, everyone)
+    call, out, raw = _ask(provider, system, [{"role": "user", "content": user}], model, 1, at.PRIMARY, permits, everyone)
+    calls.append(call)
+    for i, a in out.items():
+        per[i].append(a)
+    failed = [i for i in everyone if per[i][-1].status != "valid"]
+    if failed and not all(per[i][-1].provider_error for i in failed):
+        reasons = "\n".join(f"- id {i + 1}: {per[i][-1].reason}" for i in failed)
+        note = (f"These items were rejected:\n{reasons}\nReply again with only a JSON object containing items for "
+                f"id {', '.join(str(i + 1) for i in failed)}, fixed (keep the same ids).")
+        if raw and raw.strip():
+            msgs = [{"role": "user", "content": user}, {"role": "assistant", "content": raw}, {"role": "user", "content": note}]
+        else:
+            msgs = [{"role": "user", "content": user + "\n\n" + note}]
+        call, out, _ = _ask(provider, system, msgs, model, 2, at.RETRY, permits, failed)
+        calls.append(call)
+        for i, a in out.items():
+            per[i].append(a)
+        failed = [i for i in failed if per[i][-1].status != "valid"]
+    if failed and fallback_model and fallback_model != model:
+        sub = [permits[i] for i in failed]                                # renumbered 1..k for the fallback model
+        call, out, _ = _ask(provider, system, [{"role": "user", "content": _request(sub, list(range(len(sub))))}],
+                            fallback_model, 3, at.FALLBACK, sub, list(range(len(sub))))
+        calls.append(call)
+        for k, a in out.items():
+            per[failed[k]].append(a)
+    return BatchResult(calls, per)
 
 
 def run(conn, client: ClientConfig, provider: Provider, stats: store.TaskStats, limit: int | None = None,
         workers: int = 32, batch_size: int = BATCH) -> None:
     system, version = load_prompt(TASK)
     model = client.llm.model_for(TASK)
+    fallback = client.llm.fallback_model_for(TASK)
     stats.model = model
     task_cfg = client.llm.tasks.get(TASK)
     permits = load_permits(conn, limit, scope=task_cfg.scope if task_cfg else None)
@@ -118,7 +214,7 @@ def run(conn, client: ClientConfig, provider: Provider, stats: store.TaskStats, 
 
     def work(b: list[Permit]):
         try:
-            return b, *classify_batch(provider, system, b, model)
+            return b, classify_batch(provider, system, b, model, fallback), None
         except LLMError as exc:
             return b, None, exc
 
@@ -142,25 +238,35 @@ def run(conn, client: ClientConfig, provider: Provider, stats: store.TaskStats, 
             finished, _ = wait(pending, return_when=FIRST_COMPLETED)
             for f in finished:
                 pending.discard(f)
-                b, res, outcomes = f.result()
-                stats.calls += 1
-                if res is None:                                   # provider failed after retries: nothing stored
-                    stats.warnings.append(f"{TASK}: provider error: {outcomes}")
+                b, res, err = f.result()
+                if res is None:                                   # the batch call itself failed: nothing stored
+                    stats.calls += 1
+                    stats.warnings.append(f"{TASK}: provider error: {err}")
                     stats.status = "failed" if stats.status == "success" else stats.status
                     submit(ex)
                     continue
-                stats.input_tokens += res.input_tokens
-                stats.output_tokens += res.output_tokens
-                stats.add_cost(res.cost_usd)
-                share = None if res.cost_usd is None else round(res.cost_usd / len(b), 6)
+                stats.calls += len(res.calls)
+                for c in res.calls:
+                    stats.input_tokens += c.input_tokens
+                    stats.output_tokens += c.output_tokens
+                    stats.add_cost(c.cost_usd)
                 rows = []
-                for p, (status, out, why) in zip(b, outcomes):
-                    setattr(stats, status, getattr(stats, status) + 1)
-                    rows.append(store.OutputRow(
-                        client.client_id, TASK, "permit", p.record_id, permit_hash(p), version, res.provider, res.model,
-                        status, output=out if status != "invalid" else None,
-                        cited_record_ids=[p.record_id] if status == "valid" else [], rejection_reason=why,
-                        input_tokens=res.input_tokens // len(b), output_tokens=res.output_tokens // len(b),
-                        cost_usd=share))
+                for p, attempts in zip(b, res.per_permit):
+                    final = attempts[-1]
+                    if final.provider_error and stats.status == "success":
+                        stats.status = "failed"
+                        stats.warnings.append(f"{TASK}: provider error: {final.reason}")
+                    setattr(stats, final.status, getattr(stats, final.status) + 1)
+                    stats.retried += len(attempts) > 1
+                    stats.fallbacks += any(a.call.role == at.FALLBACK for a in attempts)
+                    for a in attempts:
+                        n = max(a.call.permits, 1)
+                        rows.append(store.OutputRow(
+                            client.client_id, TASK, "permit", p.record_id, permit_hash(p), version, a.call.provider,
+                            a.call.model, a.status, output=a.output if a.status != "invalid" else None,
+                            cited_record_ids=[p.record_id] if a.status == "valid" else [], rejection_reason=a.reason,
+                            input_tokens=a.call.input_tokens // n, output_tokens=a.call.output_tokens // n,
+                            cost_usd=None if a.call.cost_usd is None else round(a.call.cost_usd / n, 6),
+                            attempt=a.call.n, is_fallback=a.call.role == at.FALLBACK))
                 store.insert_outputs(conn, rows)
                 submit(ex)

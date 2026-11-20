@@ -10,7 +10,7 @@ from test_scoring_db import parcel
 def score_row(db, apn, score, recipes, scored_at="2026-11-18 10:00+00", primary="first"):
     primary = (recipes[0] if recipes else None) if primary == "first" else primary
     db.execute("insert into scores (apn, score, components, reason_text, recipe_matches, model_version, scored_at, "
-               "primary_recipe) values (%s,%s,%s,'x',%s,'v0.3-handset',%s,%s)",
+               "primary_recipe) values (%s,%s,%s,'x',%s,'v0.4-handset',%s,%s)",
                (apn, score, Jsonb([]), recipes, scored_at, primary))
 
 

@@ -147,7 +147,7 @@ test('lead brief shows the data, labels from the catalog and the owner panel', a
   await expect(page.getByRole('heading', { name: '1 E2E Test Way' })).toBeVisible();
   await expect(page.locator('[data-hero]')).toBeVisible();
   for (const tab of ['Overview', 'Signals', 'Owner and property', 'Outreach', 'Activity']) await expect(page.getByRole('tab', { name: tab })).toBeVisible();
-  await expect(page.locator('[data-model-version]')).toHaveText('Model v0.3-handset');
+  await expect(page.locator('[data-model-version]')).toHaveText('Model v0.4-handset');
   await page.getByRole('tab', { name: 'Owner and property' }).click();
   const owner = page.locator('section[aria-labelledby=owner-h]');
   await expect(owner.getByText(SECRET_OWNER)).toBeVisible();
@@ -518,19 +518,70 @@ for (const [name, size] of [['1440', { width: 1440, height: 900 }], ['390', { wi
 }
 
 
+// ---- Phase 5G: Today -------------------------------------------------------------------------------------------
+for (const [w, h, cols] of [[1440, 900, 4], [390, 844, 2]] as const) {
+  test(`Today at ${w}px: "This week by recipe" wraps into ${cols} columns, nothing is clipped, idle recipes say "Waiting on data"`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    await page.goto('/');
+    const tiles = page.locator('[data-recipe-grid] [data-recipe-tile]');
+    expect(await tiles.count()).toBeGreaterThanOrEqual(7);
+    const boxes = await tiles.evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return { x: Math.round(r.x), right: Math.round(r.right), w: Math.round(r.width) }; }));
+    expect(new Set(boxes.map((b) => b.x)).size).toBe(cols);                                     // 4 per row at 1440, 2 at 390
+    for (const b of boxes) expect(b.right).toBeLessThanOrEqual(w);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    // every label is fully visible, Financial pressure included (no horizontal clipping inside a tile)
+    expect(await tiles.evaluateAll((els) => els.every((e) => [...e.querySelectorAll('span')].every((s) => s.scrollWidth <= s.clientWidth + 1)))).toBe(true);
+    await expect(page.locator('[data-recipe-tile="financial_pressure"]')).toContainText('Financial pressure');
+    expect((await page.locator('[data-recipe-grid]').evaluate((e) => e.scrollWidth <= e.clientWidth))).toBe(true);
+    // a recipe with no matches yet is muted and says so instead of 0
+    const idle = page.locator('[data-recipe-tile][data-idle]').first();
+    await expect(idle).toContainText('Waiting on data');
+    await expect(idle).not.toContainText(/^\s*0\s*$/m);
+    await expect(page.locator('[data-recipe-tile]:not([data-idle])').first()).not.toContainText('Waiting on data');
+  });
+}
+
+test('Today: a New signals row has the date on one line and the source and a truncated id on their own line', async ({ page }) => {
+  await page.goto('/');
+  const row = page.locator('[data-signal-item]').first();
+  await expect(row).toBeVisible();
+  const [d, src] = await Promise.all([row.locator('[data-signal-date]').boundingBox(), row.locator('[data-signal-source]').boundingBox()]);
+  expect(src!.y).toBeGreaterThan(d!.y + d!.height - 2);                                          // the source line is below the date line
+  const id = row.locator('[data-record-id]');
+  await expect(id).toHaveCSS('text-overflow', 'ellipsis');
+  expect(await id.getAttribute('title')).toBe((await id.textContent())!.trim());                // the full id is in the tooltip
+  await expect(row.locator('[data-signal-date]')).not.toContainText('·');
+});
+
+test('Today: the four stat tiles render (the first-full-week rule is covered by npm run test:unit)', async ({ page }) => {
+  await page.goto('/');
+  for (const m of ['signals', 'drafts', 'outcomes', 'active_leads']) await expect(page.locator(`[data-stat="${m}"]`)).toBeVisible();
+});
+
 // ---- Phase 5F: AI layer -----------------------------------------------------------------------------------------
-test('lead brief: the AI summary sits at the top with its tag, Sample badge and claims linked to their sources', async ({ page }) => {
+test('lead brief: "Why this lead" and the AI brief are one card: headline, summary, recipe chips, angle, then collapsed Sources', async ({ page }) => {
   const errors = noConsoleErrors(page);
   await page.goto(brief);
-  const card = page.locator('[data-ai-brief]');
-  await expect(card).toBeVisible();
+  const card = page.locator('[data-why-card]');
+  await expect(card).toHaveCount(1);                                                          // one card, not two
+  await expect(page.getByRole('heading', { name: 'Why this lead' })).toHaveCount(0);          // the AI headline replaces the heading
   await expect(card.locator('[data-ai-tag]').first()).toHaveText('AI summary');
   await expect(card.locator('[data-ai-headline]')).toHaveText('E2E recent remodel permits and long ownership');
   await expect(card.getByText('Sample', { exact: true })).toBeVisible();                       // the brief cites a sample owner fact
+  // Order inside the card: headline, summary, recipe chips, suggested angle (internal), Sources.
+  const ys = await Promise.all(['[data-ai-headline]', '[data-ai-summary]', '[data-recipe-tag]', '[data-ai-angle]', '[data-ai-sources]'].map(async (q) => (await card.locator(q).first().boundingBox())!.y));
+  expect([...ys].sort((x, y) => x - y)).toEqual(ys);
+  await expect(card.locator('[data-ai-angle]')).toContainText('(internal)');
+  // Sources are collapsed, count their claims, and open on click.
+  const sources = card.locator('[data-ai-sources]');
+  await expect(sources.locator('summary')).toHaveText('Sources (2)');
+  await expect(card.locator('[data-ai-claim]').first()).toBeHidden();
+  await sources.locator('summary').click();
   await expect(card.locator('[data-ai-claim]')).toHaveCount(2);
-  // The summary is above the "Why this lead" card.
-  const [ay, wy] = await Promise.all([card.boundingBox(), page.locator('#why-h').boundingBox()]);
-  expect(ay!.y).toBeLessThan(wy!.y);
+  // Score components are their own card below it.
+  const score = page.locator('[data-score-card]');
+  await expect(score.getByRole('heading', { name: 'Score components' })).toBeVisible();
+  expect((await card.boundingBox())!.y).toBeLessThan((await score.boundingBox())!.y);
   // A claim that cites a signal opens that record on the Signals tab; an owner fact opens the Owner tab.
   const links = card.locator('[data-claim-link]');
   await expect(links).toHaveCount(2);
@@ -544,11 +595,31 @@ test('lead brief: the AI summary sits at the top with its tag, Sample badge and 
   expect(errors.filter((e) => !IGNORED_ERRORS.test(e))).toEqual([]);
 });
 
-test('Leads shows the AI headline under the address, tagged', async ({ page }) => {
+test('a lead with no valid AI output shows the deterministic "Why this lead" in the same card, with no AI tag', async ({ page }) => {
+  await page.goto(`/leads/${TEST_APN2}`);
+  const card = page.locator('[data-why-card]');
+  await expect(card).toHaveCount(1);
+  await expect(card.getByRole('heading', { name: 'Why this lead' })).toBeVisible();
+  await expect(card.locator('[data-why-text]')).toContainText('Older home on a large lot');
+  await expect(card.locator('[data-ai-tag], [data-ai-sources], [data-ai-angle]')).toHaveCount(0);
+});
+
+test('Leads: the AI headline is the bold primary line with a sparkle icon, the top signal is the small gray line, no AI pill', async ({ page }) => {
   await page.goto('/leads?q=E2E');
+  await expect(page.getByText('Headlines written by AI')).toHaveCount(1);                      // one note in the section header
   const row = page.locator('article', { hasText: '1 E2E Test Way' });
-  await expect(row.locator('[data-ai-headline]')).toContainText('E2E recent remodel permits and long ownership');
-  await expect(row.locator('[data-ai-tag]')).toHaveText('AI summary');
+  const head = row.locator('[data-ai-headline]');
+  await expect(head).toContainText('E2E recent remodel permits and long ownership');
+  expect(await head.evaluate((e) => Number(getComputedStyle(e).fontWeight))).toBeGreaterThanOrEqual(600);
+  await expect(row.locator('[data-ai-sparkle]')).toHaveAttribute('title', 'AI summary');
+  await expect(row.locator('[data-ai-tag]')).toHaveCount(0);                                   // the per-row pill is gone
+  await expect(row.getByText('AI SUMMARY', { exact: false })).toHaveCount(0);
+  const [hy, sy] = await Promise.all([head.boundingBox(), row.locator('[data-top-signal]').boundingBox()]);
+  expect(hy!.y).toBeLessThan(sy!.y);                                                           // top signal sits below, smaller and gray
+  expect(await row.locator('[data-top-signal]').evaluate((e) => parseFloat(getComputedStyle(e).fontSize))).toBeLessThan(await head.evaluate((e) => parseFloat(getComputedStyle(e).fontSize)));
+  // A row without AI output keeps the current layout: no sparkle, no secondary line.
+  const plain = page.locator('article', { hasText: '2 E2E Beach Walk' });
+  await expect(plain.locator('[data-ai-sparkle], [data-top-signal]')).toHaveCount(0);
 });
 
 test('Today has a "This week" card with the intro and a link to the briefing; Reports keeps an archive; the newsletter export includes the paragraph', async ({ page }) => {

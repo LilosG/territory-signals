@@ -42,7 +42,7 @@ def score(signals=(), own=None, snap=None, cutoff=None, data=()):
 
 # ---- config ------------------------------------------------------------------------------
 def test_config_matches_the_spec():
-    assert CFG["model_version"] == "v0.3-handset"
+    assert CFG["model_version"] == "v0.4-handset"
     s = CFG["signals"]
     assert (s["tax_default"]["weight"], s["tax_default"]["half_life_days"]) == (30, 365)
     assert (s["stro_license_removed"]["weight"], s["stro_license_removed"]["half_life_days"]) == (25, 90)
@@ -50,7 +50,7 @@ def test_config_matches_the_spec():
     g = s["permit_approved"]["by_group"]
     assert {k: (v["weight"], v["half_life_days"]) for k, v in g.items()} == {
         "pre_sale_prep": (20, 120), "demolition_lot_split": (15, 180), "adu": (10, 180),
-        "remodel_addition": (8, 180), "solar_energy": (3, 180), "other": (0, 180)}
+        "remodel_addition": (8, 180), "solar_energy": (3, 180), "other": (0, 180), "maintenance": (0, 180)}
     assert (s["permit_stalled"]["weight"], s["permit_stalled"]["half_life_days"]) == (15, 365)
     assert s["sb79_transit_estimate"]["values"]["within_quarter_mile"] == 14
     assert s["sb79_transit_estimate"]["values"]["within_half_mile"] == 10
@@ -97,7 +97,7 @@ def test_component_carries_required_fields():
 def test_permit_group_weights_and_other_scores_zero():
     comps = signal_components([sig("permit_approved", 0, g) for g in
                                ("pre_sale_prep", "demolition_lot_split", "adu", "remodel_addition",
-                                "solar_energy", "other")], CFG, AS_OF)
+                                "solar_energy", "other", "maintenance")], CFG, AS_OF)
     assert {c["group"]: c["contribution"] for c in comps} == {
         "pre_sale_prep": 20, "demolition_lot_split": 15, "adu": 10, "remodel_addition": 8, "solar_energy": 3}
 

@@ -4,11 +4,14 @@ import { eventTitle } from '../../lib/present';
 import { fmtDate } from '../../lib/format';
 import SourceLink from './SourceLink.astro';
 import EstimateBadge from './EstimateBadge.astro';
+/** One row of the Today "New signals" panel: what happened, where, the date on its own line, then the source and record id on
+ *  theirs. A long record id is cut with an ellipsis; its full text is in the tooltip. */
 export interface Props { signal: SignalEvent }
 const { signal: s } = Astro.props;
 ---
-<li class="flex min-w-0 flex-col gap-0.5 px-5 py-3">
+<li class="flex min-w-0 flex-col gap-0.5 px-5 py-3" data-signal-item>
   <p class="truncate text-sm font-medium text-ink" title={eventTitle(s)}>{eventTitle(s, false)} {s.is_estimate && <EstimateBadge />}</p>
   <a href={`/leads/${s.apn}`} class="block truncate text-sm text-ink-muted hover:text-accent hover:underline underline-offset-2">{s.situs_address}{s.neighborhood ? ` · ${s.neighborhood}` : ''}</a>
-  <p class="flex min-w-0 items-center gap-2 text-xs text-ink-faint"><span>{fmtDate(s.date)}</span><span class="min-w-0 truncate"><SourceLink sourceKey={s.source_key} recordId={s.source_record_id} /></span></p>
+  <p class="whitespace-nowrap text-xs text-ink-faint" data-signal-date>{fmtDate(s.date)}</p>
+  <p class="min-w-0 text-xs text-ink-faint" data-signal-source><SourceLink sourceKey={s.source_key} recordId={s.source_record_id} truncateId /></p>
 </li>

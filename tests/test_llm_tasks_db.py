@@ -31,7 +31,7 @@ def add_permit(db, apn, rid, text, on=AS_OF, group="pre_sale_prep"):
 
 
 def permit_handler(task, system, messages):
-    items = json.loads(messages[-1]["content"])
+    items = json.loads(messages[0]["content"])
     return {"items": [{"id": it["id"], "intent": "maintenance", "scope_tags": ["hvac"], "confidence": 0.9,
                        "quote": " ".join(it["description"].split()[:3]), "reason": "Routine equipment replacement."}
                       for it in items]}
@@ -82,15 +82,16 @@ def test_rejected_and_invalid_outputs_are_stored_but_never_shown(db):
     seed_permits(db, 3)
 
     def handler(task, system, messages):
-        items = json.loads(messages[-1]["content"])
+        items = json.loads(messages[0]["content"])
         out = [{"id": it["id"], "intent": "maintenance", "scope_tags": [], "confidence": 0.9,
                 "quote": "quote that is not in the text" if it["id"] == 2 else " ".join(it["description"].split()[:3]),
                 "reason": "r"} for it in items if it["id"] != 3]                      # id 2 rejected (bad quote), id 3 missing
         return {"items": out}
     s = stats_for(db, client(), FakeProvider(handler), ["permit_intent"])[0]
-    assert (s.valid, s.rejected, s.invalid) == (1, 1, 1)
-    st = dict(db.execute("select subject_id, status from ai_outputs").fetchall())
-    assert sorted(st.values()) == ["invalid", "rejected", "valid"]
+    assert (s.valid, s.rejected, s.invalid) == (1, 1, 1)       # final outcome per permit, after the retry
+    # the retry asked again for the two failed permits only; every attempt is stored
+    assert db.execute("select status, attempt, count(*) from ai_outputs group by 1, 2 order by 1, 2").fetchall() == [
+        ("invalid", 1, 1), ("invalid", 2, 1), ("rejected", 1, 1), ("rejected", 2, 1), ("valid", 1, 1)]
     assert db.execute("select count(*) from latest_ai_outputs").fetchone()[0] == 1          # only the valid row is readable
     assert db.execute("select rejection_reason from ai_outputs where status='rejected'").fetchone()[0].startswith("quoted words")
 
@@ -100,7 +101,7 @@ def test_a_wholly_invalid_reply_is_retried_once_then_stored_as_invalid(db):
     f = FakeProvider(replies=["garbage", "still garbage"])
     s = stats_for(db, client(), f, ["permit_intent"])[0]
     assert len(f.calls) == 2 and s.invalid == 2 and s.valid == 0
-    assert db.execute("select count(*) from ai_outputs where status='invalid' and output is null").fetchone()[0] == 2
+    assert db.execute("select count(*) from ai_outputs where status='invalid' and output is null").fetchone()[0] == 4   # 2 permits x 2 attempts
     assert db.execute("select count(*) from latest_ai_outputs").fetchone()[0] == 0
 
 
@@ -199,13 +200,17 @@ def seed_scored(db):
 
 
 def brief_handler(task, system, messages):
-    pk = json.loads(messages[-1]["content"])
+    pk = json.loads(messages[0]["content"])
     recs = pk["records"]
     permit = next(r for r in recs if r["kind"] == "signal")
     owner = next((r for r in recs if r["kind"] == "owner"), recs[0])
-    return {"headline": "Recent permit and long ownership", "suggested_angle": "Offer a market update.",
-            "summary": f"{permit['text']}. {owner['text']}.",
-            "claims": [{"text": permit["text"], "record_ids": [permit["id"]]}, {"text": owner["text"], "record_ids": [owner["id"]]}]}
+    meaning = next(r for r in recs if r["kind"] == "meaning")
+    return {"headline": "Remodel-type work by a long-time owner",
+            "suggested_angle": "Ask whether the approved work is meant to get the home ready for sale.",
+            "summary": "Work that often goes in before a sale was approved on this home. The owner has held it a long time.",
+            "claims": [{"text": permit["text"], "record_ids": [permit["id"]]},
+                       {"text": owner["text"].replace(" (sample data)", ""), "record_ids": [owner["id"]]},
+                       {"text": meaning["text"].split(": ", 1)[1], "record_ids": [meaning["id"]]}]}
 
 
 def test_lead_brief_end_to_end_cites_real_ids_and_flags_sample(db):
@@ -216,6 +221,7 @@ def test_lead_brief_end_to_end_cites_real_ids_and_flags_sample(db):
     out, cited, sample, st = row
     sig_ids = {str(r[0]) for r in db.execute("select id from signals where apn='6000000000'")}
     assert st == "parcel" and set(out["claims"][0]["record_ids"]) <= sig_ids | {"parcel:6000000000"}
+    assert any(c.startswith("meaning:") for c in cited)                       # the claim citing a signal's meaning is stored
     assert cited and sample is True                                           # owner facts are sample data
     # the tax default (sensitive) never reached the model
     assert "tax" not in json.dumps(out).lower()
@@ -231,7 +237,7 @@ def test_lead_brief_rejects_invented_facts(db):
         d["summary"] = "The owner of 14 Other Road has held it 45 years. Second sentence here."
         return d
     s = stats_for(db, client(), FakeProvider(liar), ["lead_brief"])[0]
-    assert s.rejected == 3 and s.valid == 0
+    assert s.rejected == 3 and s.valid == 0 and s.calls == 6 and s.retried == 3     # primary + retry each
     assert db.execute("select count(*) from latest_ai_outputs").fetchone()[0] == 0
     assert "not in the facts" in db.execute("select rejection_reason from ai_outputs limit 1").fetchone()[0]
 
@@ -268,7 +274,7 @@ def test_weekly_brief_end_to_end(db):
     today = date(2026, 11, 20)
 
     def handler(task, system, messages):
-        facts = json.loads(messages[-1]["content"])
+        facts = json.loads(messages[0]["content"])
         n = facts["territory"]["new_pre_sale_permits"]
         return {"title": "A steady week", "intro": f"We saw {n} new pre-sale permits. Activity looks steady.",
                 "sections": [{"neighborhood": "La Jolla", "bullets": [f"{n} new pre-sale permits."]}], "newsletter_paragraph": NEWS}
@@ -307,3 +313,43 @@ def test_run_py_flags():
         r.main(["--client", "kaiser-team", "--only-ai", "--skip-ai"])
     with pytest.raises(SystemExit):
         r.main(["--client", "kaiser-team"])
+    with pytest.raises(SystemExit):
+        r.main(["--client", "kaiser-team", "--source", "all", "--tasks", "lead_brief"])      # --tasks needs --only-ai
+    with pytest.raises(SystemExit):
+        r.main(["--client", "kaiser-team", "--only-ai", "--tasks", "scores"])                 # unknown task
+
+
+def test_only_ai_tasks_runs_just_the_named_tasks(db, monkeypatch):
+    import territory.run as r
+    seen = {}
+    monkeypatch.setattr("territory.llm.runner.run_ai", lambda conn, client, tasks=None, **kw: seen.setdefault("tasks", tasks))
+    monkeypatch.setattr("territory.db.refresh_dashboard_aggregates", lambda: True)
+    assert r.main(["--client", "kaiser-team", "--only-ai", "--tasks", "lead_brief,weekly_brief"]) == 0
+    assert seen["tasks"] == ["lead_brief", "weekly_brief"]
+
+
+def test_weekly_facts_only_compare_runs_of_the_same_scoring_model(db):
+    """After a model change a score that moved because the rules moved is not news (Phase 5G, v0.3 -> v0.4)."""
+    seed_scored(db)
+    today = date(2026, 11, 20)
+    old = db.execute("select apn, score from latest_scores").fetchall()
+    for apn, score in old:                     # an older run under the previous model, with very different scores
+        db.execute("insert into scores (apn, score, components, reason_text, recipe_matches, model_version, scored_at, "
+                   "uses_sample_data, primary_recipe) values (%s,%s,'[]','x','{}','v0.3-handset','2026-11-01T00:00:00Z',false,null)",
+                   (apn, min(100, score + 30)))
+    f = weekly_brief.compute_facts(db, today)
+    assert f["baseline"]["kind"] == "none" and f["territory"]["top_movers"] == [] and f["territory"]["new_strong_leads"] is None
+    # a second run of the SAME version is compared normally
+    run_score(db, CFG, AS_OF)
+    assert weekly_brief.compute_facts(db, today)["baseline"]["kind"] == "earliest_available"
+
+
+def test_editing_a_prompt_without_bumping_its_version_does_not_serve_cached_briefs(db, monkeypatch):
+    """Phase 5G: the prompt's text is part of the cache key for lead_brief and weekly_brief."""
+    seed_scored(db)
+    assert stats_for(db, client(), FakeProvider(brief_handler), ["lead_brief"])[0].valid == 3
+    assert stats_for(db, client(), FakeProvider(brief_handler), ["lead_brief"])[0].cached == 3
+    real = lead_brief.load_prompt
+    monkeypatch.setattr(lead_brief, "load_prompt", lambda task, *a, **k: (real(task)[0] + "\nAn extra rule.", real(task)[1]))
+    s = stats_for(db, client(), FakeProvider(brief_handler), ["lead_brief"])[0]
+    assert s.cached == 0 and s.valid == 3                                        # same version label, new text: asked again

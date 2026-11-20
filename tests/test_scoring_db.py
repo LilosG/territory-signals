@@ -112,7 +112,7 @@ def test_scores_are_append_only_history_with_required_columns(db):
     rows = db.execute("select score, model_version, uses_sample_data, recipe_matches, components, "
                       "reason_text from scores where apn='3000000400' order by scored_at").fetchall()
     assert len(rows) == 2 and rows[0][:4] == rows[1][:4]
-    assert rows[0][1] == "v0.3-handset" and rows[0][2] is False
+    assert rows[0][1] == "v0.4-handset" and rows[0][2] is False
     assert rows[0][4][0]["signal_id"] and rows[0][5].startswith("Tax-defaulted")
     with pytest.raises(psycopg.errors.RestrictViolation):
         db.execute("update scores set score = 1")
@@ -249,10 +249,10 @@ def test_final_permit_map_is_reviewed_and_follows_the_rules():
 
 
 # ---- re-derivation and superseded_by --------------------------------------------------------------------
-def _seed_permit(db, apn, aid, atype, signals):
+def _seed_permit(db, apn, aid, atype, signals, extra=None):
     rid = run_id(db, "dev_permits")
     payload = {"APPROVAL_TYPE": atype, "APPROVAL_ISSUE_DATE": "2025-01-01", "APPROVAL_EXPIRE_DATE": "2025-06-01",
-               "APPROVAL_STATUS": "Issued", "APPROVAL_ID": aid}
+               "APPROVAL_STATUS": "Issued", "APPROVAL_ID": aid, **(extra or {})}
     db.execute("insert into raw_records (source_key, source_record_id, run_id, payload) values "
                "('dev_permits',%s,%s,%s)", (aid, rid, Jsonb(payload)))
     for stype, group, on in signals:
@@ -425,3 +425,24 @@ def test_builder_bait_needs_a_lot_1_5x_the_area_median_and_the_medians_are_repor
     assert hits == {"3000001703"}                                     # 10000 >= 6000; 5900 < 6000
     report = (tmp_path / "scoring_report.md").read_text()
     assert "| La Jolla | 4000.0 | 6000.0 |" in report and "1.5" in report
+
+
+def test_rederive_with_the_real_map_moves_systems_work_to_maintenance_and_keeps_append_only(db):
+    """Phase 5G (D14): re-deriving with the real map regroups old pre_sale_prep signals by permit text."""
+    add_territory(db)
+    cases = [("A1", "Mechanical Permit", "CHANGE OUT FURNACE AND DUCTING", "maintenance"),
+             ("A2", "Plumbing Pmt", "For plumbing work associated with the bathroom remodel to an existing MDU.", "pre_sale_prep"),
+             ("A3", "Electrical Pmt", "OH TO UG CONV. PROG.", "maintenance"),
+             ("A4", "Electrical Pmt", "Proposed installation of a 3.2kW PV system with 8 modules", "solar_energy")]
+    for i, (aid, atype, text, _want) in enumerate(cases):
+        parcel(db, f"300000190{i}", n=i)
+        _seed_permit(db, f"300000190{i}", aid, atype, [("permit_approved", "pre_sale_prep", date(2025, 1, 1))],
+                     extra={"APPROVAL_SCOPE": text})
+    before = db.execute("select count(*) from signals").fetchone()[0]
+    res = rederive(db, run_id(db, "permit_rederive"), date(2026, 11, 19))
+    live = {r[0]: r[1] for r in db.execute(
+        "select source_record_id, signal_group from signals where superseded_by is null and signal_type='permit_approved'")}
+    assert live == {aid: want for aid, _t, _x, want in cases}
+    assert db.execute("select count(*) from signals").fetchone()[0] == before + 3      # old rows kept, 3 regrouped
+    assert db.execute("select count(*) from signals where superseded_by is not null").fetchone()[0] == 3
+    assert res["changed"][("permit_approved", "pre_sale_prep", "maintenance")] == 2

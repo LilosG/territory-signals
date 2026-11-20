@@ -1,0 +1,50 @@
+---
+import type { LeadBriefAi } from '../../lib/data/types';
+import type { ReasonPart } from '../../lib/present';
+import { claimHref, claimLabel } from '../../lib/present';
+import AiTag from './AiTag.astro';
+import Card from './Card.astro';
+import Cluster from './Cluster.astro';
+import Fact from './Fact.astro';
+import RecipeTag from './RecipeTag.astro';
+import SampleDataBadge from './SampleDataBadge.astro';
+/**
+ * "Why this lead" and the AI brief in ONE card (Phase 5G). With a valid brief the order is: headline, summary, recipe chips,
+ * suggested angle (internal), then a collapsed "Sources (N)" list of the claims, each linked to the record it cites.
+ * Without one it is the deterministic "Why this lead" text and the same chips, with no AI tag. Score components are a separate card.
+ */
+export interface Props { brief: LeadBriefAi | null; reason: ReasonPart[]; recipes: { key: string; name: string }[] }
+const { brief, reason, recipes } = Astro.props;
+---
+<Card as="section" aria-labelledby="why-h" data-why-card data-ai-brief={brief ? '' : undefined}>
+  {brief ? (
+    <>
+      <div class="flex flex-wrap items-center gap-2"><AiTag />{brief.uses_sample && <SampleDataBadge />}</div>
+      <h2 id="why-h" class="t-h2 mt-2 text-ink" data-ai-headline>{brief.headline}</h2>
+      <p class="mt-2 text-base text-ink" data-ai-summary>{brief.summary}</p>
+    </>
+  ) : (
+    <>
+      <h2 id="why-h" class="t-h2">Why this lead</h2>
+      {reason.length > 0 && <p class="t-lead-reason mt-2 text-ink" data-why-text>{reason.map((r) => <Fact {...r} />)}</p>}
+    </>
+  )}
+  {recipes.length > 0 && <Cluster class="mt-3" gap={2}>{recipes.map((r) => <RecipeTag name={r.name} />)}</Cluster>}
+  {brief && (
+    <>
+      <p class="mt-4 text-sm text-ink" data-ai-angle><span class="font-medium">Suggested angle</span> <span class="text-xs text-ink-muted">(internal)</span><br />{brief.suggested_angle}</p>
+      <details class="mt-4 border-t border-line pt-3 text-sm" data-ai-sources>
+        <summary class="cursor-pointer text-xs font-medium text-ink-muted hover:text-ink">Sources ({brief.claims.length})</summary>
+        <ul class="mt-3 flex flex-col gap-2" aria-label="Claims and their sources">
+          {brief.claims.map((c) => (
+            <li class="flex flex-wrap items-baseline gap-x-2" data-ai-claim>
+              <span class="text-ink">{c.text}</span>
+              <span class="flex flex-wrap gap-x-2">{c.record_ids.map((id) => <a href={claimHref(id)} data-claim-link class="text-xs font-medium text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent">{claimLabel(id)}</a>)}</span>
+            </li>
+          ))}
+        </ul>
+        <p class="mt-3 text-2xs text-ink-faint">Written by AI using only the stored records linked above. The score and recipes are computed separately.</p>
+      </details>
+    </>
+  )}
+</Card>

@@ -45,8 +45,10 @@ llm:
   api_key_env: LLM_API_KEY
   model: deepseek/deepseek-v4.1-flash   # lead_brief and weekly_brief; chosen in Phase 5F (docs/reports/model-selection.md)
   tasks:
-    permit_intent: { model: openai/gpt-oss-20b, scope: { months: 36, min_lead_score: 40 } }   # issued in the last 36 months OR on a parcel scoring >= 40
-    lead_brief: {}
-    weekly_brief: {}
+    # fallback_model: called when the primary reply is still rejected after one retry with the reason appended (Phase 5G).
+    # permit_intent: next-best model that passed the eval in docs/reports/model-selection.md (qwen3.6-27b, 30/31).
+    permit_intent: { model: openai/gpt-oss-20b, fallback_model: qwen/qwen3.6-27b, scope: { months: 36, min_lead_score: 40 } }   # issued in the last 36 months OR on a parcel scoring >= 40
+    lead_brief: { fallback_model: qwen/qwen3.6-35b-a3b }
+    weekly_brief: { fallback_model: qwen/qwen3.6-35b-a3b }
   monthly_budget_usd: 5
   enabled: true

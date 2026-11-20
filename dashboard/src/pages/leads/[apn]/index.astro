@@ -20,7 +20,7 @@ import DraftView from '../../../components/ui/DraftView.astro';
 import DataTable from '../../../components/ui/DataTable.astro';
 import EmptyState from '../../../components/ui/EmptyState.astro';
 import SampleDataBadge from '../../../components/ui/SampleDataBadge.astro';
-import AiBriefCard from '../../../components/ui/AiBriefCard.astro';
+import LeadWhyCard from '../../../components/ui/LeadWhyCard.astro';
 import { OUTCOME_LABELS, RECIPE_LABELS, LEAD_STATUS, signalLabel } from '../../../lib/data/catalog';
 import { landUseLabel } from '../../../data/landUse';
 import { collapseSignals, detailHeadline, docTypeLabel, eventTitle, isSensitiveComponent, publicReason, publicRecipes, reasonParts, type ReasonPart } from '../../../lib/present';
@@ -128,20 +128,18 @@ const sensitiveLine = (t: string, d: string | null) =>
 
   <Tabs label="Lead brief" tabs={[{ id: 'overview', label: 'Overview' }, { id: 'signals', label: 'Signals' }, { id: 'owner', label: 'Owner and property' }, { id: 'outreach', label: 'Outreach' }, { id: 'activity', label: 'Activity' }]}>
     <TabPanel id="overview" active>
-      {lead.ai_brief && <AiBriefCard brief={lead.ai_brief} apn={p.apn} />}
       <Grid split="main-aside" gap={6}>
-        <Card as="section" aria-labelledby="why-h">
-          <h2 id="why-h" class="t-h2">Why this lead</h2>
-          {reason.length > 0 && <p class="t-lead-reason mt-2 text-ink">{reason.map((r) => <Fact {...r} />)}</p>}
-          {recipes.length > 0 && <Cluster class="mt-3" gap={2}>{recipes.map((r) => <RecipeTag name={RECIPE_LABELS[r] ?? r} />)}</Cluster>}
+        <Stack gap={6}>
+          <LeadWhyCard brief={lead.ai_brief} reason={reason} recipes={recipes.map((r) => ({ key: r, name: RECIPE_LABELS[r] ?? r }))} />
           {items.length > 0 && (
-            <div class="mt-5 border-t border-line pt-5">
-              <p class="eyebrow mb-3">Score components <span class="normal-case tracking-normal text-ink-faint">· computed from stored records, total capped at 100</span></p>
+            <Card as="section" aria-labelledby="score-h" data-score-card>
+              <h2 id="score-h" class="t-h2">Score components</h2>
+              <p class="mb-3 mt-0.5 text-sm text-ink-muted">Computed from stored records, total capped at 100.</p>
               <ScoreBreakdown items={items} class="sm:grid sm:grid-cols-2 sm:gap-x-8" />
-            </div>
+              <p class="mt-4 text-xs text-ink-muted" data-model-version>Model {score.model_version}</p>
+            </Card>
           )}
-          <p class="mt-4 text-xs text-ink-muted" data-model-version>Model {score.model_version}</p>
-        </Card>
+        </Stack>
         <Stack gap={6}>
           <Card as="section" aria-labelledby="next-h">
             <h2 id="next-h" class="t-h2">Next step</h2>

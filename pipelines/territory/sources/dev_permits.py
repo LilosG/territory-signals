@@ -187,6 +187,7 @@ class DevPermitsAdapter(SourceAdapter):
         data = rules.load_map(self.ctx.local_files.get("permit_signal_map"))
         self._map = data["approval_types"]
         self._res_types = data["residential_remodel_types"]
+        self._presale = data["presale_rules"]
         codes = load_scoring_config()["residential_codes"]
         self._res_apns = {r[0] for r in self.ctx.conn.execute(
             "select apn from parcels where land_use = any(%s)", (codes,))}
@@ -219,7 +220,7 @@ class DevPermitsAdapter(SourceAdapter):
             self.unmapped[atype or "(blank)"] += 1
             self.notes["APPROVAL_TYPE values not in the map (-> other)"] = dict(self.unmapped)
         for s in rules.derive(raw.payload, raw.source_record_id, self._map, self.ctx.run_date,
-                               m.apn in self._res_apns, self._res_types):
+                               m.apn in self._res_apns, self._res_types, self._presale):
             details = {**s["details"], "match_note": m.note or None}
             yield SignalCandidate(s["signal_type"], s["group"], self.source_key, raw.source_record_id,
                                   m.confidence, m.method, m.apn, s["signal_date"], details=details)

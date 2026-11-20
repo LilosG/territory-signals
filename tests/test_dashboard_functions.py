@@ -208,3 +208,35 @@ def test_leads_page_filters_and_paginates(d):
         assert d.execute("select count(*) from leads_page(p_min=>45)").fetchone()[0] == 2
         pts = d.execute("select map_points(p_recipe=>'downsizer')").fetchone()[0]
         assert len(pts) == 3 and set(map(type, pts[0])) <= {str, int, float, type(None)}
+
+
+def test_today_stat_history_buckets_weeks_and_reports_the_first_data_day(d):
+    """Phase 5G: weekly counts (0 = the last 7 days, 1 = the week before) and the day each metric first had data."""
+    from datetime import timedelta
+    today = d.execute("select current_date").fetchone()[0]                       # the database's date, not this machine's
+    rid = d.execute("insert into source_runs (source_key, status, started_at) values ('dev_permits', 'success', %s) returning id",
+                    (today - timedelta(days=9),)).fetchone()[0]
+    d.execute("insert into source_runs (source_key, status, started_at) values ('tax_default', 'success', %s)", (today - timedelta(days=30),))
+    for day, n in [(0, 2), (6, 1), (7, 4), (13, 1), (14, 5)]:                      # weeks 0, 0, 1, 1, 2
+        for i in range(n):
+            d.execute(
+                "insert into signals (apn, signal_type, signal_group, signal_date, source_key, source_record_id, run_id, confidence, match_method) "
+                "values (%s,'permit_approved','remodel_addition',%s,'dev_permits',%s,%s,0.9,'apn')",
+                (APN, today - timedelta(days=day), f"H-{day}-{i}", rid))
+    d.execute("insert into signals (apn, signal_type, signal_group, signal_date, source_key, source_record_id, run_id, confidence, match_method) "
+              "values (%s,'permit_approved','other',%s,'dev_permits','H-other',%s,0.9,'apn')", (APN, today, rid))   # 'other' never counts
+    with as_user(d, MEMBER):
+        rows = d.execute("select metric, weeks_ago, n, first_day from today_stat_history(null) order by metric, weeks_ago").fetchall()
+        hood = d.execute("select weeks_ago, n from today_stat_history('Nowhere') where metric = 'signals' order by weeks_ago limit 3").fetchall()
+    sig = [r for r in rows if r[0] == "signals"]
+    assert [r[1] for r in sig] == list(range(13))
+    assert [r[2] for r in sig][:4] == [3, 5, 5, 0]                                 # 2 + 1 | 4 + 1 | 5 | none
+    assert {r[3] for r in sig} == {today - timedelta(days=9)}                      # first successful pull of dev_permits / stro, not tax_default
+    assert {r[0] for r in rows} == {"signals", "drafts", "outcomes", "active_leads"}
+    assert all(r[3] is None for r in rows if r[0] == "outcomes")                   # no outcome ever logged
+    assert hood == [(0, 0), (1, 0), (2, 0)]                                        # filtered to a neighborhood with nothing
+    with as_user(d, STRANGER):
+        assert d.execute("select count(*) from today_stat_history(null) where n > 0").fetchone()[0] == 0   # RLS: a non-member sees no rows
+    with as_user(d, MEMBER, role="anon"):
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            d.execute("select * from today_stat_history(null)")

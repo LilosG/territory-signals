@@ -349,5 +349,152 @@
    "tax",
    "default"
   ]
+ },
+ {
+  "id": "weekly-one-hood",
+  "facts": {
+   "week": {
+    "start": "2026-11-12",
+    "end": "2026-11-19"
+   },
+   "baseline": {
+    "kind": "week_start",
+    "compared_with": "2026-11-12"
+   },
+   "territory": {
+    "strong_leads_now": 7,
+    "new_strong_leads": 0,
+    "recipe_counts": {
+     "Pre-list prep": {
+      "now": 16,
+      "before": 16,
+      "change": 0
+     }
+    },
+    "new_pre_sale_permits": 4,
+    "tax_default_new_this_week": 0,
+    "tax_default_total": 39,
+    "new_str_removals": 0,
+    "top_movers": [
+     {
+      "address": "1260 Rhoda Dr",
+      "neighborhood": "La Jolla",
+      "score_before": 66,
+      "score_now": 37,
+      "change": -29
+     }
+    ]
+   },
+   "neighborhoods": {
+    "La Jolla": {
+     "strong_leads_now": 3,
+     "new_strong_leads": 0,
+     "recipe_counts": {
+      "Pre-list prep": {
+       "now": 12,
+       "before": 12,
+       "change": 0
+      }
+     },
+     "new_pre_sale_permits": 4,
+     "tax_default_new_this_week": 0,
+     "tax_default_total": 15,
+     "new_str_removals": 0,
+     "top_movers": [
+      {
+       "address": "1260 Rhoda Dr",
+       "neighborhood": "La Jolla",
+       "score_before": 66,
+       "score_now": 37,
+       "change": -29
+      }
+     ]
+    },
+    "Mission Beach": {
+     "strong_leads_now": 1,
+     "new_strong_leads": 0,
+     "recipe_counts": {},
+     "new_pre_sale_permits": 0,
+     "tax_default_new_this_week": 0,
+     "tax_default_total": 0,
+     "new_str_removals": 0,
+     "top_movers": []
+    },
+    "Pacific Beach": {
+     "strong_leads_now": 3,
+     "new_strong_leads": 0,
+     "recipe_counts": {},
+     "new_pre_sale_permits": 0,
+     "tax_default_new_this_week": 0,
+     "tax_default_total": 24,
+     "new_str_removals": 0,
+     "top_movers": []
+    }
+   }
+  },
+  "forbidden_in_newsletter": [
+   "1260 Rhoda Dr",
+   "tax",
+   "default"
+  ]
+ },
+ {
+  "id": "weekly-first-week",
+  "facts": {
+   "week": {
+    "start": "2026-11-12",
+    "end": "2026-11-19"
+   },
+   "baseline": {
+    "kind": "none",
+    "compared_with": null
+   },
+   "territory": {
+    "strong_leads_now": 7,
+    "new_strong_leads": null,
+    "recipe_counts": {},
+    "new_pre_sale_permits": 9,
+    "tax_default_new_this_week": 0,
+    "tax_default_total": 39,
+    "new_str_removals": 2,
+    "top_movers": []
+   },
+   "neighborhoods": {
+    "La Jolla": {
+     "strong_leads_now": 3,
+     "new_strong_leads": null,
+     "recipe_counts": {},
+     "new_pre_sale_permits": 4,
+     "tax_default_new_this_week": 0,
+     "tax_default_total": 15,
+     "new_str_removals": 1,
+     "top_movers": []
+    },
+    "Mission Beach": {
+     "strong_leads_now": 1,
+     "new_strong_leads": null,
+     "recipe_counts": {},
+     "new_pre_sale_permits": 0,
+     "tax_default_new_this_week": 0,
+     "tax_default_total": 0,
+     "new_str_removals": 0,
+     "top_movers": []
+    },
+    "Pacific Beach": {
+     "strong_leads_now": 3,
+     "new_strong_leads": null,
+     "recipe_counts": {},
+     "new_pre_sale_permits": 5,
+     "tax_default_new_this_week": 0,
+     "tax_default_total": 24,
+     "new_str_removals": 1,
+     "top_movers": []
+    }
+   }
+  },
+  "forbidden_in_newsletter": [
+   "tax",
+   "default"
+  ]
  }
 ]
