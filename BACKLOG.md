@@ -160,3 +160,8 @@ Added during Phase 5I:
 - [ ] **Financial pressure cards show no line under each lead** (its qualifier, tax default, is sensitive and never shown on cards). Decide on a neutral phrase such as "Approval required" per row, or leave blank.
 - [ ] **Trends takeaway does not change with the "Include routine & other permits" toggle** (the sentence is the default, actionable-only view). Make it follow the toggle if the chart is shared.
 - [ ] **E2E lead-list tests depended on the old score compression** (the test parcel scored 55 and sat on page 1). The test now filters with `?q=E2E`; other tests that read page 1 of unfiltered Leads may need the same.
+- [ ] **Map lens values in SQL** (Phase 5J): add est_equity, SB 9/SB 79 flags and an active-STR flag to `map_geojson` so `/api/map-lens` (about 50 paged REST calls, fine locally, heavy on a Worker) can go away. Needs a migration.
+- [ ] **Today "top" counts use today's top-leads list only**: the Active strategies panel counts leads scoring 65+ among the top leads shown, not all parcels. Add a per-recipe high-score count to the recipe strip RPC.
+- [ ] **Build warning**: the MapLibre bundle exceeds Vite's 500 kB chunk limit (present before Phase 5J). Set `build.chunkSizeWarningLimit` or split the chunk (astro.config.mjs).
+- [ ] **Net-proceeds cost range is a flat 5-7%**: make it a client config value.
+- [ ] **Lead page: mobile order.** The co-pilot sits below the whole left column on a phone; consider a sticky "Log outcome" bar.

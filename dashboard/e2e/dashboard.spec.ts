@@ -112,7 +112,7 @@ test('Today loads live data', async ({ page }) => {
   expect(cards).toBeGreaterThan(0);
   expect(cards).toBeLessThanOrEqual(10);
   await expect(page.getByText('New signals').first()).toBeVisible();
-  await expect(page.getByText('This week by recipe')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Active territory strategies' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Approvals' })).toBeVisible();
   await expect(page.locator('[data-sample-banner]')).toBeVisible();      // live scores still rest on sample owner data
   await expect(page.locator('[data-user-email]')).toHaveText(TEST_EMAIL);
@@ -146,17 +146,16 @@ test('lead brief shows the data, labels from the catalog and the owner panel', a
   await page.goto(brief);
   await expect(page.getByRole('heading', { name: '1 E2E Test Way' })).toBeVisible();
   await expect(page.locator('[data-hero]')).toBeVisible();
-  for (const tab of ['Overview', 'Signals', 'Owner and property', 'Outreach', 'Activity']) await expect(page.getByRole('tab', { name: tab })).toBeVisible();
+  await expect(page.locator('[data-split-workspace]')).toBeVisible();                         // one workspace, no tabs for the brief itself
+  await expect(page.getByRole('tab', { name: 'Overview' })).toHaveCount(0);
   await expect(page.locator('[data-model-version]')).toHaveText('Model v0.4.1-handset');
-  await page.getByRole('tab', { name: 'Owner and property' }).click();
   const owner = page.locator('section[aria-labelledby=owner-h]');
   await expect(owner.getByText(SECRET_OWNER)).toBeVisible();
-  await expect(owner.locator('h2').getByText('Sample', { exact: true })).toHaveCount(1);   // one badge, in the header
+  await expect(owner.locator('h3').getByText('Sample', { exact: true })).toHaveCount(1);   // one badge, in the header
   await expect(owner.getByText('14 years')).toBeVisible();                                  // whole years
   await expect(owner.getByText('Open mortgage')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Sensitive records' })).toBeVisible();     // tax default only appears here, labeled
-  await page.getByRole('tab', { name: 'Signals' }).click();
-  const timeline = page.locator('ol').first();
+  const timeline = page.locator('[data-timeline] ol').first();
   await expect(timeline.locator('[data-event]')).toHaveCount(1);                              // same-day permits collapse into one event
   await expect(timeline).toContainText('3 permits approved');
   await expect(timeline).toContainText('Nov 10, 2026');
@@ -176,10 +175,12 @@ test('lead cards and lists never show distress or life-event chips', async ({ pa
 test('a blocked draft cannot be approved; an unblocked one can, after an edit', async ({ page }) => {
   await page.goto(`${brief}#drafts`);
   // blocked email draft
+  await page.getByRole('tab', { name: 'Email' }).click();
   const emailPanel = page.getByRole('region', { name: 'Email' });
   await expect(emailPanel.locator('[data-blocked]')).toContainText('missing agent name or DRE license');
   await expect(emailPanel.getByRole('button', { name: 'Approve draft' })).toBeDisabled();
   // unblocked letter: edit, then approve
+  await page.getByRole('tab', { name: 'Letter' }).click();
   const letter = page.getByRole('region', { name: 'Letter' });
   await expect(letter.locator('[data-blocked]')).toHaveCount(0);
   await letter.locator('textarea').fill('Hello neighbor,\n\nE2E edited letter.');
@@ -373,13 +374,12 @@ test('Reports, Performance, Data sources and Team render their designed content'
 
 test('record an outcome', async ({ page }) => {
   await page.goto(brief);
-  await page.getByRole('tab', { name: 'Activity' }).click();
+  await expect(page.locator('[data-outcome-card]')).toBeVisible();                            // the controls are in the co-pilot, no tab switch needed
   await page.getByPlaceholder('Note (optional)').fill('left a voicemail');
   await page.locator('[data-outcome=contacted]').click();
   await expect(page.locator('[data-flash=ok]')).toContainText('Outcome recorded');
-  await page.getByRole('tab', { name: 'Activity' }).click();
-  await expect(page.locator('[data-tab-panel=activity]')).toContainText('Contacted');
-  await expect(page.locator('[data-tab-panel=activity]')).toContainText('left a voicemail');
+  await expect(page.locator('section[aria-labelledby=act-h]')).toContainText('Contacted');
+  await expect(page.locator('section[aria-labelledby=act-h]')).toContainText('left a voicemail');
   await page.goto('/pipeline');
   await expect(page.getByText('No outcomes recorded yet')).toHaveCount(0);
   await page.goto('/performance');
@@ -390,7 +390,6 @@ test('create a share link from the brief, open it signed out (property facts onl
   await page.goto(brief);
   await page.locator('#create-share').click();
   await expect(page.locator('[data-flash=ok]')).toContainText('Share link created');
-  await page.getByRole('tab', { name: 'Activity' }).click();
   const url = await page.locator('[data-share-link] input').first().inputValue();
   expect(url).toMatch(/\/share\/[0-9a-f]{64}$/);
 
@@ -519,27 +518,189 @@ for (const [name, size] of [['1440', { width: 1440, height: 900 }], ['390', { wi
 
 
 // ---- Phase 5G: Today -------------------------------------------------------------------------------------------
-for (const [w, h, cols] of [[1440, 900, 4], [390, 844, 2]] as const) {
-  test(`Today at ${w}px: "This week by recipe" wraps into ${cols} columns, nothing is clipped, idle recipes say "Waiting on data"`, async ({ page }) => {
+for (const [w, h, split] of [[1440, 900, true], [390, 844, false]] as const) {
+  test(`Today at ${w}px: executive hero (${split ? '65/35 split' : 'stacked'}), active strategies only, quiet recipes collapsed, nothing clipped`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     await page.goto('/');
-    const tiles = page.locator('[data-recipe-grid] [data-recipe-tile]');
-    expect(await tiles.count()).toBeGreaterThanOrEqual(7);
-    const boxes = await tiles.evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return { x: Math.round(r.x), right: Math.round(r.right), w: Math.round(r.width) }; }));
-    expect(new Set(boxes.map((b) => b.x)).size).toBe(cols);                                     // 4 per row at 1440, 2 at 390
-    for (const b of boxes) expect(b.right).toBeLessThanOrEqual(w);
+    const brief = page.locator('[data-hero-brief]');
+    const panel = page.locator('[data-strategies]');
+    await expect(brief).toBeVisible();
+    await expect(panel).toBeVisible();
+    const [bb, pb] = [(await brief.boundingBox())!, (await panel.boundingBox())!];
+    if (split) {
+      expect(Math.abs(bb.y - pb.y)).toBeLessThan(2);                                           // side by side
+      const ratio = bb.width / (bb.width + pb.width);
+      expect(ratio).toBeGreaterThan(0.6); expect(ratio).toBeLessThan(0.7);                    // about 65%
+    } else {
+      expect(pb.y).toBeGreaterThan(bb.y + bb.height - 1);                                      // stacked on a phone
+      expect(bb.width).toBeGreaterThan(w - 60);
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    // every label is fully visible, Financial pressure included (no horizontal clipping inside a tile)
-    expect(await tiles.evaluateAll((els) => els.every((e) => [...e.querySelectorAll('span')].every((s) => s.scrollWidth <= s.clientWidth + 1)))).toBe(true);
-    await expect(page.locator('[data-recipe-tile="financial_pressure"]')).toContainText('Financial pressure');
-    expect((await page.locator('[data-recipe-grid]').evaluate((e) => e.scrollWidth <= e.clientWidth))).toBe(true);
-    // a recipe with no matches yet is muted and says so instead of 0
-    const idle = page.locator('[data-recipe-tile][data-idle]').first();
+    // The briefing card is deep navy.
+    expect(await brief.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(15, 30, 54)');
+    // The panel lists only recipes with movement or top leads; the rest sit in a collapsed toggle.
+    const quiet = page.locator('[data-quiet-recipes]');
+    await expect(quiet).toHaveCount(1);
+    expect(await quiet.evaluate((e) => (e as HTMLDetailsElement).open)).toBe(false);
+    expect(await panel.locator('[data-recipe-grid] [data-recipe-tile]').count()).toBeGreaterThanOrEqual(0);
+    for (const t of await panel.locator('[data-recipe-grid] [data-recipe-tile]').all()) await expect(t).not.toContainText('Waiting on data');
+    await quiet.locator('summary').click();
+    const idle = quiet.locator('[data-recipe-tile][data-idle]').first();
     await expect(idle).toContainText('Waiting on data');
-    await expect(idle).not.toContainText(/^\s*0\s*$/m);
-    await expect(page.locator('[data-recipe-tile]:not([data-idle])').first()).not.toContainText('Waiting on data');
+    // every label is fully visible (Financial pressure included) once the toggle is open
+    await expect(page.locator('[data-recipe-tile="financial_pressure"]')).toContainText('Financial pressure');
+    const clipped = await panel.locator('[data-recipe-tile] span').evaluateAll((els) => els.filter((s) => s.scrollWidth > s.clientWidth + 1).map((s) => `${s.className}|${s.textContent}|${s.scrollWidth}>${s.clientWidth}`));
+    expect(clipped).toEqual([]);
   });
 }
+
+test('Today: "Copy newsletter block" copies the briefing and confirms inline', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/');
+  const btn = page.locator('#copy-newsletter');
+  await expect(btn).toBeVisible();
+  await expect(btn).toContainText('Copy newsletter block');
+  await btn.click();
+  await expect(page.locator('[data-hero-brief] [data-copy-status]')).toHaveText('Copied');
+  const clip = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clip).toContain('E2E week in review');
+  expect(clip).toContain('E2E newsletter paragraph');
+  await expect(page.locator('[data-hero-brief] [data-copy-status]')).toHaveText('', { timeout: 6000 });   // confirmation fades
+});
+
+test('lead cards: a 4-tier ring color, an "Est. $XXk GCI" badge on the right, and icon chips without distress facts', async ({ page }) => {
+  await page.goto('/leads?q=E2E');
+  const card = page.locator('article', { hasText: '1 E2E Test Way' }).first();
+  await expect(card).toBeVisible();
+  const right = card.locator('[data-card-right]');
+  await expect(right.locator('svg[data-tier]')).toHaveCount(1);
+  const stroke = await right.locator('svg circle').nth(1).getAttribute('stroke');
+  expect(stroke).toMatch(/^var\(--color-tier-(immediate|priority|watchlist|monitor)\)$/);
+  const gci = right.locator('[data-gci-badge]');
+  await expect(gci).toHaveText(/^Est\. \$\d+(\.\d)?[kM] GCI$/);
+  await expect(gci).toHaveClass(/sample-fact/);                                                // the test parcel's value is sample data
+  const rbox = (await right.boundingBox())!, cbox = (await card.boundingBox())!;
+  expect(rbox.x).toBeGreaterThan(cbox.x + cbox.width / 2);                                     // right side of the card
+  expect(await card.locator('[data-fact-chips] [data-chip-icon]').count()).toBeGreaterThan(0);
+  const text = (await card.innerText()).toLowerCase();
+  for (const w of ['tax default', 'ownership transfer', 'financial pressure', 'death', 'probate']) expect(text).not.toContain(w);
+});
+
+test('map: lens switcher recolors points, clusters use the score tiers, and the drawer opens the lead dossier', async ({ page }) => {
+  const errors = noConsoleErrors(page);
+  await page.goto('/map');
+  const lensBtn = (name: string) => page.locator('[data-lens-bar]').getByRole('button', { name });
+  for (const name of ['Score Tier', 'Estimated Equity', 'Upzoning / SB 9 & SB 79', 'STR Density']) await expect(lensBtn(name)).toBeVisible();
+  await expect(lensBtn('Score Tier')).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __leadMap?: { querySourceFeatures: (s: string) => unknown[] } }).__leadMap?.querySourceFeatures('leads').length ?? 0), { timeout: 30_000 }).toBeGreaterThan(0);
+  const paint = (layer: string) => page.evaluate((l) => JSON.stringify((window as unknown as { __leadMap: { getPaintProperty: (a: string, b: string) => unknown } }).__leadMap.getPaintProperty(l, 'circle-color')), layer);
+  const tierPoints = await paint('leads'), tierClusters = await paint('clusters');
+  for (const hex of ['#B91C1C', '#B45309', '#1E3A8A', '#64748B']) { expect(tierPoints).toContain(hex); expect(tierClusters).toContain(hex); }
+  expect(tierClusters).toContain('maxScore');                                                 // clusters take the highest score inside them
+  await expect(page.locator('[data-legend-title]')).toHaveText('Score tier');
+  for (const [name, title] of [['Estimated Equity', 'Estimated equity'], ['Upzoning / SB 9 & SB 79', 'Upzoning (estimated)'], ['STR Density', 'STR licenses nearby']] as const) {
+    const lens = name === 'Estimated Equity' ? page.waitForResponse((r) => r.url().includes('/api/map-lens')) : null;   // fetched once, then kept
+    await lensBtn(name).click();
+    if (lens) expect((await lens).status()).toBe(200);
+    await expect(lensBtn(name)).toHaveAttribute('aria-pressed', 'true');
+    await expect(lensBtn('Score Tier')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('[data-legend-title]')).toHaveText(title);
+    const now = await paint('leads');
+    expect(now).not.toBe(tierPoints);                                                         // the points were recolored
+    expect(await paint('clusters')).not.toBe(tierClusters);
+  }
+  await lensBtn('Score Tier').click();
+  expect(await paint('leads')).toBe(tierPoints);
+  // The lens payload has the fields the lenses read.
+  const lensJson = await (await page.request.get('/api/map-lens')).json();
+  expect(lensJson.available).toBe(true);
+  expect(Object.keys(lensJson.equity).length).toBeGreaterThan(0);
+  expect(Object.keys(lensJson.upzone).length).toBeGreaterThan(0);
+  expect(lensJson.str.length).toBeGreaterThan(0);
+  // Drawer: lot size, zoning, estimated GCI, top signal and a prominent dossier action.
+  await page.locator('#map-results [data-apn]').first().click();
+  const drawer = page.locator('[data-drawer="lead-preview"]');
+  await expect(drawer).toBeVisible();
+  await expect(drawer.locator('[data-open-dossier]')).toContainText('Open Lead Dossier');
+  const facts = drawer.locator('[data-drawer-facts]');
+  for (const label of ['Lot size', 'Zoning', 'Est. GCI']) await expect(facts).toContainText(label);
+  await expect(facts).toContainText('est.');
+  await expect(drawer.locator('[data-drawer-signal]')).toContainText('Top signal');
+  const href = await drawer.locator('[data-open-dossier]').getAttribute('href');
+  expect(href).toMatch(/^\/leads\/[^/]+$/);
+  await drawer.locator('[data-open-dossier]').click();
+  await expect(page).toHaveURL(new RegExp(`${href}$`));
+  expect(errors.filter((e) => !IGNORED_ERRORS.test(e))).toEqual([]);
+});
+
+for (const [w, h] of [[1440, 900], [390, 844]] as const) {
+  test(`lead brief at ${w}px: ${w >= 1024 ? '60/40 split workspace with a sticky co-pilot' : 'stacked, nothing overflows'}`, async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.setViewportSize({ width: w, height: h });
+    await page.goto(brief);
+    const left = page.locator('[data-workspace-left]'), right = page.locator('[data-copilot]');
+    await expect(left).toBeVisible(); await expect(right).toBeVisible();
+    const [lb, rb] = [(await left.boundingBox())!, (await right.boundingBox())!];
+    // Co-pilot: channel tabs, copy button, approval status and outcome controls, all visible without switching tabs.
+    for (const name of ['Letter', 'Email', 'Call Script']) await expect(right.getByRole('tab', { name })).toBeVisible();
+    await expect(right.locator('#copy-script')).toBeVisible();
+    await expect(right.locator('[data-approval-status]')).toContainText('Approval status');
+    await expect(right.locator('[data-blockers]')).toContainText('DRE license');
+    await expect(right.locator('[data-outcome-card] [data-outcome=contacted]')).toBeVisible();
+    // Left: thesis, angle, score bars, dossier, timeline.
+    await expect(left.locator('[data-why-card]')).toBeVisible();
+    await expect(left.locator('[data-ai-angle]')).toBeVisible();
+    await expect(left.locator('[data-score-card]')).toBeVisible();
+    await expect(left.locator('[data-dossier]')).toBeVisible();
+    await expect(left.locator('[data-timeline]')).toBeVisible();
+    if (w >= 1024) {
+      expect(Math.abs(lb.y - rb.y)).toBeLessThan(2);
+      const ratio = lb.width / (lb.width + rb.width);
+      expect(ratio).toBeGreaterThan(0.56); expect(ratio).toBeLessThan(0.64);                  // about 60%
+      expect(await right.evaluate((e) => getComputedStyle(e).position)).toBe('sticky');
+      await page.evaluate(() => window.scrollTo(0, 700));
+      expect(Math.abs((await right.boundingBox())!.y - 16)).toBeLessThan(40);                  // it stays in view while the left column scrolls
+    } else {
+      expect(rb.y).toBeGreaterThan(lb.y + lb.height - 1);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    }
+    // Copy script copies the open tab as it reads now.
+    await right.getByRole('tab', { name: 'Letter' }).click();
+    const text = await right.locator('[role=tabpanel]:not([hidden]) [data-draft-text]').first().evaluate((e) => (e instanceof HTMLTextAreaElement ? e.value : e.textContent ?? ''));
+    await right.locator('#copy-script').click();
+    await expect(right.locator('[data-copy-status]')).toHaveText('Copied');
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(text.trim());
+    // Distress records stay in the labeled sensitive section on the left, never in the co-pilot.
+    expect((await right.innerText()).toLowerCase()).not.toMatch(/tax default|probate|deceased/);
+  });
+}
+
+test('presentation: a print-ready seller consultation dossier with estimated equity, net proceeds, momentum and area activity', async ({ page }) => {
+  await page.goto(`${brief}/presentation`);
+  const doc = page.locator('[data-dossier-print]');
+  await expect(doc.getByRole('heading', { name: '1 E2E Test Way' })).toBeVisible();
+  await expect(doc).toContainText('Seller consultation dossier');
+  await expect(doc).toContainText('The Kaiser Team');
+  const eq = doc.locator('[data-equity-section]');
+  await expect(eq).toContainText('Estimated equity');
+  await expect(eq.locator('[data-net-proceeds]')).toContainText('Est. seller net proceeds');
+  await expect(eq.locator('[data-net-proceeds]')).toContainText('to');
+  await expect(eq.locator('[data-net-proceeds]')).toContainText('estimated');
+  await expect(eq.getByText('Sample', { exact: true }).first()).toBeVisible();                // the test parcel's owner data is sample
+  await expect(doc.locator('[data-momentum]')).toContainText('momentum');
+  await expect(doc.locator('[data-around]')).toContainText('Recent permit and upzoning activity');
+  await expect(doc.locator('[data-around]')).toContainText('estimated');
+  // No owner identity or mortgage detail on the printout.
+  const body = await page.locator('body').innerText();
+  for (const secret of [SECRET_OWNER, 'Secret Mailing', 'Seattle', 'Open mortgage', 'tax default']) expect(body).not.toContain(secret);
+  // Print media: the toolbar is gone, the page is white, and the browser can render it to a PDF.
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('#print-btn')).toBeHidden();
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(255, 255, 255)');
+  const pdf = await page.pdf({ format: 'Letter', printBackground: true });
+  expect(pdf.length).toBeGreaterThan(5_000);
+  expect(pdf.subarray(0, 4).toString()).toBe('%PDF');
+});
 
 test('Today: a New signals row has the date on one line and the source and a truncated id on their own line', async ({ page }) => {
   await page.goto('/');
@@ -582,16 +743,14 @@ test('lead brief: "Why this lead" and the AI brief are one card: headline, summa
   const score = page.locator('[data-score-card]');
   await expect(score.getByRole('heading', { name: 'Score components' })).toBeVisible();
   expect((await card.boundingBox())!.y).toBeLessThan((await score.boundingBox())!.y);
-  // A claim that cites a signal opens that record on the Signals tab; an owner fact opens the Owner tab.
+  // A claim that cites a signal jumps to that record in the timeline; an owner fact jumps to the owner dossier.
   const links = card.locator('[data-claim-link]');
   await expect(links).toHaveCount(2);
   expect(await links.nth(0).getAttribute('href')).toMatch(/^#rec-[0-9a-f-]{36}$/);
   await links.nth(0).click();
-  await expect(page.getByRole('tab', { name: 'Signals' })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.locator((await links.nth(0).getAttribute('href'))!)).toBeAttached();
-  await page.getByRole('tab', { name: 'Overview' }).click();
+  await expect(page.locator((await links.nth(0).getAttribute('href'))!)).toBeVisible();
   await links.nth(1).click();
-  await expect(page.getByRole('tab', { name: 'Owner and property' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#owner-h')).toBeVisible();
   expect(errors.filter((e) => !IGNORED_ERRORS.test(e))).toEqual([]);
 });
 
@@ -662,7 +821,6 @@ test('Data sources shows the AI task rows with the month against the budget and 
 
 test('Pipeline is a sales progression: Flagged to Listing with conversion and estimated GCI, labeled est. and Sample', async ({ page }) => {
   await page.goto(brief);                                    // log one outcome so the funnel has events
-  await page.getByRole('tab', { name: 'Activity' }).click();
   await page.locator('[data-outcome=contacted]').click();
   await expect(page.locator('[data-flash=ok]')).toContainText('Outcome recorded');
   await page.goto('/pipeline');

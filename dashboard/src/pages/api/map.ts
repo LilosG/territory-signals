@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { filtersFrom } from '../../lib/filters';
 import { providerName } from '../../lib/data';
+import { tierOf } from '../../lib/ring';
 export const prerender = false;
 
 const headers = { 'content-type': 'application/geo+json', 'cache-control': 'private, max-age=60' };
@@ -8,7 +9,8 @@ const headers = { 'content-type': 'application/geo+json', 'cache-control': 'priv
 /**
  * GeoJSON for every scored parcel that matches the filters. Filtering and the GeoJSON itself are built in SQL
  * (map_geojson); with the database provider the Worker streams that response straight through without parsing it
- * (26k features would blow the Workers CPU limit if built in JavaScript). The score band is added in the browser.
+ * (26k features would blow the Workers CPU limit if built in JavaScript). The score tier (lib/ring.ts) is added in the browser for the database path; cluster colors follow the highest score inside each cluster.
+ * Lens values (equity, upzoning, STR) come from /api/map-lens, not from this payload.
  */
 export const GET: APIRoute = async ({ url, locals }) => {
   const f = filtersFrom(url.searchParams);
@@ -19,7 +21,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
     const { points, is_sample } = await locals.data.getMapData(f);
     return new Response(JSON.stringify({
       type: 'FeatureCollection', sample: is_sample,
-      features: points.map((p) => ({ type: 'Feature', properties: { apn: p.apn, score: p.score, primary_recipe: p.recipe, neighborhood: p.neighborhood }, geometry: { type: 'Point', coordinates: [p.lng, p.lat] } })),
+      features: points.map((p) => ({ type: 'Feature', properties: { apn: p.apn, score: p.score, tier: tierOf(p.score), primary_recipe: p.recipe, neighborhood: p.neighborhood }, geometry: { type: 'Point', coordinates: [p.lng, p.lat] } })),
     }), { headers });
   }
   // The session was verified by the middleware (getUser); this only reads the access token from the cookie.

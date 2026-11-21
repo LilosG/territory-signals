@@ -45,10 +45,10 @@ const facts = (draft.source_facts ?? []).map((f) => ({
     ? <form method="post" action="/actions/edit" class="flex flex-col gap-2">
         <input type="hidden" name="id" value={draft.id} /><input type="hidden" name="back" value={back} />
         <label class="eyebrow" for={`c-${draft.id}`}>Draft text (edit before approving)</label>
-        <textarea id={`c-${draft.id}`} name="content" rows="12" required class="w-full rounded-md border border-line-strong bg-canvas p-4 text-sm leading-6 text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30">{draft.content}</textarea>
+        <textarea data-draft-text id={`c-${draft.id}`} name="content" rows="12" required class="w-full rounded-md border border-line-strong bg-canvas p-4 text-sm leading-6 text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30">{draft.content}</textarea>
         <div><Button type="submit" size="sm" variant="secondary">Save edit</Button></div>
       </form>
-    : <div class="whitespace-pre-wrap rounded-md border border-line bg-canvas p-5 text-sm leading-6 text-ink">{draft.content}</div>}
+    : <div data-draft-text class="whitespace-pre-wrap rounded-md border border-line bg-canvas p-5 text-sm leading-6 text-ink">{draft.content}</div>}
   {draft.edited_by && <p class="text-xs text-ink-muted" data-edited>Edited by {draft.edited_by} · {fmtDateTime(draft.edited_at)}. The original text is kept.</p>}
   {draft.approved_by && <p class="text-xs text-ink-muted">Approved by {draft.approved_by}.</p>}
 

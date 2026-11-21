@@ -1,0 +1,40 @@
+---
+import Icon from './Icon.astro';
+/**
+ * Copies text to the clipboard and says "Copied" inline (aria-live) for two seconds. The text is either given (`text`) or read
+ * at click time from the element(s) matching `target` inside the nearest `[data-copy-scope]` (or the document): a textarea's
+ * value or an element's text, so an edited draft is copied as it now reads. Nothing is sent anywhere.
+ */
+export interface Props { label: string; text?: string; target?: string; tone?: 'hero' | 'default'; class?: string; id?: string }
+const { label, text, target, tone = 'default', class: cls, id } = Astro.props;
+const tones = {
+  hero: 'border border-gold-bright/60 bg-white/10 text-white hover:bg-white/20 focus-visible:outline-white',
+  default: 'border border-line-strong bg-surface text-ink hover:bg-sunken',
+};
+---
+<span class:list={['inline-flex items-center gap-2', cls]}>
+  <button type="button" id={id} data-copy-btn data-copy-text={text} data-copy-target={target}
+    class:list={['inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors', tones[tone]]}>
+    <Icon name="copy" size={16} /><span data-copy-label>{label}</span>
+  </button>
+  <span data-copy-status role="status" aria-live="polite" class:list={['text-xs font-semibold', tone === 'hero' ? 'text-[#f2d9a6]' : 'text-good']}></span>
+</span>
+<script>
+  async function write(t: string): Promise<boolean> {
+    try { await navigator.clipboard.writeText(t); return true; } catch { return false; }
+  }
+  document.addEventListener('click', async (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-copy-btn]'); if (!btn) return;
+    let t = btn.dataset.copyText ?? '';
+    if (!t && btn.dataset.copyTarget) {
+      const scope = btn.closest<HTMLElement>('[data-copy-scope]') ?? document;
+      const els = Array.from(scope.querySelectorAll<HTMLElement>(btn.dataset.copyTarget)).filter((x) => x.offsetParent !== null);
+      t = els.map((x) => (x instanceof HTMLTextAreaElement ? x.value : (x.textContent ?? ''))).join('\n\n').trim();
+    }
+    const status = btn.parentElement!.querySelector<HTMLElement>('[data-copy-status]')!;
+    const ok = t ? await write(t) : false;
+    status.textContent = ok ? 'Copied' : t ? 'Copy blocked: select the text instead' : 'Nothing to copy';
+    btn.dataset.copied = ok ? 'true' : 'false';
+    setTimeout(() => { status.textContent = ''; delete btn.dataset.copied; }, 2200);
+  });
+</script>

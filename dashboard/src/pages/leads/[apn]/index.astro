@@ -2,8 +2,6 @@
 import AppShell from '../../../components/ui/AppShell.astro';
 import Button from '../../../components/ui/Button.astro';
 import Card from '../../../components/ui/Card.astro';
-import Grid from '../../../components/ui/Grid.astro';
-import Stack from '../../../components/ui/Stack.astro';
 import Cluster from '../../../components/ui/Cluster.astro';
 import ScoreRing from '../../../components/ui/ScoreRing.astro';
 import ScoreBreakdown from '../../../components/ui/ScoreBreakdown.astro';
@@ -13,9 +11,10 @@ import FactRows from '../../../components/ui/FactRows.astro';
 import Fact from '../../../components/ui/Fact.astro';
 import SignalChip from '../../../components/ui/SignalChip.astro';
 import SourceLink from '../../../components/ui/SourceLink.astro';
-import ConfidenceIndicator from '../../../components/ui/ConfidenceIndicator.astro';
 import TabPanel from '../../../components/ui/TabPanel.astro';
 import Tabs from '../../../components/ui/Tabs.astro';
+import CopyButton from '../../../components/ui/CopyButton.astro';
+import TimelineEvent from '../../../components/ui/TimelineEvent.astro';
 import DraftView from '../../../components/ui/DraftView.astro';
 import DataTable from '../../../components/ui/DataTable.astro';
 import EmptyState from '../../../components/ui/EmptyState.astro';
@@ -23,7 +22,7 @@ import SampleDataBadge from '../../../components/ui/SampleDataBadge.astro';
 import LeadWhyCard from '../../../components/ui/LeadWhyCard.astro';
 import { OUTCOME_LABELS, RECIPE_LABELS, LEAD_STATUS, signalLabel } from '../../../lib/data/catalog';
 import { landUseLabel } from '../../../data/landUse';
-import { collapseSignals, detailHeadline, docTypeLabel, eventTitle, isSensitiveComponent, publicReason, publicRecipes, reasonParts, type ReasonPart } from '../../../lib/present';
+import { blockedLabel, collapseSignals, detailHeadline, docTypeLabel, estGci, fmtGci, isSensitiveComponent, publicReason, publicRecipes, reasonParts, type ReasonPart } from '../../../lib/present';
 import { fmtApn, fmtDate, fmtDateTime, fmtNum, fmtUsd, sentenceCase } from '../../../lib/format';
 export const prerender = false;
 
@@ -53,6 +52,7 @@ const keyFacts = rows([
   occupancy ? { label: 'Occupancy', text: occupancy, sample: ownerSample } : null,
   p.lot_sqft ? { label: 'Lot size', text: `${fmtNum(Math.round(p.lot_sqft))} sq ft` } : null,
   p.zoning ? { label: 'Zoning', text: p.zoning } : null,
+  owner?.est_value ? { label: 'Est. GCI', text: fmtGci(estGci(owner.est_value)), estimate: true, sample: ownerSample } : null,
 ]);
 
 const ownerRows = owner ? rows([
@@ -87,6 +87,11 @@ const draftBy = (c: string) => lead.outreach.find((o) => o.channel === c);
 const drafts = [
   { ch: 'mail', label: 'Letter', d: draftBy('mail') }, { ch: 'email', label: 'Email', d: draftBy('email') }, { ch: 'call_task', label: 'Call script', d: draftBy('call_task') },
 ].filter((x) => x.d);
+const channels = [{ ch: 'mail', label: 'Letter', d: draftBy('mail') }, { ch: 'email', label: 'Email', d: draftBy('email') }, { ch: 'call_task', label: 'Call Script', d: draftBy('call_task') }];
+const approvalSummary = drafts.map((x) => ({ label: x.label, status: x.d!.status, blocked: (x.d!.blocked_reason ?? '').split(';').map((r) => r.trim()).filter(Boolean) }));
+const blockers = [...new Set(approvalSummary.flatMap((a) => a.blocked))];
+const STATUS_LABEL: Record<string, string> = { draft: 'Draft', awaiting_approval: 'Awaiting approval', approved: 'Approved', sent: 'Sent', suppressed: 'Suppressed' };
+const EXTRA_EVENTS_AFTER = 5;
 const channelLabel = { mail: 'Letter', email: 'Email', call_task: 'Call task' } as const;
 const history = lead.outreach.filter((o) => o.status === 'sent' || o.status === 'approved');
 const dashboardEvents = lead.stage_events.filter((e) => e.source === 'dashboard');
@@ -120,185 +125,187 @@ const sensitiveLine = (t: string, d: string | null) =>
       </div>
     </div>
     {keyFacts.length > 0 && (
-      <dl data-key-facts class="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-line pt-4 sm:grid-cols-3 lg:grid-cols-5">
+      <dl data-key-facts class="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-line pt-4 sm:grid-cols-3 lg:grid-cols-6">
         {keyFacts.map((f) => <div class="min-w-0"><dt class="eyebrow">{f.label}</dt><dd class="mt-0.5 truncate text-sm font-semibold tabular-nums"><Fact text={f.text} sample={f.sample} estimate={f.estimate} /></dd></div>)}
       </dl>
     )}
   </Card>
 
-  <Tabs label="Lead brief" tabs={[{ id: 'overview', label: 'Overview' }, { id: 'signals', label: 'Signals' }, { id: 'owner', label: 'Owner and property' }, { id: 'outreach', label: 'Outreach' }, { id: 'activity', label: 'Activity' }]}>
-    <TabPanel id="overview" active>
-      <Grid split="main-aside" gap={6}>
-        <Stack gap={6}>
-          <LeadWhyCard brief={lead.ai_brief} reason={reason} recipes={recipes.map((r) => ({ key: r, name: RECIPE_LABELS[r] ?? r }))} />
-          {items.length > 0 && (
-            <Card as="section" aria-labelledby="score-h" data-score-card>
-              <h2 id="score-h" class="t-h2">Score components</h2>
-              <p class="mb-3 mt-0.5 text-sm text-ink-muted">Computed from stored records, total capped at 100.</p>
-              <ScoreBreakdown items={items} class="sm:grid sm:grid-cols-2 sm:gap-x-8" />
-              <p class="mt-4 text-xs text-ink-muted" data-model-version>Model {score.model_version}</p>
-            </Card>
-          )}
-        </Stack>
-        <Stack gap={6}>
-          <Card as="section" aria-labelledby="next-h">
-            <h2 id="next-h" class="t-h2">Next step</h2>
-            <p class="mt-1 text-sm text-ink-muted">{lead.status === 'new' ? 'No outreach yet.' : `Outreach is ${status.label.toLowerCase()}.`}</p>
-            <div class="mt-3"><Button size="sm" variant="primary" href="#drafts">Open drafts</Button></div>
-          </Card>
-        </Stack>
-      </Grid>
-    </TabPanel>
-
-    <TabPanel id="signals">
-      <Stack gap={6}>
-        <Card as="section" aria-labelledby="sig-h">
-          <h2 id="sig-h" class="t-h2">Events</h2>
-          <p class="mb-4 mt-0.5 text-sm text-ink-muted">Dated events that matter for selling, each linked to its source.</p>
-          {events.length === 0
-            ? <EmptyState title="No events yet" description="Nothing that matters for selling has been detected for this property." />
-            : <ol class="flex flex-col">
-                {events.map(({ event: e, items: group }, i) => (
-                  <li class="relative grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-4 pb-5 last:pb-0" data-event>
-                    <span class="relative flex justify-center" aria-hidden="true">
-                      <span class:list={['mt-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-surface', e.is_estimate ? 'border-2 border-gold bg-surface' : 'bg-gold']}></span>
-                      {i < events.length - 1 && <span class="absolute bottom-[-1.25rem] top-4 w-px bg-line"></span>}
-                    </span>
-                    <div class="min-w-0" id={`rec-${group[0]!.id}`}>
-                      {group.slice(1).map((s) => <span id={`rec-${s.id}`}></span>)}
-                      <p class="flex flex-wrap items-baseline gap-x-3 text-sm font-medium text-ink"><span>{eventTitle(e, false)}</span><time class="t-meta text-ink-muted" datetime={e.date}>{fmtDate(e.date)}</time>{e.is_sample && <span class="sample-fact t-meta text-ink-muted" title="Based on sample data, not a real record">sample</span>}</p>
-                      <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1"><SourceLink sourceKey={e.source_key} recordId={e.source_record_id} /><ConfidenceIndicator confidence={group[0]!.confidence} method={group[0]!.match_method} /></div>
-                      {group.length > 1 && (
-                        <details class="mt-2 text-sm">
-                          <summary class="cursor-pointer text-xs font-medium text-ink-muted hover:text-ink">Show all {group.length}</summary>
-                          <ul class="mt-2 flex flex-col gap-1.5 border-l border-line pl-3">
-                            {group.map((s) => <li class="flex flex-wrap items-center gap-x-3"><span>{sentenceCase(signalLabel(s.signal_type, s.details))}</span><SourceLink sourceKey={s.source_key} recordId={s.source_record_id} /></li>)}
-                          </ul>
-                        </details>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ol>}
-          {lead.signal_total > lead.signals.length && <p class="mt-4 text-xs text-ink-muted">Latest {lead.signals.length} of {lead.signal_total} shown.</p>}
+  <div class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start" data-split-workspace>
+    <!-- Left (60%): the thesis and the evidence -->
+    <div class="flex min-w-0 flex-col gap-6" data-workspace-left>
+      <LeadWhyCard brief={lead.ai_brief} reason={reason} recipes={recipes.map((r) => ({ key: r, name: RECIPE_LABELS[r] ?? r }))} />
+      {items.length > 0 && (
+        <Card as="section" aria-labelledby="score-h" data-score-card>
+          <h2 id="score-h" class="t-h2">Score components</h2>
+          <p class="mb-3 mt-0.5 text-sm text-ink-muted">Computed from stored records, total capped at 100.</p>
+          <ScoreBreakdown items={items} class="sm:grid sm:grid-cols-2 sm:gap-x-8" />
+          <p class="mt-4 text-xs text-ink-muted" data-model-version>Model {score.model_version}</p>
         </Card>
-        {traits.length > 0 && (
-          <Card as="section" aria-labelledby="trait-h">
-            <h2 id="trait-h" class="t-h2">Property traits</h2>
-            <p class="mb-3 mt-0.5 text-sm text-ink-muted">Latest status from the monitored datasets.</p>
-            <ul class="flex flex-wrap gap-2">{traits.map((t) => <li id={`rec-${t.id}`}><SignalChip type={t.signal_type} details={t.details} estimate={t.is_estimate} /></li>)}</ul>
-          </Card>
-        )}
-      </Stack>
-    </TabPanel>
+      )}
 
-    <TabPanel id="owner">
-      <Grid split="even" gap={6}>
-        <Stack gap={6}>
-          <Card as="section" aria-labelledby="owner-h">
-            <h2 id="owner-h" class="t-h2 mb-4 flex items-center gap-2">Owner {ownerSample && <SampleDataBadge />}</h2>
-            {ownerRows.length > 0 ? <FactRows rows={ownerRows} /> : <EmptyState title="No owner data" />}
-            {owner && <p class="mt-4 text-xs text-ink-muted">As of {fmtDate(owner.as_of)}</p>}
-          </Card>
-          {saleRows.length > 0 && (
-            <Card as="section" aria-labelledby="sales-h">
-              <h2 id="sales-h" class="t-h2 mb-4 flex items-center gap-2">Sales history {salesSample && <SampleDataBadge />}</h2>
-              <FactRows rows={saleRows} />
-            </Card>
-          )}
-        </Stack>
-        <Stack gap={6}>
-          <Card as="section" aria-labelledby="prop-h">
-            <h2 id="prop-h" class="t-h2 mb-4">Property</h2>
+      <Card as="section" aria-labelledby="dossier-h" data-dossier>
+        <h2 id="dossier-h" class="t-h2">Property and owner dossier</h2>
+        <div class="mt-4 grid gap-x-8 gap-y-6 sm:grid-cols-2">
+          <section aria-labelledby="prop-h">
+            <h3 id="prop-h" class="eyebrow mb-3">Property</h3>
             {propertyRows.length > 0 ? <FactRows rows={propertyRows} /> : <EmptyState title="No property details" />}
-            <p class="mt-4 text-xs text-ink-muted">Last recorded document date is not a purchase date.</p>
-          </Card>
-          {sensitiveCount > 0 && (
-            <Card as="section" aria-labelledby="sens-h" tone="sunken" data-sensitive>
-              <h2 id="sens-h" class="t-h2">Sensitive records</h2>
-              <p class="mb-3 mt-0.5 text-sm text-ink-muted">Handle with care: never shown on cards, lists or share links, never used in drafts.</p>
-              <ul class="flex flex-col gap-2 text-sm">
-                {lead.sensitive_signals.map((s) => <li class="flex flex-wrap items-baseline gap-x-3"><span>{sensitiveLine(s.signal_type, s.signal_date)}</span><SourceLink sourceKey={s.source_key} recordId={s.source_record_id} />{s.is_sample && <SampleDataBadge />}</li>)}
-                {sensitiveItems.map((i) => <li class="text-ink-muted">Contributes {i.points} of {i.max} points: {sentenceCase(i.label).replace(/ \(death, trust or inheritance\)/i, '')}</li>)}
-              </ul>
-            </Card>
-          )}
-        </Stack>
-      </Grid>
-    </TabPanel>
-
-    <TabPanel id="outreach">
-      <Stack gap={6}>
-        <Card as="section" id="drafts" aria-labelledby="drafts-h">
-          <h2 id="drafts-h" class="t-h2">Drafts</h2>
-          <p class="mb-4 mt-0.5 text-sm text-ink-muted">Drafts use database facts only; a person approves before anything is sent.</p>
-          {drafts.length === 0
-            ? <EmptyState title="No drafts yet" description="Drafts are prepared for the highest-scoring leads." />
-            : <Stack gap={8}>{drafts.map((x) => (
-                <section aria-label={x.label} class="border-t border-line pt-5 first:border-0 first:pt-0">
-                  <h3 class="eyebrow mb-3">{x.label}</h3>
-                  <DraftView draft={x.d!} back={`${back}#drafts`} />
-                </section>
-              ))}</Stack>}
-        </Card>
-        {history.length > 0 && (
-          <section aria-labelledby="hist-h" class="flex flex-col gap-3">
-            <h2 id="hist-h" class="t-h2">Outreach history</h2>
-            <DataTable caption="Outreach history" columns={[{ key: 'ch', label: 'Channel' }, { key: 'st', label: 'Status' }, { key: 'when', label: 'Sent', align: 'right' }]}
-              rows={history.map((o) => ({ cells: { ch: { v: channelLabel[o.channel] }, st: { v: sentenceCase(o.status.replace(/_/g, ' ')) }, when: { v: o.sent_at ?? '', display: o.sent_at ? fmtDate(o.sent_at) : 'Not sent' } } }))} />
+            <p class="mt-3 text-xs text-ink-muted">Last recorded document date is not a purchase date.</p>
+          </section>
+          <section aria-labelledby="owner-h">
+            <h3 id="owner-h" class="eyebrow mb-3 flex items-center gap-2">Owner {ownerSample && <SampleDataBadge />}</h3>
+            {ownerRows.length > 0 ? <FactRows rows={ownerRows} /> : <EmptyState title="No owner data" />}
+            {owner && <p class="mt-3 text-xs text-ink-muted">As of {fmtDate(owner.as_of)}</p>}
+          </section>
+        </div>
+        {saleRows.length > 0 && (
+          <section aria-labelledby="sales-h" class="mt-6 border-t border-line pt-5">
+            <h3 id="sales-h" class="eyebrow mb-3 flex items-center gap-2">Sales history {salesSample && <SampleDataBadge />}</h3>
+            <FactRows rows={saleRows} />
           </section>
         )}
-      </Stack>
-    </TabPanel>
+      </Card>
 
-    <TabPanel id="activity">
-      <Grid split="even" gap={6}>
-        <Stack gap={6}>
-          <Card as="section" aria-labelledby="outcome-h">
-            <h2 id="outcome-h" class="t-h2">Record an outcome</h2>
-            <p class="mb-3 mt-0.5 text-sm text-ink-muted">Log what happened after you reached out. It feeds Performance.</p>
-            <form method="post" action="/actions/stage" class="flex flex-col gap-3">
-              <input type="hidden" name="apn" value={p.apn} /><input type="hidden" name="back" value={`${back}#activity`} />
-              <input type="text" name="note" maxlength="300" placeholder="Note (optional)" aria-label="Note (optional)" class="h-9 rounded-md border border-line-strong bg-surface px-3 text-sm placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30" />
-              <Cluster gap={2}>
-                {['contacted', 'conversation', 'appointment', 'listing', 'not_interested', 'bad_data'].map((k) => (
-                  <button type="submit" name="stage" value={k} data-outcome={k} class="inline-flex h-8 items-center rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-ink hover:bg-sunken">{OUTCOME_LABELS[k]}</button>
-                ))}
-              </Cluster>
-            </form>
-          </Card>
-          <Card as="section" id="share" aria-labelledby="share-h">
-            <h2 id="share-h" class="t-h2">Share links</h2>
-            <p class="mb-3 mt-0.5 text-sm text-ink-muted">A share page shows property facts only: no owner, equity, sales or sensitive records.</p>
-            {lead.share_links.length === 0
-              ? <p class="text-sm text-ink-muted">No active links. Use “Share as off-market” at the top of this page.</p>
-              : <ul class="flex flex-col gap-3">
-                  {lead.share_links.map((l) => (
-                    <li class="flex flex-col gap-1.5 border-t border-line pt-3 first:border-0 first:pt-0" data-share-link>
-                      <input readonly value={`${origin}/share/${l.token}`} aria-label="Share link" class="h-9 w-full rounded-md border border-line bg-canvas px-2 text-xs text-ink" onfocus="this.select()" />
-                      <div class="flex items-center justify-between gap-2 text-xs text-ink-muted">
-                        <span>Created {fmtDate(l.created_at)} by {l.created_by}</span>
-                        <form method="post" action="/actions/share-revoke"><input type="hidden" name="token" value={l.token} /><input type="hidden" name="back" value={`${back}#share`} /><button type="submit" data-revoke class="font-medium text-critical hover:underline">Revoke</button></form>
-                      </div>
-                    </li>
-                  ))}
-                </ul>}
-          </Card>
-        </Stack>
-        <Card as="section" aria-labelledby="act-h">
-          <h2 id="act-h" class="t-h2 mb-3">Activity</h2>
-          {dashboardEvents.length === 0
-            ? <EmptyState title="No activity yet" description="Outcomes you record appear here." />
-            : <ul class="flex flex-col divide-y divide-line">
-                {dashboardEvents.map((e) => (
-                  <li class="py-3 first:pt-0 last:pb-0">
-                    <p class="flex flex-wrap items-baseline gap-x-3 text-sm"><span class="font-medium">{OUTCOME_LABELS[e.stage] ?? e.stage}</span><span class="t-meta text-ink-muted">{e.team_member_email} · {fmtDateTime(e.occurred_at)}</span></p>
-                    {e.note && <p class="mt-0.5 text-sm text-ink-muted">{e.note}</p>}
-                  </li>
-                ))}
-              </ul>}
+      <Card as="section" aria-labelledby="sig-h" data-timeline>
+        <h2 id="sig-h" class="t-h2">Signal timeline</h2>
+        <p class="mb-4 mt-0.5 text-sm text-ink-muted">Dated events that matter for selling, each linked to its source.</p>
+        {events.length === 0
+          ? <EmptyState title="No events yet" description="Nothing that matters for selling has been detected for this property." />
+          : (
+            <>
+              <ol class="flex flex-col">
+                {events.slice(0, EXTRA_EVENTS_AFTER).map(({ event: e, items: group }, i) => <TimelineEvent event={e} group={group} last={events.length <= EXTRA_EVENTS_AFTER && i === events.length - 1} />)}
+              </ol>
+              {events.length > EXTRA_EVENTS_AFTER && (
+                <details class="group/t mt-3 border-t border-line pt-3" data-timeline-more>
+                  <summary class="cursor-pointer list-none rounded text-sm font-medium text-accent hover:underline"><span class="group-open/t:hidden">Show {events.length - EXTRA_EVENTS_AFTER} earlier {events.length - EXTRA_EVENTS_AFTER === 1 ? 'event' : 'events'}</span><span class="hidden group-open/t:inline">Hide earlier events</span></summary>
+                  <ol class="mt-4 flex flex-col">
+                    {events.slice(EXTRA_EVENTS_AFTER).map(({ event: e, items: group }, i, arr) => <TimelineEvent event={e} group={group} last={i === arr.length - 1} />)}
+                  </ol>
+                </details>
+              )}
+            </>
+          )}
+        {lead.signal_total > lead.signals.length && <p class="mt-4 text-xs text-ink-muted">Latest {lead.signals.length} of {lead.signal_total} shown.</p>}
+        {traits.length > 0 && (
+          <section class="mt-5 border-t border-line pt-4" aria-labelledby="trait-h">
+            <h3 id="trait-h" class="eyebrow mb-2">Property traits</h3>
+            <ul class="flex flex-wrap gap-2">{traits.map((t) => <li id={`rec-${t.id}`}><SignalChip type={t.signal_type} details={t.details} estimate={t.is_estimate} /></li>)}</ul>
+          </section>
+        )}
+      </Card>
+
+      {sensitiveCount > 0 && (
+        <Card as="section" aria-labelledby="sens-h" tone="sunken" data-sensitive>
+          <h2 id="sens-h" class="t-h2">Sensitive records</h2>
+          <p class="mb-3 mt-0.5 text-sm text-ink-muted">Handle with care: never shown on cards, lists or share links, never used in drafts.</p>
+          <ul class="flex flex-col gap-2 text-sm">
+            {lead.sensitive_signals.map((s) => <li class="flex flex-wrap items-baseline gap-x-3"><span>{sensitiveLine(s.signal_type, s.signal_date)}</span><SourceLink sourceKey={s.source_key} recordId={s.source_record_id} />{s.is_sample && <SampleDataBadge />}</li>)}
+            {sensitiveItems.map((i) => <li class="text-ink-muted">Contributes {i.points} of {i.max} points: {sentenceCase(i.label).replace(/ \(death, trust or inheritance\)/i, '')}</li>)}
+          </ul>
         </Card>
-      </Grid>
-    </TabPanel>
-  </Tabs>
+      )}
+
+      <Card as="section" aria-labelledby="act-h">
+        <h2 id="act-h" class="t-h2 mb-3">Activity</h2>
+        {dashboardEvents.length === 0
+          ? <EmptyState title="No activity yet" description="Outcomes you record appear here." />
+          : <ul class="flex flex-col divide-y divide-line">
+              {dashboardEvents.map((e) => (
+                <li class="py-3 first:pt-0 last:pb-0">
+                  <p class="flex flex-wrap items-baseline gap-x-3 text-sm"><span class="font-medium">{OUTCOME_LABELS[e.stage] ?? e.stage}</span><span class="t-meta text-ink-muted">{e.team_member_email} · {fmtDateTime(e.occurred_at)}</span></p>
+                  {e.note && <p class="mt-0.5 text-sm text-ink-muted">{e.note}</p>}
+                </li>
+              ))}
+            </ul>}
+      </Card>
+      {history.length > 0 && (
+        <section aria-labelledby="hist-h" class="flex flex-col gap-3">
+          <h2 id="hist-h" class="t-h2">Outreach history</h2>
+          <DataTable caption="Outreach history" columns={[{ key: 'ch', label: 'Channel' }, { key: 'st', label: 'Status' }, { key: 'when', label: 'Sent', align: 'right' }]}
+            rows={history.map((o) => ({ cells: { ch: { v: channelLabel[o.channel] }, st: { v: sentenceCase(o.status.replace(/_/g, ' ')) }, when: { v: o.sent_at ?? '', display: o.sent_at ? fmtDate(o.sent_at) : 'Not sent' } } }))} />
+        </section>
+      )}
+      <Card as="section" id="share" aria-labelledby="share-h">
+        <h2 id="share-h" class="t-h2">Share links</h2>
+        <p class="mb-3 mt-0.5 text-sm text-ink-muted">A share page shows property facts only: no owner, equity, sales or sensitive records.</p>
+        {lead.share_links.length === 0
+          ? <p class="text-sm text-ink-muted">No active links. Use “Share as off-market” at the top of this page.</p>
+          : <ul class="flex flex-col gap-3">
+              {lead.share_links.map((l) => (
+                <li class="flex flex-col gap-1.5 border-t border-line pt-3 first:border-0 first:pt-0" data-share-link>
+                  <input readonly value={`${origin}/share/${l.token}`} aria-label="Share link" class="h-9 w-full rounded-md border border-line bg-canvas px-2 text-xs text-ink" onfocus="this.select()" />
+                  <div class="flex items-center justify-between gap-2 text-xs text-ink-muted">
+                    <span>Created {fmtDate(l.created_at)} by {l.created_by}</span>
+                    <form method="post" action="/actions/share-revoke"><input type="hidden" name="token" value={l.token} /><input type="hidden" name="back" value={`${back}#share`} /><button type="submit" data-revoke class="font-medium text-critical hover:underline">Revoke</button></form>
+                  </div>
+                </li>
+              ))}
+            </ul>}
+      </Card>
+    </div>
+
+    <!-- Right (40%, sticky on desktop): outreach and call co-pilot -->
+    <aside class="flex min-w-0 flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto lg:pr-1" aria-label="Outreach and call co-pilot" data-copilot>
+      <Card as="section" id="drafts" aria-labelledby="drafts-h" class="border-t-2 border-t-gold" data-copy-scope>
+        <h2 id="drafts-h" class="t-h2">Outreach and call co-pilot</h2>
+        <p class="mt-0.5 text-sm text-ink-muted">Drafts use database facts only; a person approves before anything is sent.</p>
+        {drafts.length > 0 && (
+          <div class="mt-3 rounded-md bg-sunken px-3 py-2.5 text-sm" data-approval-status>
+            <p class="eyebrow">Approval status</p>
+            <ul class="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+              {approvalSummary.map((a) => <li><span class="text-ink-muted">{a.label}:</span> <span class="font-medium text-ink">{STATUS_LABEL[a.status] ?? a.status}</span></li>)}
+            </ul>
+            {blockers.length > 0
+              ? <p class="mt-2 text-warning" data-blockers><span class="font-semibold">Blocked:</span> {blockers.map((b) => blockedLabel(b)).join('; ')}.</p>
+              : <p class="mt-2 text-ink-muted">Nothing blocks approval.</p>}
+          </div>
+        )}
+        {drafts.length === 0
+          ? <div class="mt-4"><EmptyState title="No drafts yet" description="Drafts are prepared for the highest-scoring leads." /></div>
+          : (
+            <>
+              <Tabs label="Outreach channel" class="mt-4" tabs={channels.map((c) => ({ id: c.ch, label: c.label }))}>
+                {channels.map((c, i) => (
+                  <TabPanel id={c.ch} active={i === 0}>
+                    <section aria-label={c.label.replace('Call Script', 'Call script')}>
+                      {c.d ? <DraftView draft={c.d} back={`${back}#drafts`} /> : <p class="rounded-md border border-dashed border-line px-4 py-6 text-sm text-ink-muted" data-no-draft>No {c.label.toLowerCase()} has been prepared for this lead yet.</p>}
+                    </section>
+                  </TabPanel>
+                ))}
+              </Tabs>
+              <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
+                <CopyButton label="Copy script" target="[data-draft-text]" id="copy-script" />
+                <span class="text-xs text-ink-muted">Copies the open tab, as edited.</span>
+              </div>
+            </>
+          )}
+      </Card>
+
+      <Card as="section" aria-labelledby="outcome-h" data-outcome-card>
+        <h2 id="outcome-h" class="t-h2">Log an outcome</h2>
+        <p class="mb-3 mt-0.5 text-sm text-ink-muted">What happened after you reached out. It feeds Performance.</p>
+        <form method="post" action="/actions/stage" class="flex flex-col gap-3">
+          <input type="hidden" name="apn" value={p.apn} /><input type="hidden" name="back" value={`${back}#drafts`} />
+          <input type="text" name="note" maxlength="300" placeholder="Note (optional)" aria-label="Note (optional)" class="h-9 rounded-md border border-line-strong bg-surface px-3 text-sm placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30" />
+          <Cluster gap={2}>
+            {['contacted', 'conversation', 'appointment', 'listing', 'not_interested', 'bad_data'].map((k) => (
+              <button type="submit" name="stage" value={k} data-outcome={k} class="inline-flex h-8 items-center rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-ink hover:bg-sunken">{OUTCOME_LABELS[k]}</button>
+            ))}
+          </Cluster>
+        </form>
+      </Card>
+    </aside>
+  </div>
 </AppShell>
+
+<script>
+  // A link to a record inside a collapsed "earlier events" or "Show all" block (for example an AI claim's #rec-<id>) opens the block and scrolls to it.
+  const reveal = () => {
+    const id = location.hash.length > 1 ? decodeURIComponent(location.hash.slice(1)) : '';
+    const el = id ? document.getElementById(id) : null; if (!el) return;
+    for (let d = el.closest('details'); d; d = d.parentElement?.closest('details') ?? null) d.open = true;
+    el.scrollIntoView({ block: 'center' });
+  };
+  reveal(); window.addEventListener('hashchange', reveal);
+</script>

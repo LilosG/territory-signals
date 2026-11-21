@@ -1,0 +1,52 @@
+---
+import type { RecipeWeek } from '../../lib/data/types';
+import { fmtNum } from '../../lib/format';
+/**
+ * Active Territory Strategies (right of the Today hero): only recipes with movement this week or a high-scoring lead
+ * (the caller decides which). Idle recipes (nothing new, or waiting on data) sit in a collapsed footer toggle.
+ */
+export interface Props { active: (RecipeWeek & { high: number })[]; quiet: RecipeWeek[] }
+const { active, quiet } = Astro.props;
+---
+<section aria-labelledby="strat-h" data-strategies class="flex h-full flex-col rounded-xl border border-line bg-surface p-5 shadow-sm">
+  <h2 id="strat-h" class="t-h2">Active territory strategies</h2>
+  <p class="mt-0.5 text-sm text-ink-muted">Recipes with movement this week or leads scoring 65+.</p>
+  {active.length === 0
+    ? <p class="mt-4 text-sm text-ink-muted" data-strategies-empty>No recipe moved this week.</p>
+    : <ul class="mt-3 flex flex-col divide-y divide-line" data-recipe-grid>
+        {active.map((r) => (
+          <li>
+            <a href={`/leads?recipe=${encodeURIComponent(r.key)}`} data-recipe-tile={r.key} class="group flex items-center justify-between gap-3 rounded-md py-2.5 hover:bg-sunken/60 focus-visible:outline-offset-0">
+              <span class="min-w-0 break-words text-sm font-medium text-ink group-hover:text-accent">{r.label}</span>
+              <span class="flex shrink-0 items-center gap-2">
+                {r.new_this_week > 0 && <span class="new-marker">+{fmtNum(r.new_this_week)} new</span>}
+                {r.high > 0 && <span class="rounded-full bg-tier-immediate-soft px-2 text-2xs font-semibold leading-5 text-tier-immediate" title="Leads in this recipe on today's top list scoring 65 or more">{r.high} top</span>}
+                <span class="min-w-[3rem] text-right text-base font-semibold tabular-nums text-ink">{fmtNum(r.parcels)}</span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>}
+  {quiet.length > 0 && (
+    <details class="group/q mt-auto border-t border-line pt-3" data-quiet-recipes>
+      <summary class="flex cursor-pointer list-none items-center justify-between rounded text-sm font-medium text-ink-muted hover:text-ink">
+        <span>{quiet.length} quiet {quiet.length === 1 ? 'recipe' : 'recipes'}: none new or waiting on data</span>
+        <span aria-hidden="true" class="group-open/q:rotate-180 transition-transform">▾</span>
+      </summary>
+      <ul class="mt-2 flex flex-col gap-1">
+        {quiet.map((r) => {
+          const idle = r.parcels === 0 && r.new_this_week === 0;
+          return (
+            <li>
+              <a href={`/leads?recipe=${encodeURIComponent(r.key)}`} data-recipe-tile={r.key} data-idle={idle ? '' : undefined} title={idle ? (r.idle_reason ?? undefined) : undefined}
+                class="flex items-center justify-between gap-3 rounded-md px-1 py-1.5 text-sm hover:bg-sunken/60 focus-visible:outline-offset-0">
+                <span class="min-w-0 break-words text-ink-muted">{r.label}</span>
+                <span class="shrink-0 text-xs text-ink-faint">{idle ? 'Waiting on data' : `${fmtNum(r.parcels)} · None new`}</span>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </details>
+  )}
+</section>

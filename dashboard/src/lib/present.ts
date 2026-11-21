@@ -46,7 +46,9 @@ export function publicReason(text: string | null | undefined): string {
 }
 
 /* ── lead card pieces ── */
-export interface Marked { text: string; sample?: boolean; estimate?: boolean }
+/** Category icon for a fact chip (Icon names). */
+export type ChipIcon = 'upzone' | 'permit' | 'rental' | 'tenure' | 'equity' | 'lot';
+export interface Marked { text: string; sample?: boolean; estimate?: boolean; icon?: ChipIcon }
 
 const shortDate = (s: string | null | undefined) => (s ? new Date(`${s.slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : '');
 
@@ -159,16 +161,35 @@ export function recipeSignalLine(recipeKey: string, components: unknown): Marked
   return { text: lines.map((l) => l.text).join(' · '), sample: lines.some((l) => l.sample), estimate: lines.some((l) => l.estimate) };
 }
 
-/** Up to three key facts for a card. Owner-derived facts carry the sample flag; equity is always an estimate. */
+/** Words that mark a distress or life-event fact. A chip containing any of them is dropped, whatever built it. */
+const DISTRESS_WORDS = /tax|default|transfer|probate|inherit|death|deceas|financial|pressure|foreclos|lien|divorce|trust/i;
+
+/**
+ * Up to three key facts for a card, each with a category icon. Built only from the whitelisted categories below (upzoning,
+ * permit, rental, equity, tenure, owner status, lot), in that priority; owner-derived facts carry the sample flag and
+ * estimates are flagged. Distress and life-event facts can never appear here (see DISTRESS_WORDS and isSensitiveKey).
+ */
 export function leadChips(l: LeadSummary): Marked[] {
   const sample = !!l.owner?.is_sample;
+  const comps = l.top_components.filter((c) => c.points > 0 && !isSensitiveKey(c.key));
   const chips: Marked[] = [];
-  if (l.years_owned != null) chips.push({ text: `${l.years_owned} ${l.years_owned === 1 ? 'year' : 'years'} owned`, sample });
-  if (l.lot_sqft) chips.push({ text: `${fmtNum(Math.round(l.lot_sqft))} sq ft lot` });
-  if (l.owner?.est_equity != null) chips.push({ text: `${fmtUsdCompact(l.owner.est_equity)} equity`, estimate: true, sample });
-  if (l.owner?.out_of_state) chips.push({ text: 'Out-of-state owner', sample });
-  else if (l.owner?.absentee) chips.push({ text: 'Absentee owner', sample });
-  return chips.slice(0, 3);
+  const sb9 = comps.find((c) => c.key === 'sb9_lot_split_estimate');
+  const sb79 = comps.find((c) => c.key === 'sb79_transit_estimate');
+  if (sb9) chips.push({ text: 'SB 9 eligible', estimate: true, sample: sb9.is_sample, icon: 'upzone' });
+  else if (sb79) chips.push({ text: 'SB 79 transit', estimate: true, sample: sb79.is_sample, icon: 'upzone' });
+  const permit = comps.find((c) => c.key.startsWith('permit_approved'));
+  if (permit) {
+    const n = Number((permit.facts as Record<string, unknown> | null)?.permit_count ?? 1);
+    chips.push({ text: `${n} ${n === 1 ? 'permit' : 'permits'}`, sample: permit.is_sample, icon: 'permit' });
+  }
+  const stro = comps.find((c) => c.key === 'stro_license_active');
+  if (stro) chips.push({ text: 'STR licensed', sample: stro.is_sample, icon: 'rental' });
+  if (l.owner?.est_equity != null) chips.push({ text: `${fmtUsdCompact(l.owner.est_equity)} equity`, estimate: true, sample, icon: 'equity' });
+  if (l.years_owned != null) chips.push({ text: `${l.years_owned} ${l.years_owned === 1 ? 'year' : 'years'} owned`, sample, icon: 'tenure' });
+  if (l.owner?.out_of_state) chips.push({ text: 'Out-of-state owner', sample, icon: 'rental' });
+  else if (l.owner?.absentee) chips.push({ text: 'Absentee owner', sample, icon: 'rental' });
+  if (l.lot_sqft) chips.push({ text: `${fmtNum(Math.round(l.lot_sqft))} sq ft lot`, icon: 'lot' });
+  return chips.filter((c) => !DISTRESS_WORDS.test(c.text)).slice(0, 3);
 }
 
 /** Recipe keys a card or list may show (distress recipes are hidden). */
@@ -330,6 +351,23 @@ export function claimLabel(id: string): string {
 export const GCI_RATE = 0.025;
 export const estGci = (estValue: number) => Math.round(estValue * GCI_RATE);
 
+/** "$38k" / "$1.2M": whole thousands below a million, one decimal above. */
+export function fmtGci(gci: number): string {
+  if (gci >= 1_000_000) return `$${(Math.round(gci / 100_000) / 10).toString()}M`;
+  return `$${Math.round(gci / 1000)}k`;
+}
+
+/**
+ * The lead-card badge: "Est. $38k GCI" from the parcel's estimated value (2.5%). Null when the parcel has no estimated value,
+ * so nothing is invented. `sample` is true when that value comes from sample owner data.
+ */
+export function gciBadge(l: Pick<LeadSummary, 'owner'>): { text: string; sample: boolean; value: number } | null {
+  const v = l.owner?.est_value;
+  if (v == null || !(v > 0)) return null;
+  const value = estGci(v);
+  return { text: `Est. ${fmtGci(value)} GCI`, sample: !!l.owner?.is_sample, value };
+}
+
 /** The sales stages in the order a lead moves through them. The data key `signal` is shown to agents as "Flagged". */
 export const PIPELINE_LABELS: Record<string, string> = { signal: 'Flagged', contacted: 'Contacted', conversation: 'Conversation', appointment: 'Appointment', listing: 'Listing' };
 
@@ -356,4 +394,27 @@ export function pipelineSteps(overall: FunnelRow, values: StageValue[]): Pipelin
       sample: !!v && v.sample_parcels > 0,
     };
   });
+}
+
+/* ── seller consultation dossier (Phase 5J) ── */
+/** Selling costs (commissions, closing, transfer tax) as a share of estimated value: the low and high end used for the net-proceeds range. An assumption, shown on the page. */
+export const SELLING_COST_RANGE = { low: 0.05, high: 0.07 } as const;
+
+/** Estimated seller net proceeds: estimated equity less selling costs, as a low-high range. Null without both figures; never below zero. */
+export function netProceedsRange(estValue: number | null | undefined, estEquity: number | null | undefined): { low: number; high: number } | null {
+  if (estValue == null || estEquity == null || !(estValue > 0)) return null;
+  return { low: Math.max(0, Math.round(estEquity - estValue * SELLING_COST_RANGE.high)), high: Math.max(0, Math.round(estEquity - estValue * SELLING_COST_RANGE.low)) };
+}
+
+/**
+ * Neighborhood momentum for one trend metric: the sum over its (non-optional) series for the last 3 full months against the 3 before.
+ * The partial current month never counts. Null when the metric is missing, empty or has an empty-state notice.
+ */
+export function momentum(metric: { series: { points: { month: string; value: number }[] }[]; empty_state?: string } | undefined, months: string[], partialMonth: string): { recent: number; prior: number; pct: number | null } | null {
+  if (!metric || metric.empty_state) return null;
+  const full = months.filter((m) => m !== partialMonth);
+  const last3 = full.slice(-3); const prev3 = full.slice(-6, -3);
+  const total = (ms: string[]) => metric.series.reduce((t, s) => t + s.points.filter((p) => ms.includes(p.month)).reduce((u, p) => u + p.value, 0), 0);
+  const recent = total(last3); const prior = total(prev3);
+  return { recent, prior, pct: prior > 0 ? Math.round(((recent - prior) / prior) * 100) : null };
 }

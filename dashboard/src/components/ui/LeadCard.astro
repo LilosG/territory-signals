@@ -1,31 +1,33 @@
 ---
 import type { LeadSummary } from '../../lib/data/types';
 import { LEAD_STATUS } from '../../lib/data/catalog';
-import { leadChips, leadHeadline, publicReason, reasonParts } from '../../lib/present';
+import { gciBadge, leadChips, leadHeadline, publicReason, reasonParts } from '../../lib/present';
 import Card from './Card.astro';
 import ScoreRing from './ScoreRing.astro';
 import StatusPill from './StatusPill.astro';
 import SampleDataBadge from './SampleDataBadge.astro';
 import Fact from './Fact.astro';
 import Icon from './Icon.astro';
-/** Compact lead card. Never shows distress or life-event chips (those live in the lead brief). One sample badge per card. */
+/**
+ * Compact lead card: facts on the left, the score ring and estimated GCI on the right. Never shows distress or life-event
+ * chips (those live in the lead brief; leadChips enforces it). One sample badge per card; the GCI badge is dotted-underlined
+ * when it rests on sample owner data.
+ */
 export interface Props { lead: LeadSummary; rank?: number; isNew?: boolean }
 const { lead, rank, isNew = false } = Astro.props;
 const { parcel: p, score } = lead;
 const status = LEAD_STATUS[lead.status];
 const headline = leadHeadline(lead);
 const chips = leadChips(lead);
+const gci = gciBadge(lead);
 const reason = reasonParts(publicReason(score.reason_text));
 ---
 <Card as="article" interactive padded={false} class="group">
-  <a href={`/leads/${p.apn}`} class="flex items-center gap-3 rounded-lg p-4 sm:gap-4">
-    <div class="flex flex-col items-center gap-1 self-start">
-      <ScoreRing score={score.score} size="lg" />
-      {rank != null && <span class="text-2xs text-ink-faint">#{rank}</span>}
-    </div>
+  <a href={`/leads/${p.apn}`} class="flex items-center gap-3 rounded-lg p-4 sm:gap-5">
     <div class="min-w-0 flex-1">
       <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <div class="flex min-w-0 flex-wrap items-baseline gap-x-2">
+          {rank != null && <span class="text-xs font-semibold text-ink-faint" aria-label={`Rank ${rank}`}>#{rank}</span>}
           <h3 class="truncate text-base font-semibold text-ink group-hover:text-accent">{p.situs_address}</h3>
           {isNew && lead.status !== 'new' && <span class="new-marker">New</span>}
           <span class="t-meta text-ink-muted">{p.neighborhood}</span>
@@ -47,12 +49,22 @@ const reason = reasonParts(publicReason(score.reason_text));
         )
         : headline && <p class="mt-1 text-base font-medium text-ink"><Fact {...headline} /></p>}
       {chips.length > 0 && (
-        <ul class="mt-2 flex flex-wrap gap-1.5">
-          {chips.map((c) => <li class="rounded-md bg-sunken px-2 py-0.5 text-xs font-medium text-ink-muted"><Fact {...c} /></li>)}
+        <ul class="mt-2 flex flex-wrap gap-1.5" data-fact-chips>
+          {chips.map((c) => (
+            <li class="inline-flex items-center gap-1 rounded-md bg-sunken px-2 py-0.5 text-xs font-medium text-ink-muted" data-chip-icon={c.icon}>
+              {c.icon && <Icon name={c.icon} size={13} class="shrink-0 text-gold" />}<Fact {...c} />
+            </li>
+          ))}
         </ul>
       )}
     </div>
-    <Icon name="chevron" size={20} class="shrink-0 self-center text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-accent max-sm:hidden" />
+    <div class="flex shrink-0 flex-col items-center gap-1.5 self-start" data-card-right>
+      <ScoreRing score={score.score} size="lg" />
+      {gci && (
+        <span data-gci-badge class:list={['whitespace-nowrap rounded-full border border-gold/40 bg-gold-soft px-2 py-0.5 text-2xs font-semibold text-gold-strong', gci.sample && 'sample-fact']}
+          title={gci.sample ? 'Estimated at 2.5% of estimated property value, which rests on sample owner data' : 'Estimated gross commission income: 2.5% of estimated property value'}>{gci.text}</span>
+      )}
+    </div>
   </a>
   {reason.length > 0 && (
     <details class="group/d border-t border-line px-4 py-2 text-sm">
