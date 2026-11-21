@@ -1,0 +1,30 @@
+---
+import type { Signal, SignalEvent } from '../../lib/data/types';
+import { eventTitle } from '../../lib/present';
+import { signalLabel } from '../../lib/data/catalog';
+import { fmtDate, sentenceCase } from '../../lib/format';
+import SourceLink from './SourceLink.astro';
+import ConfidenceIndicator from './ConfidenceIndicator.astro';
+/** One dated event on the lead's signal timeline: gold dot (hollow when estimated), title, date, source, confidence and, for merged same-day signals, the list behind it. */
+export interface Props { event: SignalEvent; group: Signal[]; last?: boolean }
+const { event: e, group, last = false } = Astro.props;
+---
+<li class="relative grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-4 pb-5 last:pb-0" data-event>
+  <span class="relative flex justify-center" aria-hidden="true">
+    <span class:list={['mt-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-surface', e.is_estimate ? 'border-2 border-gold bg-surface' : 'bg-gold']}></span>
+    {!last && <span class="absolute bottom-[-1.25rem] top-4 w-px bg-line"></span>}
+  </span>
+  <div class="min-w-0" id={`rec-${group[0]!.id}`}>
+    {group.slice(1).map((s) => <span id={`rec-${s.id}`}></span>)}
+    <p class="flex flex-wrap items-baseline gap-x-3 text-sm font-medium text-ink"><span>{eventTitle(e, false)}</span><time class="t-meta text-ink-muted" datetime={e.date}>{fmtDate(e.date)}</time>{e.is_sample && <span class="sample-fact t-meta text-ink-muted" title="Based on sample data, not a real record">sample</span>}</p>
+    <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1"><SourceLink sourceKey={e.source_key} recordId={e.source_record_id} /><ConfidenceIndicator confidence={group[0]!.confidence} method={group[0]!.match_method} /></div>
+    {group.length > 1 && (
+      <details class="mt-2 text-sm">
+        <summary class="cursor-pointer text-xs font-medium text-ink-muted hover:text-ink">Show all {group.length}</summary>
+        <ul class="mt-2 flex flex-col gap-1.5 border-l border-line pl-3">
+          {group.map((s) => <li class="flex flex-wrap items-center gap-x-3"><span>{sentenceCase(signalLabel(s.signal_type, s.details))}</span><SourceLink sourceKey={s.source_key} recordId={s.source_record_id} /></li>)}
+        </ul>
+      </details>
+    )}
+  </div>
+</li>

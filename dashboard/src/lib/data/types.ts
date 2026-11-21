@@ -247,7 +247,7 @@ export interface AiStatus { tasks: AiTaskRow[]; monthly_budget_usd: number; cost
 export interface LeadSummary {
   parcel: { apn: string; situs_address: string | null; neighborhood: string | null };
   score: { score: number; reason_text: string | null; recipe_matches: string[]; primary_recipe: string | null; model_version: string; scored_at: IsoTimestamp; uses_sample_data: boolean };
-  owner: { owner_name: string | null; is_sample: boolean; last_sale_date: IsoDate | null; est_equity: number | null; absentee: boolean | null; out_of_state: boolean | null } | null;
+  owner: { owner_name: string | null; is_sample: boolean; last_sale_date: IsoDate | null; est_equity: number | null; est_value?: number | null; absentee: boolean | null; out_of_state: boolean | null } | null;
   /** Whole years since the current owner's tenure started (owners.last_sale_date). */
   years_owned: number | null;
   lot_sqft: number | null;

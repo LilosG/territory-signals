@@ -195,3 +195,53 @@ test('pipeline steps: conversion from the previous stage and GCI at 2.5% of esti
   assert.equal(steps[2]!.gci, null);
   assert.equal(estGci(1_000_000), 25_000);
 });
+
+// ── Phase 5J ──
+import { fmtGci, gciBadge, leadChips } from './present.ts';
+import { tierOf, tierLabel, TIERS } from './ring.ts';
+
+test('score tiers: 80/65/45 cut-offs and their colors', () => {
+  assert.deepEqual([100, 80, 79, 65, 64, 45, 44, 0].map(tierOf), ['immediate', 'immediate', 'priority', 'priority', 'watchlist', 'watchlist', 'monitor', 'monitor']);
+  assert.equal(tierLabel(70), 'Priority');
+  assert.deepEqual(TIERS.map((t) => t.color), ['#B91C1C', '#B45309', '#1E3A8A', '#64748B']);
+});
+
+test('GCI badge: 2.5% of estimated value, labeled Est., sample-aware, null with no value', () => {
+  assert.equal(fmtGci(38_000), '$38k');
+  assert.equal(fmtGci(1_250_000), '$1.3M');
+  const b = gciBadge({ owner: { est_value: 1_500_000, is_sample: true } } as never);
+  assert.deepEqual(b, { text: 'Est. $38k GCI', sample: true, value: 37_500 });
+  assert.equal(gciBadge({ owner: { est_value: null, is_sample: false } } as never), null);
+  assert.equal(gciBadge({ owner: null } as never), null);
+});
+
+test('lead chips carry category icons and never include distress or life-event facts', () => {
+  const lead = {
+    owner: { est_equity: 900_000, is_sample: true, absentee: true, out_of_state: false }, years_owned: 12, lot_sqft: 5000,
+    top_components: [
+      { key: 'tax_default_active', facts: null, points: 20, signal_date: null, is_sample: false, is_estimate: false },
+      { key: 'owner:ownership_transfer', facts: null, points: 15, signal_date: null, is_sample: false, is_estimate: false },
+      { key: 'sb9_lot_split_estimate', facts: null, points: 10, signal_date: null, is_sample: false, is_estimate: true },
+      { key: 'permit_approved:pre_sale_prep', facts: { permit_count: 2 }, points: 8, signal_date: null, is_sample: false, is_estimate: false },
+    ],
+  } as never;
+  const chips = leadChips(lead);
+  assert.deepEqual(chips.map((c) => c.icon), ['upzone', 'permit', 'equity']);
+  assert.equal(chips[0]!.estimate, true);
+  for (const c of leadChips(lead)) assert.doesNotMatch(c.text, /tax|default|transfer|probate|death|inherit|financial/i);
+});
+
+import { momentum, netProceedsRange } from './present.ts';
+test('seller net proceeds: equity less 5-7% selling costs, never below zero, null without data', () => {
+  assert.deepEqual(netProceedsRange(2_000_000, 1_500_000), { low: 1_360_000, high: 1_400_000 });
+  assert.deepEqual(netProceedsRange(1_000_000, 20_000), { low: 0, high: 0 });
+  assert.equal(netProceedsRange(null, 1), null);
+  assert.equal(netProceedsRange(1_000_000, null), null);
+});
+test('neighborhood momentum: last 3 full months vs the 3 before; the partial month is ignored', () => {
+  const months = ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11'];
+  const m = { series: [{ points: months.map((month, i) => ({ month, value: i < 3 ? 2 : i < 6 ? 4 : 99 })) }] };
+  assert.deepEqual(momentum(m, months, '2026-11'), { recent: 12, prior: 6, pct: 100 });
+  assert.equal(momentum({ ...m, empty_state: 'x' }, months, '2026-11'), null);
+  assert.equal(momentum(undefined, months, '2026-11'), null);
+});

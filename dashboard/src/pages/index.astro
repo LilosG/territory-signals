@@ -8,14 +8,14 @@ import LeadCard from '../components/ui/LeadCard.astro';
 import EmptyState from '../components/ui/EmptyState.astro';
 import Button from '../components/ui/Button.astro';
 import StatCard from '../components/ui/StatCard.astro';
-import RecipeTile from '../components/ui/RecipeTile.astro';
+import StrategyPanel from '../components/ui/StrategyPanel.astro';
 import RailCard from '../components/ui/RailCard.astro';
 import SignalFeedItem from '../components/ui/SignalFeedItem.astro';
 import ApprovalRow from '../components/ui/ApprovalRow.astro';
 import CallTaskRow from '../components/ui/CallTaskRow.astro';
 import WeekCard from '../components/ui/WeekCard.astro';
-import { fmtDate } from '../lib/format';
-import { isNewLead } from '../lib/present';
+import { fmtDate, fmtNum } from '../lib/format';
+import { isNewLead, publicRecipes } from '../lib/present';
 
 export const prerender = false;
 const feed = await Astro.locals.data.getTodayFeed();
@@ -25,6 +25,14 @@ const where = feed.territory ?? 'All territory';
 const stat = (m: string) => feed.stats.find((s) => s.metric === m);
 const asOf = new Date(feed.as_of);
 const today = feed.as_of.slice(0, 10);
+// Recipes with movement (new matches this week) or a high-scoring lead on today's list are "active"; the rest are quiet.
+const HIGH = 65;
+const highByRecipe = new Map<string, number>();
+for (const l of feed.top_leads) if (l.score.score >= HIGH) for (const k of publicRecipes(l.score.recipe_matches ?? [])) highByRecipe.set(k, (highByRecipe.get(k) ?? 0) + 1);
+const withHigh = feed.recipe_strip.map((r) => ({ ...r, high: highByRecipe.get(r.key) ?? 0 }));
+const activeRecipes = withHigh.filter((r) => r.new_this_week > 0 || r.high > 0).sort((a, b) => b.new_this_week - a.new_this_week || b.high - a.high || b.parcels - a.parcels);
+const quietRecipes = feed.recipe_strip.filter((r) => !activeRecipes.some((a) => a.key === r.key));
+const summary = `${fmtNum(feed.new_signals_total)} new signals this week across ${where}, ${fmtNum(feed.leads_total)} scored leads, ${fmtNum(feed.approvals_total)} drafts awaiting approval.`;
 const anyAiHeadline = feed.top_leads.some((l) => l.ai_headline);
 ---
 <AppShell title="Today" active="today">
@@ -33,19 +41,16 @@ const anyAiHeadline = feed.top_leads.some((l) => l.ai_headline);
   </PageHeader>
 
   <Stack gap={8}>
-    {feed.weekly && <WeekCard brief={feed.weekly} />}
+    <div class="grid gap-6 lg:grid-cols-[65fr_35fr]" data-hero-split>
+      <WeekCard brief={feed.weekly} fallback={summary} fallbackWeek={today} />
+      <StrategyPanel active={activeRecipes} quiet={quietRecipes} />
+    </div>
     <Grid cols={4} gap={4} class="[&>*]:min-w-0">
       <StatCard label="New signals" series={stat('signals')} today={today} />
       <StatCard label="Drafts prepared" series={stat('drafts')} today={today} />
       <StatCard label="Outcomes logged" series={stat('outcomes')} today={today} />
       <StatCard label="Active leads" series={stat('active_leads')} today={today} />
     </Grid>
-
-    <Section title="This week by recipe">
-      {feed.recipe_strip.length === 0
-        ? <p class="text-sm text-ink-muted">No recipes are switched on.</p>
-        : <ul class="grid grid-cols-2 gap-3 lg:grid-cols-4" data-recipe-grid>{feed.recipe_strip.map((r) => <li class="min-w-0"><RecipeTile recipe={r} /></li>)}</ul>}
-    </Section>
 
     <Grid split="main-aside" gap={8}>
       <Section title="Top leads" description={anyAiHeadline ? 'Ranked by score · Headlines written by AI' : 'Ranked by score'}>

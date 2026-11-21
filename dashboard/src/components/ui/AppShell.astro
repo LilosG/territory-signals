@@ -147,7 +147,6 @@ const mobileItems = NAV.flatMap((g) => g.items).filter((i) => MOBILE_TABS.includ
 
     <script>
       import { ringSvg } from '../../lib/ring';
-      import { bandOf } from '../../lib/data/catalog';
       const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s);
 
       // Territory switcher: submit as soon as it changes.
@@ -165,7 +164,7 @@ const mobileItems = NAV.flatMap((g) => g.items).filter((i) => MOBILE_TABS.includ
       const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
       const open = () => { if (!dlg.open) dlg.showModal(); input.select(); };
       const render = () => {
-        list.innerHTML = hits.map((h, i) => `<li role="option" aria-selected="${i === sel}"><a href="/leads/${encodeURIComponent(h.apn)}" class="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-sunken ${i === sel ? 'bg-sunken' : ''}">${ringSvg(h.score, bandOf(h.score), 'sm')}<span class="min-w-0"><span class="block truncate text-sm font-medium text-ink">${esc(h.situs_address ?? h.apn)}</span><span class="block truncate text-xs text-ink-muted">${esc([h.neighborhood, h.apn].filter(Boolean).join(' · '))}</span></span></a></li>`).join('');
+        list.innerHTML = hits.map((h, i) => `<li role="option" aria-selected="${i === sel}"><a href="/leads/${encodeURIComponent(h.apn)}" class="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-sunken ${i === sel ? 'bg-sunken' : ''}">${ringSvg(h.score, 'sm')}<span class="min-w-0"><span class="block truncate text-sm font-medium text-ink">${esc(h.situs_address ?? h.apn)}</span><span class="block truncate text-xs text-ink-muted">${esc([h.neighborhood, h.apn].filter(Boolean).join(' · '))}</span></span></a></li>`).join('');
       };
       const run = async () => {
         const q = input.value.trim();

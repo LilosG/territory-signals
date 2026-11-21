@@ -3,38 +3,126 @@ export const prerender = false;
 import PrintShell from '../../../components/ui/PrintShell.astro';
 import FactList from '../../../components/ui/FactList.astro';
 import SignalTimeline from '../../../components/ui/SignalTimeline.astro';
-import Stack from '../../../components/ui/Stack.astro';
-import Section from '../../../components/ui/Section.astro';
+import EstimateBadge from '../../../components/ui/EstimateBadge.astro';
+import SampleDataBadge from '../../../components/ui/SampleDataBadge.astro';
+import { landUseLabel } from '../../../data/landUse';
 import { brand } from '../../../config/brand';
-import { fmtApn, fmtNum, fmtDate } from '../../../lib/format';
+import { fmtApn, fmtNum, fmtDate, fmtUsd, fmtUsdCompact } from '../../../lib/format';
+import { momentum, netProceedsRange, SELLING_COST_RANGE } from '../../../lib/present';
 
+/**
+ * Seller Consultation Dossier: a print-ready (A4/Letter, @media print) summary for the conversation with the owner.
+ * Everything here is stored data or deterministic arithmetic: no AI. Financial figures are estimates and say so; figures that rest
+ * on sample owner data say that too. It carries no owner name, mailing address, mortgage balance or sensitive records.
+ */
 const lead = await Astro.locals.data.getLead(Astro.params.apn ?? '');
 if (!lead) return new Response('Not found', { status: 404 });
 const p = lead.parcel;
-const trends = await Astro.locals.data.getTrends(p.neighborhood ?? 'All');
-// A listing presentation shares property and neighborhood context only: no owner, equity or mortgage data.
+const owner = lead.owner;
+const hood = p.neighborhood ?? 'All';
+const trends = await Astro.locals.data.getTrends(hood);
 const publicSignals = lead.signals.filter((s) => ['permit_approved', 'sb9_lot_split_estimate', 'sb79_transit_estimate', 'stro_license_active', 'stro_license_removed'].includes(s.signal_type));
+
+const metric = (k: string) => trends.metrics.find((m) => m.key === k);
+const tiles = [
+  { key: 'permits', label: 'Permits that matter for selling', unit: 'approved, last 3 full months', m: momentum(metric('permits'), trends.months, trends.partial_month), sample: !!metric('permits')?.is_sample },
+  { key: 'turnover', label: 'Home sales', unit: 'closed, last 3 full months', m: momentum(metric('turnover'), trends.months, trends.partial_month), sample: !!metric('turnover')?.is_sample },
+  { key: 'str_lost', label: 'Short-term rental licenses removed', unit: 'last 3 full months', m: momentum(metric('str_lost'), trends.months, trends.partial_month), sample: !!metric('str_lost')?.is_sample },
+].filter((t) => t.m);
+// Upzoning screens for this neighborhood (parcel counts; estimated), from the trends' grouped bars.
+const upzoning = (metric('upzoning')?.series ?? []).map((s) => ({ label: s.label, n: s.points.find((pt) => pt.month === hood)?.value ?? 0 })).filter((u) => u.n > 0);
+// Recent permits by type around the neighborhood: the last 3 full months, only types that moved.
+const full = trends.months.filter((m) => m !== trends.partial_month).slice(-3);
+const permitMix = (metric('permits')?.series ?? []).map((s) => ({ label: s.label, n: s.points.filter((pt) => full.includes(pt.month)).reduce((t, pt) => t + pt.value, 0) })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n);
+
+const ownerSample = !!owner?.is_sample;
+const net = netProceedsRange(owner?.est_value, owner?.est_equity);
+const noMortgage = owner ? owner.mortgage_open === false : false;
+const asOf = fmtDate(new Date().toISOString());
+const pct = (n: number | null) => (n == null ? '' : `${n > 0 ? '+' : ''}${n}%`);
 ---
-<PrintShell title={`Listing presentation · ${p.situs_address}`} backHref={`/leads/${p.apn}`} backLabel="Back to brief">
-  <Stack gap={10}>
-    <header>
-      <p class="eyebrow">Listing presentation · {brand.name}</p>
-      <h1 class="mt-2 text-3xl font-semibold">{p.situs_address}</h1>
-      <p class="mt-1 text-base text-ink-muted">{p.neighborhood}, San Diego · APN {fmtApn(p.apn)}</p>
+<PrintShell title={`Seller consultation dossier · ${p.situs_address}`} backHref={`/leads/${p.apn}`} backLabel="Back to brief">
+  <article data-dossier-print class="flex flex-col gap-8 print:gap-6">
+    <header class="break-inside-avoid border-b-2 pb-5" style="border-color:var(--color-gold)">
+      <div class="flex items-center justify-between gap-4">
+        <p class="flex items-center gap-2.5"><span class="grid h-9 w-9 place-items-center rounded-md bg-hero text-sm font-semibold text-white" aria-hidden="true">{brand.initials}</span><span class="text-sm font-semibold tracking-tight">{brand.name}</span></p>
+        <p class="eyebrow-gold !text-gold-strong">Seller consultation dossier</p>
+      </div>
+      <h1 class="mt-5 text-3xl font-semibold tracking-tight">{p.situs_address}</h1>
+      <p class="mt-1 text-base text-ink-muted">{p.neighborhood}, San Diego · APN {fmtApn(p.apn)} · Prepared {asOf}</p>
     </header>
-    <Section title="Property at a glance">
+
+    <section aria-labelledby="glance-h" class="break-inside-avoid">
+      <h2 id="glance-h" class="t-h2 mb-3">Property at a glance</h2>
       <FactList items={[
-        { label: 'Zoning', value: p.zoning ?? '—' }, { label: 'Land use', value: p.land_use ?? '—' },
-        { label: 'Lot size', value: p.lot_sqft ? `${fmtNum(p.lot_sqft)} sq ft` : '—' }, { label: 'Year built', value: String(p.year_built ?? '—') },
+        { label: 'Zoning', value: p.zoning ?? '—' }, { label: 'Land use', value: landUseLabel(p.land_use) ?? p.land_use ?? '—' },
+        { label: 'Lot size', value: p.lot_sqft ? `${fmtNum(Math.round(p.lot_sqft))} sq ft` : '—' }, { label: 'Year built', value: String(p.year_built ?? '—') },
       ]} />
-    </Section>
-    <Section title="Public-record highlights" description="Permits, upzoning screens and rental licensing on record for this parcel.">
+    </section>
+
+    <section aria-labelledby="equity-h" class="break-inside-avoid" data-equity-section>
+      <h2 id="equity-h" class="t-h2 mb-1 flex flex-wrap items-center gap-2">Estimated equity and net proceeds {ownerSample && <SampleDataBadge />}</h2>
+      <p class="mb-3 text-sm text-ink-muted">Estimates for planning the conversation, not an appraisal or an offer.</p>
+      {owner && owner.est_value != null
+        ? (
+          <>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 print:grid-cols-3">
+              <div class="rounded-lg border border-line p-4"><p class="eyebrow">Estimated value</p><p class="mt-1 text-xl font-semibold tabular-nums">{fmtUsd(owner.est_value)} <EstimateBadge /></p></div>
+              <div class="rounded-lg border border-line p-4"><p class="eyebrow">Estimated equity</p><p class="mt-1 text-xl font-semibold tabular-nums">{owner.est_equity != null ? fmtUsd(owner.est_equity) : '—'} {owner.est_equity != null && <EstimateBadge />}</p>{noMortgage && <p class="mt-0.5 text-xs text-ink-muted">No open mortgage on record</p>}</div>
+              <div class="rounded-lg border p-4" style="border-color:var(--color-gold);background:var(--color-gold-soft)" data-net-proceeds><p class="eyebrow">Est. seller net proceeds</p>{net ? <p class="mt-1 text-xl font-semibold tabular-nums">{fmtUsdCompact(net.low)} to {fmtUsdCompact(net.high)} <EstimateBadge /></p> : <p class="mt-1 text-xl font-semibold">—</p>}</div>
+            </div>
+            <p class="mt-3 text-xs text-ink-muted">Net proceeds = estimated equity less selling costs of {Math.round(SELLING_COST_RANGE.low * 100)}% to {Math.round(SELLING_COST_RANGE.high * 100)}% of estimated value (commissions, closing and transfer costs). Estimated value and equity come from {ownerSample ? 'sample owner records (fictional until real owner data is connected)' : 'owner and sales records'}.</p>
+          </>
+        )
+        : <p class="text-sm text-ink-muted">Estimated value is not on record for this property yet, so no equity or net-proceeds range is shown.</p>}
+    </section>
+
+    <section aria-labelledby="momentum-h" class="break-inside-avoid" data-momentum>
+      <h2 id="momentum-h" class="t-h2 mb-1">{p.neighborhood} momentum</h2>
+      <p class="mb-3 text-sm text-ink-muted">Last 3 full months against the 3 before, to {asOf}. {trends.is_sample ? 'Includes sample figures.' : ''}</p>
+      {tiles.length === 0
+        ? <p class="text-sm text-ink-muted">Not enough history for this neighborhood yet.</p>
+        : <ul class="grid grid-cols-1 gap-3 sm:grid-cols-3 print:grid-cols-3">
+            {tiles.map((t) => (
+              <li class="rounded-lg border border-line p-4" data-momentum-tile={t.key}>
+                <p class="text-sm font-medium">{t.label} {t.sample && <SampleDataBadge />}</p>
+                <p class="mt-1 text-2xl font-semibold tabular-nums">{fmtNum(t.m!.recent)} {t.m!.pct != null && <span class:list={['text-sm font-semibold', t.m!.pct >= 0 ? 'text-good' : 'text-critical']}>{pct(t.m!.pct)}</span>}</p>
+                <p class="text-xs text-ink-muted">{t.unit}; {fmtNum(t.m!.prior)} in the 3 months before</p>
+              </li>
+            ))}
+          </ul>}
+    </section>
+
+    <section aria-labelledby="around-h" class="break-inside-avoid" data-around>
+      <h2 id="around-h" class="t-h2 mb-1">Recent permit and upzoning activity in {p.neighborhood}</h2>
+      <p class="mb-3 text-sm text-ink-muted">Neighborhood totals, not individual neighbors.</p>
+      <div class="grid gap-6 sm:grid-cols-2 print:grid-cols-2">
+        <div>
+          <h3 class="eyebrow mb-2">Permits approved, last 3 full months</h3>
+          {permitMix.length === 0 ? <p class="text-sm text-ink-muted">None that matter for selling.</p>
+            : <ul class="divide-y divide-line text-sm">{permitMix.map((x) => <li class="flex justify-between gap-3 py-1.5"><span>{x.label}</span><span class="font-medium tabular-nums">{fmtNum(x.n)}</span></li>)}</ul>}
+        </div>
+        <div>
+          <h3 class="eyebrow mb-2">Upzoning-eligible parcels <EstimateBadge /></h3>
+          {upzoning.length === 0 ? <p class="text-sm text-ink-muted">No upzoning screens on record.</p>
+            : <ul class="divide-y divide-line text-sm">{upzoning.map((x) => <li class="flex justify-between gap-3 py-1.5"><span>{x.label}</span><span class="font-medium tabular-nums">{fmtNum(x.n)}</span></li>)}</ul>}
+          <p class="mt-2 text-xs text-ink-muted">In-house screen of SB 9 and SB 79 eligibility; official data is pending.</p>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="records-h" data-records>
+      <h2 id="records-h" class="t-h2 mb-1">This property: public-record highlights</h2>
+      <p class="mb-3 text-sm text-ink-muted">Permits, upzoning screens and rental licensing on record for this parcel.</p>
       <SignalTimeline signals={publicSignals} />
-    </Section>
-    <Section title={`${p.neighborhood} market pulse`} description={`Last 12 months to ${fmtDate(new Date().toISOString())}. ${trends.is_sample ? 'Sample figures.' : ''}`}>
-      <ul class="flex flex-col gap-3">
-        {trends.metrics.map((m) => <li class="border-l-2 border-accent pl-4"><p class="text-sm font-medium">{m.title}</p><p class="text-sm text-ink-muted">{m.takeaway}</p></li>)}
-      </ul>
-    </Section>
-  </Stack>
+    </section>
+  </article>
 </PrintShell>
+<style is:global>
+  @media print {
+    [data-dossier-print] h2, [data-dossier-print] h3 { break-after: avoid; }
+    [data-dossier-print] li, [data-dossier-print] section { break-inside: avoid; }
+    main#main { font-size: 11pt; }
+    [data-dossier-print] a { color: inherit; text-decoration: none; }
+  }
+</style>

@@ -1,6 +1,7 @@
 ---
 import type { Recipe } from '../../lib/data/types';
-import { SIGNAL_GROUPS, SCORE_BANDS } from '../../lib/data/catalog';
+import { SIGNAL_GROUPS } from '../../lib/data/catalog';
+import { TIERS, tierRange } from '../../lib/ring';
 import FilterBar from '../ui/FilterBar.astro';
 import Select from '../ui/Select.astro';
 import Drawer from '../ui/Drawer.astro';
@@ -9,8 +10,12 @@ const areas = JSON.parse(areasRaw);
 export interface Props { recipes: Recipe[]; neighborhoods: string[]; territory?: string | null }
 const { recipes, neighborhoods, territory = null } = Astro.props;
 const payload = { areas, recipes: Object.fromEntries(recipes.map((r) => [r.key, r.name])), groups: SIGNAL_GROUPS };
-const bandRange = (i: number) => { const b = SCORE_BANDS[i]!; const hi = i === 0 ? 100 : SCORE_BANDS[i - 1]!.min - 1; return { value: `${b.min}-${hi}`, label: `${b.min}–${hi} · ${b.label}`, short: i === 0 ? `${b.min}+` : `${b.min}–${hi}` }; };
-const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
+// The range filter and the legend use the four score tiers (lib/ring.ts), so what you filter is what the colors mean.
+const ranges = TIERS.map((t, i) => { const r = tierRange(i); return { value: `${r.lo}-${r.hi}`, label: `${r.text} · ${t.label}`, short: r.text }; });
+const lenses = [
+  { key: 'tier', label: 'Score Tier' }, { key: 'equity', label: 'Estimated Equity' },
+  { key: 'upzone', label: 'Upzoning / SB 9 & SB 79' }, { key: 'str', label: 'STR Density' },
+];
 ---
 <div class="flex h-[calc(100dvh-10.5rem)] flex-col lg:h-[calc(100dvh-5.5rem)]" data-leadmap>
   <div class="border-b border-line bg-surface px-4 py-2 sm:px-8">
@@ -29,7 +34,15 @@ const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
   <div class="relative min-h-0 flex-1 bg-sunken">
     <div class="absolute inset-0"><div id="lead-map" class="h-full w-full" role="application" aria-label="Map of scored parcels. Use the results list to browse by keyboard."></div></div>
 
-    <div class="pointer-events-none absolute left-3 top-3 flex max-h-[calc(100%-5rem)] w-72 flex-col gap-2 max-lg:hidden">
+    <div class="pointer-events-none absolute left-3 right-14 top-3 z-10 flex lg:left-1/2 lg:right-auto lg:-translate-x-1/2">
+      <div role="group" aria-label="Map lens" data-lens-bar class="pointer-events-auto flex max-w-full gap-1 overflow-x-auto rounded-full border border-line bg-surface/95 p-1 shadow-lift backdrop-blur">
+        {lenses.map((l, i) => (
+          <button type="button" data-lens={l.key} aria-pressed={i === 0} class="whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink aria-pressed:bg-hero aria-pressed:text-white aria-pressed:shadow-sm">{l.label}</button>
+        ))}
+      </div>
+    </div>
+
+    <div class="pointer-events-none absolute left-3 top-14 flex max-h-[calc(100%-7rem)] w-72 flex-col gap-2 max-lg:hidden">
       <section aria-labelledby="results-h" class="pointer-events-auto flex min-h-0 flex-col rounded-lg border border-line bg-surface/95 shadow-md backdrop-blur">
         <h2 id="results-h" class="flex items-center justify-between px-4 py-3 text-sm font-semibold">Top matches <span id="map-count" class="text-xs font-normal text-ink-muted" aria-live="polite"></span></h2>
         <ul id="map-results" class="min-h-0 flex-1 overflow-y-auto border-t border-line"></ul>
@@ -38,11 +51,14 @@ const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
 
     <div class="pointer-events-none absolute bottom-6 left-3 flex flex-col gap-2">
       <div class="pointer-events-auto flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-line bg-surface/95 px-3 py-2 text-xs shadow-sm backdrop-blur [&>span]:whitespace-nowrap">
-        <span class="font-medium text-ink-muted">Score</span>
-        {[...SCORE_BANDS].reverse().map((b, i) => (
-          <span class="flex items-center gap-1.5"><i class={`inline-block shrink-0 rounded-full bg-band-${b.key} ring-1 ring-white`} style={`width:calc(var(--dot-${b.key}) * 2px);height:calc(var(--dot-${b.key}) * 2px)`}></i>{ranges[SCORE_BANDS.length - 1 - i]!.short}</span>
-        ))}
-        <span class="flex items-center gap-1.5"><i class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[9px] font-semibold text-accent-fg ring-1 ring-white">n</i>cluster</span>
+        <span class="font-medium text-ink-muted" data-legend-title>Score tier</span>
+        <span data-legend-items class="contents">
+          {[...TIERS].reverse().map((t, i) => (
+            <span class="flex items-center gap-1.5"><i class="inline-block shrink-0 rounded-full ring-1 ring-white" style={`background:${t.color};width:calc(var(--dot-${t.key}) * 2px);height:calc(var(--dot-${t.key}) * 2px)`}></i>{t.label} {ranges[TIERS.length - 1 - i]!.short}</span>
+          ))}
+        </span>
+        <span class="flex items-center gap-1.5"><i class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[9px] font-semibold text-accent-fg ring-1 ring-white">n</i>cluster = its highest value</span>
+        <span data-lens-status role="status" aria-live="polite" class="text-ink-muted"></span>
         <span data-map-sample hidden class="inline-flex items-center rounded-full border border-warning/30 bg-warning-soft px-1.5 py-px text-2xs font-semibold uppercase tracking-wide text-warning" title="Some scores on the map use sample owner data">Sample</span>
       </div>
     </div>
@@ -54,26 +70,25 @@ const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
 </Drawer>
 
 <script type="application/json" id="map-payload" set:html={JSON.stringify(payload)} />
-<script type="application/json" id="map-bands" set:html={JSON.stringify(SCORE_BANDS)} />
+<script type="application/json" id="map-tiers" set:html={JSON.stringify(TIERS)} />
 <script>
   import * as maplibregl from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
+  import { ringSvg, tierLabel, tierOf } from '../../lib/ring';
+  import { fmtGci, gciBadge, leadHeadline, publicReason } from '../../lib/present';
   import { sentenceCase } from '../../lib/format';
-  import { ringSvg } from '../../lib/ring';
+  import type { LeadSummary } from '../../lib/data/types';
 
-  type Band = 'low' | 'watch' | 'warm' | 'hot';
-  type Lead = {
-    parcel: { apn: string; situs_address: string | null; neighborhood: string | null };
-    score: { score: number; reason_text: string | null; recipe_matches: string[] };
-    owner: { owner_name: string | null; is_sample: boolean; est_equity: number | null } | null; years_owned: number | null;
-  };
+  type TierKey = 'immediate' | 'priority' | 'watchlist' | 'monitor';
+  type LensKey = 'tier' | 'equity' | 'upzone' | 'str';
   const payload = JSON.parse(document.getElementById('map-payload')!.textContent!) as { areas: GeoJSON.FeatureCollection; recipes: Record<string, string>; groups: Record<string, string> };
-  const bands = JSON.parse(document.getElementById('map-bands')!.textContent!) as { key: Band; min: number }[];
-  const bandOf = (n: number): Band => (bands.find((b) => n >= b.min) ?? bands[bands.length - 1]!).key;
+  const tiers = JSON.parse(document.getElementById('map-tiers')!.textContent!) as { key: TierKey; label: string; min: number; color: string }[];
+  const tierColor = Object.fromEntries(tiers.map((t) => [t.key, t.color])) as Record<TierKey, string>;
+  const tierMin = Object.fromEntries(tiers.map((t) => [t.key, t.min])) as Record<TierKey, number>;
   const css = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  const bandRadius = { low: Number(css('--dot-low')), watch: Number(css('--dot-watch')), warm: Number(css('--dot-warm')), hot: Number(css('--dot-hot')) };
-  const bandColor = { low: css('--color-band-low'), watch: css('--color-band-watch'), warm: css('--color-band-warm'), hot: css('--color-band-hot') };
+  const radius = { monitor: Number(css('--dot-monitor')), watchlist: Number(css('--dot-watchlist')), priority: Number(css('--dot-priority')), immediate: Number(css('--dot-immediate')) };
   const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 2 });
+  const usd0 = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
   const form = document.getElementById('map-filters') as HTMLFormElement;
   const results = document.getElementById('map-results')!;
   const count = document.getElementById('map-count')!;
@@ -94,42 +109,128 @@ const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
 
   const map = new maplibregl.Map({
     container: 'lead-map', style: 'https://tiles.openfreemap.org/styles/positron',
-    bounds, fitBoundsOptions: { padding: { top: 40, bottom: 64, left: panelLeft(), right: 56 } },
+    bounds, fitBoundsOptions: { padding: { top: 56, bottom: 64, left: panelLeft(), right: 56 } },
     attributionControl: { compact: true }, cooperativeGestures: false,
   });
   (window as unknown as { __leadMap: maplibregl.Map }).__leadMap = map; // for the e2e test
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
-  const bandBadge = (s: number, band: Band, size: 'sm' | 'xl' = 'sm') => ringSvg(s, band, size);
   const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
   const sampleBadge = '<span class="inline-flex items-center rounded-full border border-warning/30 bg-warning-soft px-1.5 py-px text-2xs font-semibold uppercase tracking-wide text-warning">Sample</span>';
+  const estTag = '<span class="est-tag" title="Estimated; not official">est.</span>';
+
+  /* ── lenses: each one is a color expression over feature properties, plus its legend ── */
+  const NO_DATA = '#CBD5E1';
+  const EQ = ['#5F7390', '#2F7488', '#1F5F7A', '#0B3B5A'];
+  const UPZ = { 9: '#1E3A8A', 79: '#B45309', 88: '#B91C1C', none: NO_DATA };
+  const STR = [NO_DATA, '#C6923A', '#B45309', '#7C2D12'];
+  type Names = { score: string; eq: string; upz: string; str: string };
+  const own: Names = { score: 'score', eq: 'eq', upz: 'upz', str: 'strd' };
+  const agg: Names = { score: 'maxScore', eq: 'maxEq', upz: 'maxUpz', str: 'maxStr' };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const colorExpr = (lens: LensKey, n: Names): any => {
+    const g = (k: string, d: number) => ['coalesce', ['get', k], d];
+    if (lens === 'tier') return ['step', ['get', n.score], tierColor.monitor, tierMin.watchlist, tierColor.watchlist, tierMin.priority, tierColor.priority, tierMin.immediate, tierColor.immediate];
+    if (lens === 'equity') return ['step', g(n.eq, -1), NO_DATA, 0, EQ[0], 250000, EQ[1], 500000, EQ[2], 1000000, EQ[3]];
+    if (lens === 'upzone') return ['match', g(n.upz, 0), 9, UPZ[9], 79, UPZ[79], 88, UPZ[88], UPZ.none];
+    return ['step', g(n.str, 0), STR[0], 1, STR[1], 3, STR[2], 6, STR[3]];
+  };
+  const dot = (c: string, px = 10) => `<i class="inline-block shrink-0 rounded-full ring-1 ring-white" style="background:${c};width:${px}px;height:${px}px"></i>`;
+  const legends: Record<LensKey, { title: string; items: [string, string][] }> = {
+    tier: { title: 'Score tier', items: tiers.map((t, i) => [t.color, `${t.label} ${t.min}–${i === 0 ? 100 : tiers[i - 1]!.min - 1}`]) },
+    equity: { title: 'Estimated equity', items: [[EQ[3]!, '$1M+'], [EQ[2]!, '$500k–1M'], [EQ[1]!, '$250–500k'], [EQ[0]!, 'Under $250k'], [NO_DATA, 'No data']] },
+    upzone: { title: 'Upzoning (estimated)', items: [[UPZ[9], 'SB 9 lot split'], [UPZ[79], 'SB 79 transit'], [UPZ[88], 'Both'], [UPZ.none, 'Not flagged']] },
+    str: { title: 'STR licenses nearby', items: [[STR[3]!, '6+'], [STR[2]!, '3–5'], [STR[1]!, '1–2'], [STR[0]!, 'None']] },
+  };
+  const legendItems = document.querySelector<HTMLElement>('[data-legend-items]')!;
+  const legendTitle = document.querySelector<HTMLElement>('[data-legend-title]')!;
+  const lensStatus = document.querySelector<HTMLElement>('[data-lens-status]')!;
+  const lensBtns = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-lens]'));
+  let lens: LensKey = 'tier';
+
+  type LensData = { available: boolean; equity?: Record<string, [number | null, number | null]>; upzone?: Record<string, number>; str?: string[] };
+  let lensData: LensData | null = null;
+  let lensLoad: Promise<LensData> | null = null;
+  let current: (GeoJSON.FeatureCollection & { sample?: boolean }) | null = null;
+
+  /** Adds eq / upz / strd to every feature from the lens data (STR density = licensed parcels in the same ~200 m grid cell). */
+  function mergeLens(fc: GeoJSON.FeatureCollection) {
+    if (!lensData?.available) return;
+    const strSet = new Set(lensData.str ?? []);
+    const cell = (c: number[]) => `${Math.floor(c[0]! / 0.002)},${Math.floor(c[1]! / 0.002)}`;
+    const perCell = new Map<string, number>();
+    for (const f of fc.features) if (strSet.has(f.properties!.apn as string)) { const k = cell((f.geometry as GeoJSON.Point).coordinates); perCell.set(k, (perCell.get(k) ?? 0) + 1); }
+    for (const f of fc.features) {
+      const apn = f.properties!.apn as string;
+      const e = lensData.equity?.[apn]?.[0];
+      f.properties!.eq = e != null ? e : -1;
+      f.properties!.upz = lensData.upzone?.[apn] ?? 0;
+      f.properties!.strd = perCell.get(cell((f.geometry as GeoJSON.Point).coordinates)) ?? 0;
+    }
+  }
+
+  function paintLens() {
+    if (!map.getLayer('leads')) return;
+    map.setPaintProperty('leads', 'circle-color', colorExpr(lens, own));
+    map.setPaintProperty('clusters', 'circle-color', colorExpr(lens, agg));
+    legendTitle.textContent = legends[lens].title;
+    legendItems.innerHTML = legends[lens].items.map(([c, t]) => `<span class="flex items-center gap-1.5">${dot(c)}${esc(t)}</span>`).join('');
+    for (const b of lensBtns) b.setAttribute('aria-pressed', String(b.dataset.lens === lens));
+  }
+
+  async function setLens(next: LensKey) {
+    lens = next; lensStatus.textContent = '';
+    if (next !== 'tier' && !lensData) {
+      lensStatus.textContent = 'Loading lens data…';
+      lensLoad ??= fetch('/api/map-lens').then((r) => (r.ok ? (r.json() as Promise<LensData>) : { available: false }), () => ({ available: false }));
+      lensData = await lensLoad;
+      if (!lensData.available) { lens = 'tier'; lensStatus.textContent = 'Lens data is not available right now.'; paintLens(); return; }
+      lensStatus.textContent = '';
+      if (current) { mergeLens(current); (map.getSource('leads') as maplibregl.GeoJSONSource | undefined)?.setData(current); }
+    }
+    if (next === 'str' || next === 'upzone' || next === 'equity') lensStatus.textContent = 'Estimates and license flags; clusters show their highest value.';
+    paintLens();
+  }
+  for (const b of lensBtns) b.addEventListener('click', () => void setLens(b.dataset.lens as LensKey));
 
   async function loadResults() {
     const q = query(); q.set('size', '25');
     const res = await fetch(`/api/leads?${q}`); if (!res.ok) return;
-    const page = (await res.json()) as { items: Lead[]; total: number };
+    const page = (await res.json()) as { items: LeadSummary[]; total: number };
     count.textContent = `${page.total.toLocaleString('en-US')} parcels`;
     results.innerHTML = page.items.map((l) => `
       <li class="border-b border-line last:border-0"><button type="button" data-apn="${l.parcel.apn}" class="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-sunken">
-        ${bandBadge(l.score.score, bandOf(l.score.score))}<span class="min-w-0"><span class="block truncate text-sm font-medium">${esc(l.parcel.situs_address ?? l.parcel.apn)}</span><span class="block truncate text-xs text-ink-muted">${esc(l.parcel.neighborhood ?? '')}</span></span></button></li>`).join('')
+        ${ringSvg(l.score.score, 'sm')}<span class="min-w-0"><span class="block truncate text-sm font-medium">${esc(l.parcel.situs_address ?? l.parcel.apn)}</span><span class="block truncate text-xs text-ink-muted">${esc(l.parcel.neighborhood ?? '')}</span></span></button></li>`).join('')
       || '<li class="px-4 py-6 text-sm text-ink-muted">No parcels match these filters.</li>';
   }
 
+  /** One labeled fact in the drawer's grid. */
+  const fact = (label: string, value: string, extra = '') => `<div><dt class="eyebrow">${label} ${extra}</dt><dd class="mt-1 text-sm font-semibold tabular-nums">${value}</dd></div>`;
+
   async function preview(apn: string, lng?: number, lat?: number) {
     const res = await fetch(`/api/leads?q=${encodeURIComponent(apn)}&size=1&all=1`); if (!res.ok) return;
-    const l = ((await res.json()) as { items: Lead[] }).items[0]; if (!l) return;
-    const band = bandOf(l.score.score);
+    const l = ((await res.json()) as { items: LeadSummary[] }).items[0]; if (!l) return;
+    const sample = !!l.owner?.is_sample;
+    const head = leadHeadline(l);
+    const gci = gciBadge(l);
+    const reason = publicReason(l.score.reason_text);
     document.getElementById('preview-body')!.innerHTML = `
-      <div class="flex items-start gap-4">${bandBadge(l.score.score, band, 'xl')}
-        <div class="min-w-0"><p class="text-base font-semibold">${esc(l.parcel.situs_address ?? l.parcel.apn)}</p><p class="text-sm text-ink-muted">${esc(l.parcel.neighborhood ?? '')}</p></div></div>
-      <p class="text-sm text-ink">${esc(sentenceCase(l.score.reason_text))}</p>
-      <div class="flex flex-wrap gap-1.5">${l.score.recipe_matches.map((r) => `<span class="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-fg">${esc(sentenceCase(payload.recipes[r] ?? r))}</span>`).join('')}</div>
-      <dl class="grid grid-cols-2 gap-4 border-t border-line pt-4 text-sm">
-        <div><dt class="eyebrow">Owner ${l.owner?.is_sample ? sampleBadge : ''}</dt><dd class="mt-1">${esc(l.owner?.owner_name ?? '—')}</dd></div>
-        <div><dt class="eyebrow">Years owned</dt><dd class="mt-1">${l.years_owned ?? '—'}</dd></div>
-        <div><dt class="eyebrow">Est. equity</dt><dd class="mt-1">${l.owner?.est_equity != null ? usd.format(l.owner.est_equity) : '—'}</dd></div>
+      <div class="flex items-start gap-4">${ringSvg(l.score.score, 'xl')}
+        <div class="min-w-0"><p class="text-base font-semibold">${esc(l.parcel.situs_address ?? l.parcel.apn)}</p><p class="text-sm text-ink-muted">${esc(l.parcel.neighborhood ?? '')}</p>
+        <p class="mt-1 text-sm font-semibold" style="color:var(--color-tier-${tierOf(l.score.score)})">${esc(tierLabel(l.score.score))}</p></div></div>
+      <a href="/leads/${encodeURIComponent(l.parcel.apn)}" data-open-dossier class="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md border border-gold-bright bg-hero px-4 text-sm font-semibold text-white shadow-md hover:bg-hero-raised">Open Lead Dossier <span aria-hidden="true">→</span></a>
+      ${head ? `<div data-drawer-signal><p class="eyebrow">Top signal</p><p class="mt-1 text-sm font-medium text-ink"><span${head.sample ? ' class="sample-fact" title="Based on sample data, not a real record"' : ''}>${esc(head.text)}</span>${head.estimate ? estTag : ''}</p></div>` : ''}
+      ${reason ? `<p class="text-sm text-ink-muted">${esc(reason)}</p>` : ''}
+      <div class="flex flex-wrap gap-1.5">${l.score.recipe_matches.filter((r) => !/^(financial_pressure)$/.test(r)).map((r) => `<span class="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-fg">${esc(sentenceCase(payload.recipes[r] ?? r))}</span>`).join('')}</div>
+      <dl data-drawer-facts class="grid grid-cols-2 gap-4 border-t border-line pt-4">
+        ${fact('Lot size', l.lot_sqft ? `${Math.round(l.lot_sqft).toLocaleString('en-US')} sq ft` : '—')}
+        ${fact('Zoning', l.zoning ? esc(l.zoning) : '—')}
+        ${fact('Est. GCI', gci ? `${fmtGci(gci.value)}${estTag}` : '—', sample && gci ? sampleBadge : '')}
+        ${fact('Est. equity', l.owner?.est_equity != null ? `${usd.format(l.owner.est_equity)}${estTag}` : '—', sample && l.owner?.est_equity != null ? sampleBadge : '')}
+        ${fact('Years owned', l.years_owned != null ? String(l.years_owned) : '—', sample && l.years_owned != null ? sampleBadge : '')}
+        ${fact('Est. value', l.owner?.est_value != null ? `${usd0.format(l.owner.est_value)}${estTag}` : '—', sample && l.owner?.est_value != null ? sampleBadge : '')}
       </dl>
-      <a href="/leads/${l.parcel.apn}" class="inline-flex h-10 items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-fg hover:bg-accent-strong">Open full brief</a>`;
+      <p class="text-xs text-ink-muted">Est. GCI is 2.5% of estimated property value.</p>`;
     document.dispatchEvent(new CustomEvent('drawer:open', { detail: { id: 'lead-preview' } }));
     if (lng != null && lat != null) {
       map.easeTo({ center: [lng, lat], duration: 500, offset: window.innerWidth >= 640 ? [-150, 0] : [0, -120] });
@@ -137,18 +238,17 @@ const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const bandMatch = (obj: Record<Band, unknown>, other: unknown): any => ['match', ['get', 'band'], 'hot', obj.hot, 'warm', obj.warm, 'watch', obj.watch, other];
   let firstFit = true;
   async function loadPoints() {
     const res = await fetch(`/api/map?${query()}`); if (!res.ok) return;
     const fc = (await res.json()) as GeoJSON.FeatureCollection & { sample?: boolean };
-    for (const f of fc.features) f.properties!.band = bandOf(f.properties!.score as number); // band comes from the catalog, in the browser
     sampleTag.hidden = !fc.sample;
+    mergeLens(fc);
+    current = fc;
     (map.getSource('leads') as maplibregl.GeoJSONSource | undefined)?.setData(fc);
     if (!firstFit && fc.features.length) {
       const b = new maplibregl.LngLatBounds(); for (const f of fc.features) b.extend((f.geometry as GeoJSON.Point).coordinates as [number, number]);
-      map.fitBounds(b, { padding: { top: 60, bottom: 80, left: panelLeft() + 16, right: 56 }, maxZoom: 15.5, duration: 600 });
+      map.fitBounds(b, { padding: { top: 70, bottom: 80, left: panelLeft() + 16, right: 56 }, maxZoom: 15.5, duration: 600 });
     }
     firstFit = false;
   }
@@ -156,14 +256,19 @@ const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
   map.on('load', () => {
     map.addSource('areas', { type: 'geojson', data: payload.areas });
     map.addLayer({ id: 'areas-line', type: 'line', source: 'areas', paint: { 'line-color': css('--color-accent'), 'line-width': 1.25, 'line-opacity': 0.55, 'line-dasharray': [3, 2] } });
-    // Clustering keeps tens of thousands of points readable; the cluster colour follows the highest score inside it.
-    map.addSource('leads', { type: 'geojson', data: empty, cluster: true, clusterRadius: 38, clusterMaxZoom: 14, clusterProperties: { maxScore: ['max', ['get', 'score']] } });
+    // Clustering keeps tens of thousands of points readable; each cluster takes the color of the highest value inside it.
+    const g = (k: string, d: number) => ['coalesce', ['get', k], d];
+    map.addSource('leads', {
+      type: 'geojson', data: empty, cluster: true, clusterRadius: 38, clusterMaxZoom: 14,
+      clusterProperties: { maxScore: ['max', ['get', 'score']], maxEq: ['max', g('eq', -1)], maxUpz: ['max', g('upz', 0)], maxStr: ['max', g('strd', 0)] },
+    });
     map.addSource('selected', { type: 'geojson', data: empty });
-    const radius = bandMatch(bandRadius, bandRadius.low);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r: any = ['step', ['get', 'score'], radius.monitor, tierMin.watchlist, radius.watchlist, tierMin.priority, radius.priority, tierMin.immediate, radius.immediate];
     map.addLayer({
       id: 'clusters', type: 'circle', source: 'leads', filter: ['has', 'point_count'],
       paint: {
-        'circle-color': ['step', ['get', 'maxScore'], bandColor.low, bands.find((b) => b.key === 'watch')!.min, bandColor.watch, bands.find((b) => b.key === 'warm')!.min, bandColor.warm, bands.find((b) => b.key === 'hot')!.min, bandColor.hot],
+        'circle-color': colorExpr('tier', agg),
         'circle-radius': ['step', ['get', 'point_count'], 13, 50, 17, 500, 22, 3000, 28],
         'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2,
       },
@@ -175,11 +280,12 @@ const ranges = SCORE_BANDS.map((_, i) => bandRange(i));
     map.addLayer({
       id: 'leads', type: 'circle', source: 'leads', filter: ['!', ['has', 'point_count']],
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, ['*', 0.85, radius], 15, radius],
-        'circle-color': bandMatch(bandColor, bandColor.low), 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.25, 'circle-opacity': 1,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, ['*', 0.85, r], 15, r],
+        'circle-color': colorExpr('tier', own), 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.25, 'circle-opacity': 1,
       },
     });
-    map.addLayer({ id: 'selected', type: 'circle', source: 'selected', paint: { 'circle-radius': 14, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': css('--color-accent'), 'circle-stroke-width': 2.5 } });
+    map.addLayer({ id: 'selected', type: 'circle', source: 'selected', paint: { 'circle-radius': 14, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': css('--color-gold'), 'circle-stroke-width': 2.5 } });
+    paintLens();
     map.on('click', 'leads', (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
       const f = e.features?.[0]; if (!f) return;
       const [lng, lat] = (f.geometry as GeoJSON.Point).coordinates as [number, number];

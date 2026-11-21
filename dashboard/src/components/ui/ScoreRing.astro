@@ -1,12 +1,10 @@
 ---
-import { BAND_LABEL, bandOf } from '../../lib/data/catalog';
-import { ringSvg, type RingSize } from '../../lib/ring';
+import { ringSvg, tierLabel, tierOf, type RingSize } from '../../lib/ring';
 export interface Props { score: number; size?: RingSize; showLabel?: boolean; class?: string }
 const { score, size = 'md', showLabel = false, class: cls } = Astro.props;
-const band = bandOf(score);
-const label = `Score ${score} out of 100, ${BAND_LABEL[band]}`;
+const label = `Score ${score} out of 100, ${tierLabel(score)}`;
 ---
-<span class:list={['inline-flex shrink-0 items-center gap-2', cls]}>
-  <Fragment set:html={ringSvg(score, band, size, label)} />
-  {showLabel && <span class="t-meta text-ink-muted">{BAND_LABEL[band]}</span>}
+<span class:list={['inline-flex shrink-0 items-center gap-2', cls]} data-tier={tierOf(score)}>
+  <Fragment set:html={ringSvg(score, size, label)} />
+  {showLabel && <span class="t-meta font-semibold" style={`color:var(--color-tier-${tierOf(score)})`}>{tierLabel(score)}</span>}
 </span>

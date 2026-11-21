@@ -33,7 +33,7 @@ function toLead(r: Row, now: Date): LeadSummary {
   return {
     parcel: { apn: r.apn, situs_address: titleAddress(r.situs_address) || null, neighborhood: r.neighborhood },
     score: { score: r.score, reason_text: r.reason_text, recipe_matches: r.recipe_matches ?? [], primary_recipe: r.primary_recipe, model_version: r.model_version, scored_at: r.scored_at, uses_sample_data: r.uses_sample_data },
-    owner: r.owner_name !== null || r.owner_as_of ? { owner_name: r.owner_name, is_sample: !!r.owner_is_sample, last_sale_date: r.last_sale_date, est_equity: r.est_equity, absentee: r.absentee ?? null, out_of_state: r.out_of_state ?? null } : null,
+    owner: r.owner_name !== null || r.owner_as_of ? { owner_name: r.owner_name, is_sample: !!r.owner_is_sample, last_sale_date: r.last_sale_date, est_equity: r.est_equity, est_value: r.est_value != null ? Number(r.est_value) : null, absentee: r.absentee ?? null, out_of_state: r.out_of_state ?? null } : null,
     years_owned: yearsSince(r.last_sale_date, now),
     lot_sqft: r.lot_sqft != null ? Number(r.lot_sqft) : null,
     zoning: r.zoning ?? null,

@@ -26,7 +26,7 @@ function summary(apn: string): LeadSummary {
   return {
     parcel: { apn, situs_address: p.situs_address, neighborhood: p.neighborhood },
     score: { score: sc.score, reason_text: sc.reason_text, recipe_matches: sc.recipe_matches ?? [], primary_recipe: sc.primary_recipe, model_version: sc.model_version, scored_at: sc.scored_at, uses_sample_data: sc.uses_sample_data },
-    owner: o ? { owner_name: o.owner_name, is_sample: o.is_sample, last_sale_date: o.last_sale_date, est_equity: o.est_equity, absentee: o.absentee, out_of_state: o.out_of_state } : null,
+    owner: o ? { owner_name: o.owner_name, is_sample: o.is_sample, last_sale_date: o.last_sale_date, est_equity: o.est_equity, est_value: o.est_value ?? null, absentee: o.absentee, out_of_state: o.out_of_state } : null,
     years_owned: yearsSince(o?.last_sale_date, NOW),
     lot_sqft: p.lot_sqft, zoning: p.zoning,
     latest_signal_date: sigs.find((s) => (EVENT_TYPES as readonly string[]).includes(s.signal_type) && s.signal_group !== 'other')?.signal_date ?? null,

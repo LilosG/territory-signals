@@ -3,15 +3,16 @@
  * Neutrals (warm), ONE accent (from brand.ts), semantic colors, type scale,
  * spacing (4/8 base), radius, borders, elevation. Screens never hard-code these.
  */
-@theme {
+@theme static {
   --color-*: initial;
+  --color-white: #ffffff;
 
   /* Neutrals */
-  --color-canvas: #f6f5f2;       /* page background */
+  --color-canvas: #f4f6f9;       /* page background: cool alabaster */
   --color-surface: #ffffff;      /* cards */
-  --color-sunken: #efeeea;       /* wells, table headers */
-  --color-line: #e4e1da;         /* hairlines */
-  --color-line-strong: #cfcbc2;
+  --color-sunken: #ebeef3;       /* wells, table headers */
+  --color-line: #dfe3ea;         /* hairlines */
+  --color-line-strong: #c7cdd8;
   --color-ink: #14171f;          /* primary text, 16:1 on canvas */
   --color-ink-muted: #565c6b;    /* secondary text, 6.5:1 on white */
   --color-ink-faint: #626777;    /* tertiary text, 5:1 on canvas and wells */
@@ -23,7 +24,8 @@
   --color-accent-fg: var(--brand-accent-fg, #ffffff);
 
   /* Muted gold: used sparingly for highlights and "new" markers. Text uses gold-strong (4.9:1 on white). */
-  --color-gold: #b8944a;
+  --color-gold: #b8862d;          /* restrained gold: active highlights */
+  --color-gold-bright: #c6923a;
   --color-gold-strong: #86671c;
   --color-gold-soft: #f6efdc;
 
@@ -57,6 +59,20 @@
   --color-band-hot: #0a1630;
   --color-band-hot-soft: #0e1c38;
 
+  /* Score tiers (Phase 5J): four semantic colors, one per tier. Each is >= 4.5:1 on white. See lib/ring.ts for the cut-offs. */
+  --color-tier-immediate: #b91c1c;   /* 80-100 crimson */
+  --color-tier-priority: #b45309;    /* 65-79 warm gold */
+  --color-tier-watchlist: #1e3a8a;   /* 45-64 navy-indigo */
+  --color-tier-monitor: #64748b;     /* under 45 slate */
+  --color-tier-immediate-soft: #fbe9e7;
+  --color-tier-priority-soft: #fbefdc;
+  --color-tier-watchlist-soft: #e3e9f7;
+  --color-tier-monitor-soft: #edf0f4;
+
+  /* Briefing hero */
+  --color-hero: #0f1e36;
+  --color-hero-raised: #17294b;
+
   /* Type */
   --font-sans: var(--brand-font, 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif);
   --text-2xs: 0.6875rem;  --text-2xs--line-height: 1rem;
@@ -80,6 +96,8 @@
   --shadow-xs: 0 1px 0 rgb(20 23 31 / 0.04);
   --shadow-sm: 0 1px 2px rgb(20 23 31 / 0.05), 0 1px 1px rgb(20 23 31 / 0.03);
   --shadow-md: 0 8px 24px -8px rgb(20 23 31 / 0.14), 0 2px 6px rgb(20 23 31 / 0.05);
+  /* Multi-stop lift for hover/focus: contact, ambient and a soft far shadow */
+  --shadow-lift: 0 1px 1px rgb(15 30 54 / 0.06), 0 3px 6px -1px rgb(15 30 54 / 0.07), 0 12px 24px -8px rgb(15 30 54 / 0.14), 0 24px 40px -16px rgb(15 30 54 / 0.10);
   --shadow-lg: 0 24px 48px -16px rgb(20 23 31 / 0.22);
 
   --breakpoint-sm: 40rem;
@@ -90,4 +108,4 @@
 /* spacing: Tailwind's default scale is already 4px-based (--spacing: 0.25rem); 8px steps are the even numbers. */
 
 /* Map dot radius (px) per score band: size grows with band as well as color. Map and legend both read these. */
-:root { --dot-low: 4; --dot-watch: 5; --dot-warm: 6.5; --dot-hot: 8; }
+:root { --dot-low: 4; --dot-watch: 5; --dot-warm: 6.5; --dot-hot: 8; --dot-monitor: 4; --dot-watchlist: 5; --dot-priority: 6.5; --dot-immediate: 8; }
