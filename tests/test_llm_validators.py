@@ -287,9 +287,10 @@ def test_permit_scope_limits_to_recent_or_high_scoring_parcels(db):
     from test_llm_tasks_db import add_permit, seed_scored
     from territory.config import PermitScope
     seed_scored(db)
-    add_permit(db, "6000000000", "OLD-1", "Replace the old water heater at this house", on=date(2015, 1, 1))
+    add_permit(db, "6000000002", "OLD-1", "Replace the old water heater at this house", on=date(2015, 1, 1))
     add_permit(db, "6000000001", "NEW-1", "Replace the new water heater at this house", on=date(2026, 10, 1))
     everything = {p.record_id for p in pi.load_permits(db)}
+    # parcel 6000000000 scores 100 under v0.5, so the old permit sits on a parcel that scores below the minimum
     recent_only = {p.record_id for p in pi.load_permits(db, scope=PermitScope(months=36, min_lead_score=100), today=date(2026, 11, 20))}
     with_scores = {p.record_id for p in pi.load_permits(db, scope=PermitScope(months=36, min_lead_score=0), today=date(2026, 11, 20))}
     assert "OLD-1" in everything and "OLD-1" not in recent_only and "NEW-1" in recent_only

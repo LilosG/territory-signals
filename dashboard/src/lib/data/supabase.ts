@@ -1,12 +1,12 @@
 import { titleAddress } from '../format';
-import { topSignalLine, type Marked } from '../present';
+import { topSignalLine, recipeSignalLine, type Marked } from '../present';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadClientConfig } from '../config';
 import { EVENT_TYPES, INTERNAL_SOURCES, RECIPE_LABELS, SENSITIVE_TYPES, SOURCE_CATALOG, STAGES, TRAIT_TYPES, bandOf } from './catalog';
 import type { DataProvider, MarkSample, SharePageReader } from './provider';
 import { buildTrends, leadStatus, scoreItems, yearsSince, type TrendRows } from './shared';
 import type {
-  AiStatus, AiTaskRow, WeeklyBriefAi, Backtest, ClientConfig, Coverage, FunnelRow, LeadDetail, LeadFilters, LeadPage, LeadSummary, MapData, NavCounts, OffMarketPage,
+  AiStatus, AiTaskRow, StageValue, WeeklyBriefAi, Backtest, ClientConfig, Coverage, FunnelRow, LeadDetail, LeadFilters, LeadPage, LeadSummary, MapData, NavCounts, OffMarketPage,
   Outreach, OutreachItem, OutreachPage, Performance, Pipeline, RecentOutcome, RecipeCard, SearchHit, SharePage,
   SignalEvent, SourceCard, StatSeries, TeamMember, TodayFeed, Trends,
 } from './types';
@@ -120,6 +120,12 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
     if (apns.length === 0) return new Map();
     const rows = must(await db.from('latest_scores').select('apn,components').in('apn', apns), 'latest_scores') as Row[];
     return new Map(rows.map((r) => [String(r.apn), topSignalLine(r.components)]));
+  }
+  /** Raw score components per parcel, for the recipe-scoped lines on /recipes. */
+  async function componentsByApn(apns: string[]): Promise<Map<string, unknown>> {
+    if (apns.length === 0) return new Map();
+    const rows = must(await db.from('latest_scores').select('apn,components').in('apn', apns), 'latest_scores') as Row[];
+    return new Map(rows.map((r) => [String(r.apn), r.components]));
   }
   const toWeekly = (r: Row): WeeklyBriefAi => {
     const o = r.output as Row;
@@ -286,11 +292,14 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
     },
 
     async getPipeline(): Promise<Pipeline> {
-      const [overall, recent] = await Promise.all([
+      const [overall, recent, values] = await Promise.all([
         db.rpc('funnel_by', { p_dim: 'all', p_hood: hood }),
         db.from('stage_events').select('apn,stage,team_member_email,note,occurred_at').eq('source', 'dashboard').order('occurred_at', { ascending: false }).limit(40),
+        db.rpc('pipeline_stage_value', { p_hood: hood }),
       ]);
       const o = (must(overall, 'funnel_by') as Row[])[0];
+      const valueBy = new Map((values.error ? [] : (values.data ?? []) as Row[]).map((r) => [String(r.stage), r]));    // older database: no value, GCI shows as unavailable
+      const stage_values: StageValue[] = FUNNEL_KEYS.map((key) => { const v = valueBy.get(key); return { key, parcels: num(v?.parcels), valued_parcels: num(v?.valued_parcels), est_value: num(v?.est_value), sample_parcels: num(v?.sample_parcels) }; });
       const evs = must(recent, 'stage_events') as Row[];
       const addr = await addresses([...new Set(evs.map((e) => e.apn))]);
       const names = new Map((must(await db.from('team_members').select('email,name'), 'team') as Row[]).map((r) => [String(r.email).toLowerCase(), r.name]));
@@ -300,8 +309,10 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
       }));
       const is_sample = (await anySample()) && num(o?.signal) > 0;
       if (is_sample) mark();
-      return { ai: await aiStatus(), overall: funnelRow('All leads', o), has_events: num(o?.signal) > 0, recent: recentOut, by_agent: [], by_recipe: [], is_sample };
+      return { overall: funnelRow('All leads', o), stage_values, has_events: num(o?.signal) > 0, recent: recentOut, by_agent: [], by_recipe: [], is_sample };
     },
+
+    async getAiStatus(): Promise<AiStatus | null> { return aiStatus(); },
 
     async getBriefings(): Promise<WeeklyBriefAi[]> {
       return (await aiRows('weekly_brief', undefined, 60)).map(toWeekly);
@@ -393,13 +404,13 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
       const by = new Map((must(sum, 'recipe_summary') as Row[]).map((r) => [r.recipe, r]));
       const tops = (must(top, 'recipe_top_leads') as Row[]);
       if (sample) mark();
-      const lines = await topSignalLines([...new Set(tops.map((t) => String(t.apn)))]);
+      const comps = await componentsByApn([...new Set(tops.map((t) => String(t.apn)))]);
       return cfg.recipes.map((r): RecipeCard => {
         const s = by.get(r.key);
         const parcels = num(s?.parcels);
         return {
           key: r.key, name: r.name, description: r.description, enabled: r.enabled, parcels, new_this_week: num(s?.new_this_week), strong: num(s?.strong),
-          top: tops.filter((t) => t.recipe === r.key).sort((a, b) => a.rank - b.rank).map((t) => ({ apn: t.apn, score: t.score, situs_address: titleAddress(t.situs_address) || null, neighborhood: t.neighborhood, top_signal: lines.get(String(t.apn)) ?? null })),
+          top: tops.filter((t) => t.recipe === r.key).sort((a, b) => a.rank - b.rank).map((t) => ({ apn: t.apn, score: t.score, situs_address: titleAddress(t.situs_address) || null, neighborhood: t.neighborhood, top_signal: recipeSignalLine(r.key, comps.get(String(t.apn))) })),
           idle_reason: parcels > 0 ? null : idleReason(r.key, r.enabled, r.requires_data ?? []),
           is_sample: sample,
         };

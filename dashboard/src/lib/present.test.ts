@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { isInitialLoadWeek, statDelta, weekDelta, claimLabel } from './present.ts';
+import { isInitialLoadWeek, statDelta, weekDelta, claimLabel, recipeSignalLine, pipelineSteps, estGci } from './present.ts';
 
 const TODAY = '2026-11-25';
 
@@ -129,4 +129,69 @@ test('a scoring-model change shows "Scoring updated" instead of a percentage', (
   assert.equal(d.label, 'Scoring updated');
   assert.doesNotMatch(d.label, /%/);
   assert.equal(statDelta({ ...s, scoring_updated: false }, TODAY).label, '+300% vs last week');
+});
+
+test('a scoring-model change wins over the initial-load rule and never shows a percentage, even for a big drop', () => {
+  const d = statDelta({ this_week: 10, last_week: 50, weeks: [10, 50, 48], first_day: '2026-01-01', scoring_updated: true }, TODAY);   // would be -80%
+  assert.equal(d.label, 'Scoring updated');
+  assert.equal(d.scoringUpdated, true);
+  assert.equal(d.firstFull, false);
+  assert.equal(statDelta({ this_week: 10, last_week: 50, weeks: [10, 50, 48], first_day: '2026-01-01' }, TODAY).label, '-80% vs last week');
+});
+
+// ── recipe-scoped headline (Phase 5I) ──
+const sig = (key: string, contribution: number, facts: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) =>
+  ({ key, kind: 'signal', contribution, facts, signal_date: '2026-10-01', is_sample: false, is_estimate: false, ...extra });
+const own = (key: string, contribution: number, facts: Record<string, unknown> = {}) =>
+  ({ key, kind: 'owner', contribution, facts, is_sample: true, is_estimate: false });
+const STRO = sig('stro_license_active', 5, { tier: 'Tier 3' });          // the global-highest on these parcels
+
+test('Builder bait shows the upzoning or lot-split fact, not the active STR license', () => {
+  const comps = [STRO, sig('sb9_lot_split_estimate', 4, {}, { is_estimate: true }), own('owner:years_owned', 10, { years_owned: 26 })];
+  assert.equal(recipeSignalLine('builder_bait', comps)!.text, 'SB 9 lot-split eligibility');
+  assert.equal(recipeSignalLine('builder_bait', comps)!.estimate, true);
+  assert.equal(recipeSignalLine('builder_bait', [STRO, sig('sb79_transit_estimate', 6), sig('sb9_lot_split_estimate', 4)])!.text, 'Near transit (SB 79)');   // higher contribution wins
+  assert.equal(recipeSignalLine('builder_bait', [STRO, sig('permit_approved:demolition_lot_split', 0, { permit_label: 'Parcel map waiver (lot split)', permit_count: 1 })])!.text, 'Parcel map waiver (lot split) approved Oct 1');
+});
+
+test('Downsizer shows tenure and free-and-clear, never the STR license', () => {
+  const comps = [STRO, own('owner:years_owned', 10, { years_owned: 26 }), own('owner:mortgage_open_false', 10, { mortgage_open: false })];
+  const line = recipeSignalLine('downsizer', comps)!;
+  assert.equal(line.text, '26 years owned · No open mortgage');
+  assert.equal(line.sample, true);                                          // owner facts keep the sample flag
+  assert.equal(recipeSignalLine('downsizer', [STRO, own('owner:mortgage_open_false', 10)])!.text, 'No open mortgage');
+});
+
+test('Stalled project shows the expired permit; Tired landlord shows the owner fact plus the permit/friction fact', () => {
+  const stalled = sig('permit_stalled', 3.4, { permit_count: 1 });
+  assert.equal(recipeSignalLine('stalled_project', [STRO, stalled])!.text, 'Permit expired with no close date');
+  assert.equal(recipeSignalLine('tired_landlord', [STRO, stalled, own('owner:out_of_state', 12), own('owner:absentee', 10)])!.text, 'Out-of-state owner · Permit expired with no close date');
+  assert.equal(recipeSignalLine('tired_landlord', [STRO, own('owner:absentee', 10)])!.text, 'Absentee owner');
+});
+
+test('a recipe line never shows another recipe\'s fact, a sensitive fact, or an unrelated signal', () => {
+  assert.equal(recipeSignalLine('downsizer', [STRO]), null);                // nothing of its own stored: show nothing, not the STR license
+  assert.equal(recipeSignalLine('builder_bait', [STRO, own('owner:years_owned', 10, { years_owned: 30 })]), null);
+  const taxOnly = [sig('tax_default', 30, { notice: 'x' }), own('owner:ownership_transfer', 8)];
+  for (const k of ['tired_landlord', 'financial_pressure', 'downsizer']) assert.equal(recipeSignalLine(k, taxOnly), null, k);
+  assert.doesNotMatch(recipeSignalLine('tired_landlord', [sig('tax_default', 30), own('owner:absentee', 10)])!.text, /tax/i);
+  assert.equal(recipeSignalLine('str_exit', [STRO]), null);                 // an active license is not an exit
+  assert.equal(recipeSignalLine('str_exit', [STRO, sig('stro_license_removed', 9)])!.text, 'Short-term rental license removed');
+  assert.equal(recipeSignalLine('some_future_recipe', [STRO])!.text, 'Active short-term rental license (Tier 3)');   // unknown key: global top signal
+});
+
+// ── pipeline (Phase 5I) ──
+test('pipeline steps: conversion from the previous stage and GCI at 2.5% of estimated value', () => {
+  const overall = { label: 'All', stages: [['signal', 40], ['contacted', 20], ['conversation', 5], ['appointment', 2], ['listing', 0]].map(([key, count]) => ({ key, label: String(key), count })) } as never;
+  const values = [{ key: 'signal', parcels: 40, valued_parcels: 40, est_value: 80_000_000, sample_parcels: 40 }, { key: 'contacted', parcels: 20, valued_parcels: 18, est_value: 40_000_000, sample_parcels: 0 }] as never;
+  const steps = pipelineSteps(overall, values);
+  assert.deepEqual(steps.map((x) => x.label), ['Flagged', 'Contacted', 'Conversation', 'Appointment', 'Listing']);
+  assert.equal(steps[0]!.rate, null);
+  assert.equal(steps[1]!.rate, 0.5);
+  assert.equal(steps[2]!.rate, 0.25);
+  assert.equal(steps[4]!.rate, 0);
+  assert.equal(steps[0]!.gci, 2_000_000);  assert.equal(steps[0]!.sample, true);
+  assert.equal(steps[1]!.gci, 1_000_000);  assert.equal(steps[1]!.unvalued, 2);  assert.equal(steps[1]!.sample, false);
+  assert.equal(steps[2]!.gci, null);
+  assert.equal(estGci(1_000_000), 25_000);
 });

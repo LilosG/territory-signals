@@ -119,7 +119,7 @@ def test_maintenance_is_a_known_group_with_no_weight():
     cfg = yaml.safe_load((rules.MAP_PATH.parent / "scoring.yaml").read_text())
     assert "maintenance" in rules.SIGNAL_GROUPS
     assert cfg["signals"]["permit_approved"]["by_group"]["maintenance"]["weight"] == 0
-    assert cfg["model_version"] == "v0.4.1-handset"
+    assert cfg["model_version"] == "v0.5-handset"
 
 
 # ---- v0.4.1: MEP permits for ADU work are ADU permits (same weight as other ADU permits) ---------------------
@@ -150,4 +150,4 @@ def test_adu_rule_does_not_catch_other_scopes():
 def test_adu_group_weight_is_the_same_for_every_adu_permit():
     import yaml
     cfg = yaml.safe_load((rules.MAP_PATH.parent / "scoring.yaml").read_text())
-    assert cfg["signals"]["permit_approved"]["by_group"]["adu"]["weight"] == 10
+    assert cfg["signals"]["permit_approved"]["by_group"]["adu"]["weight"] == 18

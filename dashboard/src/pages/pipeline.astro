@@ -4,57 +4,51 @@ import PageHeader from '../components/ui/PageHeader.astro';
 import Card from '../components/ui/Card.astro';
 import Section from '../components/ui/Section.astro';
 import Stack from '../components/ui/Stack.astro';
-import FunnelBars from '../components/ui/FunnelBars.astro';
 import SampleDataBadge from '../components/ui/SampleDataBadge.astro';
+import EstimateBadge from '../components/ui/EstimateBadge.astro';
 import EmptyState from '../components/ui/EmptyState.astro';
 import Button from '../components/ui/Button.astro';
 import { OUTCOME_LABELS } from '../lib/data/catalog';
-import AiTag from '../components/ui/AiTag.astro';
-import { fmtDateTime, fmtNum } from '../lib/format';
+import { fmtDateTime, fmtNum, fmtPct, fmtUsdCompact } from '../lib/format';
+import { GCI_RATE, pipelineSteps } from '../lib/present';
 export const prerender = false;
 const pipe = await Astro.locals.data.getPipeline();
-const usd = (n: number, digits: number) => '$' + n.toFixed(digits);
+const steps = pipelineSteps(pipe.overall, pipe.stage_values);
+const top = Math.max(1, steps[0]?.count ?? 0);
+const sampleGci = steps.some((s) => s.sample);
+// Headline: estimated GCI of parcels that reached a conversation or later (the part of the pipeline a person is actively working).
+const engaged = steps.find((s) => s.key === 'conversation');
 ---
 <AppShell title="Pipeline" active="pipeline">
-  <PageHeader eyebrow="Signals to listings" title="Pipeline" description="Where flagged properties stand, plus the latest logged outcomes.">
+  <PageHeader eyebrow="Signals to listings" title="Pipeline" description="Where flagged properties stand, from first flag to listing.">
     <Button href="/performance" variant="secondary" icon="performance">Funnels by agent and recipe</Button>
   </PageHeader>
   <Stack gap={8}>
-    {pipe.ai && (
-      <Section title="AI tasks" description="The last run of each task, and this month's spend against the budget.">
-        <Card padded={false} data-ai-pipeline>
-          {pipe.ai.warnings.length > 0 && (
-            <ul class="border-b border-line bg-warning-soft px-5 py-3 text-sm text-warning" data-ai-warnings>{pipe.ai.warnings.map((w) => <li>{w}</li>)}</ul>
-          )}
-          <div class="overflow-x-auto">
-            <table class="w-full min-w-[44rem] text-sm">
-              <caption class="sr-only">AI tasks, last run</caption>
-              <thead><tr class="border-b border-line text-left text-xs text-ink-muted">
-                <th scope="col" class="px-5 py-2.5 font-medium">Task</th><th scope="col" class="px-3 py-2.5 text-right font-medium">Calls</th><th scope="col" class="px-3 py-2.5 text-right font-medium">Cached</th>
-                <th scope="col" class="px-3 py-2.5 text-right font-medium">Invalid</th><th scope="col" class="px-3 py-2.5 text-right font-medium">Rejected</th><th scope="col" class="px-3 py-2.5 text-right font-medium">Tokens</th>
-                <th scope="col" class="px-3 py-2.5 text-right font-medium">Cost this run</th><th scope="col" class="px-5 py-2.5 text-right font-medium">This month</th>
-              </tr></thead>
-              <tbody class="divide-y divide-line">
-                {pipe.ai.tasks.map((t) => (
-                  <tr data-ai-task={t.task}>
-                    <th scope="row" class="px-5 py-3 text-left font-medium"><span class="block">{t.task.replace(/_/g, ' ')}</span><span class="t-meta block font-normal text-ink-muted">{t.status === 'skipped' ? `Skipped: ${t.skip_reason ?? ''}` : t.status === 'budget_stopped' ? 'Stopped at budget' : t.status === 'failed' ? 'Failed' : t.last_run_at ? fmtDateTime(t.last_run_at) : ''}</span></th>
-                    <td class="px-3 py-3 text-right tabular-nums">{fmtNum(t.calls)}</td><td class="px-3 py-3 text-right tabular-nums">{fmtNum(t.cached)}</td>
-                    <td class="px-3 py-3 text-right tabular-nums">{fmtNum(t.invalid)}</td><td class="px-3 py-3 text-right tabular-nums">{fmtNum(t.rejected)}</td><td class="px-3 py-3 text-right tabular-nums">{fmtNum(t.tokens)}</td>
-                    <td class="px-3 py-3 text-right tabular-nums">{t.cost_unknown ? 'unknown' : usd(t.cost_run ?? 0, 4)}</td><td class="px-5 py-3 text-right tabular-nums">{usd(t.cost_month, 2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p class="border-t border-line px-5 py-3 text-sm" data-ai-budget>Spent this month: <strong class="tabular-nums">{usd(pipe.ai.cost_month, 2)}</strong> of <strong class="tabular-nums">{usd(pipe.ai.monthly_budget_usd, 2)}</strong> budget <AiTag class="ml-1" /></p>
-        </Card>
-      </Section>
-    )}
     {!pipe.has_events
       ? <Card><EmptyState title="No outcomes recorded yet" description="Record an outcome on a lead and the pipeline fills in." /></Card>
       : <>
-          <Section title="Overall funnel" description="Parcels that reached each stage.">
-            <Card><div class="mb-4 flex items-center gap-2">{pipe.is_sample && <SampleDataBadge />}</div><FunnelBars caption="Overall funnel" rows={[pipe.overall]} /></Card>
+          <Section title="Sales progression" description="Parcels that reached each stage, and how many moved on from the stage before.">
+            <Card data-pipeline-progression>
+              <div class="mb-4 flex flex-wrap items-center gap-2">
+                {pipe.is_sample && <SampleDataBadge />}
+                {engaged?.gci != null && (
+                  <p class="text-sm" data-pipeline-gci>Estimated GCI in conversation or later: <strong class="tabular-nums">{fmtUsdCompact(engaged.gci)}</strong> <span class="text-ink-muted">est.</span>{sampleGci && <> <SampleDataBadge /></>}</p>
+                )}
+              </div>
+              <ol class="grid gap-3 md:grid-cols-5" aria-label="Pipeline stages">
+                {steps.map((s, i) => (
+                  <li class="min-w-0 rounded-lg border border-line bg-surface p-4" data-pipeline-stage={s.key}>
+                    <p class="eyebrow">{s.label}</p>
+                    <p class="mt-1 text-3xl font-semibold tabular-nums tracking-tight" data-stage-count>{fmtNum(s.count)}</p>
+                    <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-sunken" aria-hidden="true"><div class="h-full rounded-full bg-accent" style={`width:${s.count > 0 ? Math.max(3, (s.count / top) * 100) : 0}%`}></div></div>
+                    <p class="t-meta mt-2 text-ink-muted" data-stage-rate>{i === 0 ? 'Start of the funnel' : s.rate != null ? `${fmtPct(s.rate)} of ${steps[i - 1]!.label.toLowerCase()}` : `No ${steps[i - 1]!.label.toLowerCase()} leads yet`}</p>
+                    <p class="t-meta mt-1" data-stage-gci>{s.gci != null ? <><span class="font-medium tabular-nums">{fmtUsdCompact(s.gci)}</span> <span class="text-ink-muted">est. GCI{s.sample ? ' · Sample' : ''}</span></> : <span class="text-ink-faint">No value on file</span>}</p>
+                    {s.unvalued > 0 && s.gci != null && <p class="t-meta text-ink-faint">{fmtNum(s.unvalued)} without a value</p>}
+                  </li>
+                ))}
+              </ol>
+              <p class="t-meta mt-4 flex flex-wrap items-center gap-2 text-ink-muted"><EstimateBadge /> Estimated GCI is {fmtPct(GCI_RATE, 1)} of each property's estimated value, summed over the parcels that reached the stage.</p>
+            </Card>
           </Section>
           <Section title="Recent outcomes">
             <Card padded={false}>

@@ -43,7 +43,7 @@ def all_labels(cat):
 
 
 def test_catalog_contents_and_counts():
-    assert CAT["model_version"] == CFG["model_version"] == "v0.4.1-handset"
+    assert CAT["model_version"] == CFG["model_version"] == "v0.5-handset"
     assert CAT["client_id"] == "kaiser-team"
     assert {t["key"] for t in CAT["signal_types"]} == set(CFG["signals"]) | {"ownership_transfer"}
     assert len(CAT["permit_types"]) == len(CFG["permit_labels"]) == 147
@@ -79,13 +79,13 @@ def test_every_component_the_scorer_can_write_is_in_the_catalog():
 
 def test_component_labels_and_max_points():
     by = {c["key"]: c for c in CAT["components"]}
-    assert by["tax_default"]["max_points"] == 30 and by["tax_default"]["family"] == "financial"
-    assert by["permit_approved:pre_sale_prep"]["max_points"] == 20
-    assert by["sb79_transit_estimate"]["max_points"] == 14 and by["fire_hazard_zone"]["max_points"] == 10
-    assert by["owner:years_owned"]["max_points"] == 15 and by["owner:out_of_state"]["max_points"] == 12
+    assert by["tax_default"]["max_points"] == 40 and by["tax_default"]["family"] == "financial"
+    assert by["permit_approved:pre_sale_prep"]["max_points"] == 36
+    assert by["sb79_transit_estimate"]["max_points"] == 21 and by["fire_hazard_zone"]["max_points"] == 15
+    assert by["owner:years_owned"]["max_points"] == 20 and by["owner:out_of_state"]["max_points"] == 15
     assert by["owner:ownership_transfer"]["max_points"] == 0
     assert "permit_approved:other" not in by                             # weight 0: never scores
-    assert CAT["owner_modifier_cap"] == 30
+    assert CAT["owner_modifier_cap"] == 40
     assert by["sb9_lot_split_estimate"]["label"] == "SB 9 lot-split eligibility (estimated)"
     assert by["permit_approved:adu"]["label"] == "ADU permit approved"
 

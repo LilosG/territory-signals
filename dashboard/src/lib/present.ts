@@ -4,7 +4,7 @@
  * database are rephrased.
  */
 import { COMPONENTS, SENSITIVE_RECIPES, SIGNAL_TYPES, signalLabel } from './data/catalog';
-import type { LeadDetail, LeadSummary, Signal, SignalEvent, TopComponent } from './data/types';
+import type { FunnelRow, LeadDetail, LeadSummary, Signal, SignalEvent, StageValue, TopComponent } from './data/types';
 import { fmtDate, fmtNum, fmtUsdCompact, sentenceCase } from './format';
 
 /* ── reason text ── */
@@ -102,6 +102,61 @@ function componentLine(c: TopComponent): Marked {
   if (c.key === 'sb79_transit_estimate') return { ...base, text: 'Near transit (SB 79)' };
   if (c.key === 'fire_hazard_zone') return { ...base, text: 'In a fire hazard severity zone' };
   return { ...base, text: sentenceCase(COMPONENTS[c.key]?.label ?? c.key) };
+}
+
+/* ── recipe-scoped headline (Phase 5I) ── */
+/**
+ * Which stored score components belong to each recipe's qualifying criteria, in the order they are tried when contributions tie.
+ * A recipe card shows only these, never the parcel's global top signal (an active STR license under "Downsizer" says nothing about
+ * why the parcel is in that recipe). Tax default and ownership transfer are never listed: they are sensitive (isSensitiveKey).
+ */
+const RECIPE_FACT_KEYS: Record<string, { primary: string[]; secondary?: string[] }> = {
+  str_exit: { primary: ['stro_license_removed'] },
+  tired_landlord: { primary: ['owner:out_of_state', 'owner:absentee'], secondary: ['permit_stalled', 'stro_license_removed'] },
+  builder_bait: { primary: ['sb9_lot_split_estimate', 'sb79_transit_estimate', 'permit_approved:demolition_lot_split'] },
+  pre_list_prep: { primary: ['permit_approved:pre_sale_prep'] },
+  stalled_project: { primary: ['permit_stalled'] },
+  downsizer: { primary: ['owner:years_owned'], secondary: ['owner:mortgage_open_false'] },
+  insurance_squeeze: { primary: ['fire_hazard_zone'] },
+  financial_pressure: { primary: ['stro_license_removed'] },     // its other qualifier (tax default) is sensitive and never shown on a card
+};
+
+/** Any stored score component (signal or owner), as read from `scores.components`. */
+function toTop(c: Record<string, unknown>): TopComponent {
+  return { key: String(c.key), facts: (c.facts ?? null) as Record<string, unknown> | null, points: Number(c.contribution ?? 0),
+    signal_date: (c.signal_date as string | null | undefined) ?? null, is_sample: !!c.is_sample, is_estimate: !!c.is_estimate };
+}
+
+function ownerLine(c: TopComponent): Marked {
+  const f = (c.facts ?? {}) as Record<string, unknown>;
+  const base = { sample: c.is_sample, estimate: c.is_estimate };
+  if (c.key === 'owner:years_owned') { const n = Number(f.years_owned ?? 0); return { ...base, text: `${n} ${n === 1 ? 'year' : 'years'} owned` }; }
+  if (c.key === 'owner:mortgage_open_false') return { ...base, text: 'No open mortgage' };
+  if (c.key === 'owner:out_of_state') return { ...base, text: 'Out-of-state owner' };
+  if (c.key === 'owner:absentee') return { ...base, text: 'Absentee owner' };
+  return componentLine(c);
+}
+const factLine = (c: TopComponent): Marked => (c.key.startsWith('owner:') ? ownerLine(c) : componentLine(c));
+
+/**
+ * The line a lead shows inside a recipe card: the strongest stored fact that belongs to THAT recipe, from the parcel's score
+ * components (raw `scores.components` JSON, signals and owner facts). Downsizer reads "26 years owned · No open mortgage" and
+ * Tired landlord reads "Out-of-state owner · Permit expired with no close date". Null when the parcel stores none of the
+ * recipe's facts (nothing is shown rather than an unrelated signal). Unknown recipe keys fall back to the global top signal.
+ */
+export function recipeSignalLine(recipeKey: string, components: unknown): Marked | null {
+  const all = ((components ?? []) as Record<string, unknown>[]).map(toTop).filter((c) => !isSensitiveKey(c.key));
+  const rule = RECIPE_FACT_KEYS[recipeKey];
+  if (!rule) return topSignalLine(components);
+  const best = (keys: string[]) => all.filter((c) => keys.includes(c.key))
+    .sort((a, b) => b.points - a.points || (b.signal_date ?? '').localeCompare(a.signal_date ?? '') || keys.indexOf(a.key) - keys.indexOf(b.key))[0] ?? null;
+  const first = best(rule.primary);
+  const second = rule.secondary ? best(rule.secondary) : null;
+  const picked = [first, second].filter((c): c is TopComponent => !!c);
+  if (picked.length === 0) return null;
+  if (picked.length === 1) return factLine(picked[0]!);
+  const lines = picked.map(factLine);
+  return { text: lines.map((l) => l.text).join(' · '), sample: lines.some((l) => l.sample), estimate: lines.some((l) => l.estimate) };
 }
 
 /** Up to three key facts for a card. Owner-derived facts carry the sample flag; equity is always an estimate. */
@@ -268,4 +323,37 @@ export function claimLabel(id: string): string {
   if (id.startsWith('meaning:')) return 'What it means';
   if (id.startsWith('recipe:')) return 'Why it matches';
   return 'Score detail';
+}
+
+/* ── pipeline (Phase 5I) ── */
+/** Gross commission income is estimated at 2.5% of a property's estimated value. It is an estimate everywhere it is shown. */
+export const GCI_RATE = 0.025;
+export const estGci = (estValue: number) => Math.round(estValue * GCI_RATE);
+
+/** The sales stages in the order a lead moves through them. The data key `signal` is shown to agents as "Flagged". */
+export const PIPELINE_LABELS: Record<string, string> = { signal: 'Flagged', contacted: 'Contacted', conversation: 'Conversation', appointment: 'Appointment', listing: 'Listing' };
+
+export interface PipelineStep {
+  key: string; label: string; count: number;
+  /** Share of the previous stage that reached this one (0..1); null for the first stage or when the previous stage is empty. */
+  rate: number | null;
+  /** Estimated GCI of the parcels that reached this stage; null when none of them has an estimated value. */
+  gci: number | null;
+  /** Parcels at this stage with no estimated value (excluded from the GCI). */
+  unvalued: number;
+  sample: boolean;
+}
+/** Stage counts, step-to-step conversion and estimated GCI for the executive pipeline. Pure arithmetic over stored counts. */
+export function pipelineSteps(overall: FunnelRow, values: StageValue[]): PipelineStep[] {
+  return overall.stages.map((s, i) => {
+    const v = values.find((x) => x.key === s.key);
+    const prev = i > 0 ? overall.stages[i - 1]!.count : 0;
+    return {
+      key: s.key, label: PIPELINE_LABELS[s.key] ?? s.label, count: s.count,
+      rate: i > 0 && prev > 0 ? s.count / prev : null,
+      gci: v && v.valued_parcels > 0 ? estGci(v.est_value) : null,
+      unvalued: v ? Math.max(0, v.parcels - v.valued_parcels) : 0,
+      sample: !!v && v.sample_parcels > 0,
+    };
+  });
 }
