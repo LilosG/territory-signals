@@ -1,0 +1,21 @@
+[Unit]
+Description=Territory Signals weekly pipeline and Monday executive digest
+Documentation=file:/opt/territory-signals/DEPLOY.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/territory-signals/pipelines
+EnvironmentFile=/etc/territory-signals/kaiser-team.env
+ExecStart=/opt/territory-signals/.venv/bin/python -m territory.weekly_run --client kaiser-team --cloud --send-digest
+User=territory
+Group=territory
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/opt/territory-signals
+TimeoutStartSec=3600

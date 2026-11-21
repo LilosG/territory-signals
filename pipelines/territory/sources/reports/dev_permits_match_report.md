@@ -1,13 +1,13 @@
 # Match report: dev_permits
 
-Generated 2026-11-18T06:28:50
+Generated 2026-11-21T13:46:08
 
 | Measure | Count |
 |---|---|
 | Rows fetched (in territory scope, stored in raw_records) | 53924 |
 | Matched to a parcel | 50744 |
 | Unmatched | 3180 |
-| Signals written (new rows) | 54635 |
+| Signals written (new rows) | 0 |
 
 ## Match method breakdown
 
@@ -22,7 +22,7 @@ Generated 2026-11-18T06:28:50
 - excluded: outside territory: 731522
 - excluded: blank/unknown APN and no usable location: 32839
 - distinct approvals in territory scope: 53924
-- permit_signal_map status: proposed
+- permit_signal_map status: reviewed
 
 ## Example unmatched rows (max 10, no personal data)
 
