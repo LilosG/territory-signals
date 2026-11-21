@@ -42,20 +42,20 @@ def score(signals=(), own=None, snap=None, cutoff=None, data=()):
 
 # ---- config ------------------------------------------------------------------------------
 def test_config_matches_the_spec():
-    assert CFG["model_version"] == "v0.4.1-handset"
+    assert CFG["model_version"] == "v0.5-handset"
     s = CFG["signals"]
-    assert (s["tax_default"]["weight"], s["tax_default"]["half_life_days"]) == (30, 365)
-    assert (s["stro_license_removed"]["weight"], s["stro_license_removed"]["half_life_days"]) == (25, 90)
+    assert (s["tax_default"]["weight"], s["tax_default"]["half_life_days"]) == (40, 365)
+    assert (s["stro_license_removed"]["weight"], s["stro_license_removed"]["half_life_days"]) == (40, 90)
     assert s["stro_license_active"]["weight"] == 5 and s["stro_license_active"]["half_life_days"] is None
     g = s["permit_approved"]["by_group"]
     assert {k: (v["weight"], v["half_life_days"]) for k, v in g.items()} == {
-        "pre_sale_prep": (20, 120), "demolition_lot_split": (15, 180), "adu": (10, 180),
-        "remodel_addition": (8, 180), "solar_energy": (3, 180), "other": (0, 180), "maintenance": (0, 180)}
-    assert (s["permit_stalled"]["weight"], s["permit_stalled"]["half_life_days"]) == (15, 365)
-    assert s["sb79_transit_estimate"]["values"]["within_quarter_mile"] == 14
-    assert s["sb79_transit_estimate"]["values"]["within_half_mile"] == 10
-    assert s["sb9_lot_split_estimate"]["weight"] == 8
-    assert s["fire_hazard_zone"]["values"] == {"very high": 10, "high": 6, "moderate": 3}
+        "pre_sale_prep": (36, 120), "demolition_lot_split": (27, 180), "adu": (18, 180),
+        "remodel_addition": (14, 180), "solar_energy": (3, 180), "other": (0, 180), "maintenance": (0, 180)}
+    assert (s["permit_stalled"]["weight"], s["permit_stalled"]["half_life_days"]) == (27, 365)
+    assert s["sb79_transit_estimate"]["values"]["within_quarter_mile"] == 21
+    assert s["sb79_transit_estimate"]["values"]["within_half_mile"] == 15
+    assert s["sb9_lot_split_estimate"]["weight"] == 14
+    assert s["fire_hazard_zone"]["values"] == {"very high": 15, "high": 9, "moderate": 4}
     assert set(CFG["recipes"]) == {"str_exit", "tired_landlord", "builder_bait", "pre_list_prep",
                                    "stalled_project", "downsizer", "insurance_squeeze",
                                    "financial_pressure", "quiet_inheritance"}
@@ -75,12 +75,12 @@ def test_decay_math():
 
 def test_component_contribution_uses_weight_and_half_life():
     c = signal_components([sig("tax_default", 365)], CFG, AS_OF)[0]
-    assert c["raw_weight"] == 30 and c["decay_factor"] == pytest.approx(0.5)
-    assert c["contribution"] == pytest.approx(15.0)
+    assert c["raw_weight"] == 40 and c["decay_factor"] == pytest.approx(0.5)
+    assert c["contribution"] == pytest.approx(20.0)
     p = signal_components([sig("permit_approved", 120, "pre_sale_prep")], CFG, AS_OF)[0]
-    assert p["contribution"] == pytest.approx(10.0)
+    assert p["contribution"] == pytest.approx(18.0)
     removed = signal_components([sig("stro_license_removed", 180)], CFG, AS_OF)[0]
-    assert removed["contribution"] == pytest.approx(25 * 0.25)
+    assert removed["contribution"] == pytest.approx(40 * 0.25)
 
 
 def test_component_carries_required_fields():
@@ -99,7 +99,7 @@ def test_permit_group_weights_and_other_scores_zero():
                                ("pre_sale_prep", "demolition_lot_split", "adu", "remodel_addition",
                                 "solar_energy", "other", "maintenance")], CFG, AS_OF)
     assert {c["group"]: c["contribution"] for c in comps} == {
-        "pre_sale_prep": 20, "demolition_lot_split": 15, "adu": 10, "remodel_addition": 8, "solar_energy": 3}
+        "pre_sale_prep": 36, "demolition_lot_split": 27, "adu": 18, "remodel_addition": 14, "solar_energy": 3}
 
 
 def test_one_component_per_signal_key_most_recent_wins():
@@ -112,8 +112,8 @@ def test_one_component_per_signal_key_most_recent_wins():
 def test_sb79_bands_and_fire_classes():
     q = signal_components([sig("sb79_transit_estimate", details={"distance_band": "within_quarter_mile"})], CFG, AS_OF)
     h = signal_components([sig("sb79_transit_estimate", details={"distance_band": "within_half_mile"})], CFG, AS_OF)
-    assert q[0]["contribution"] == 14 and h[0]["contribution"] == 10
-    for cls, w in (("Very High", 10), ("High", 6), ("Moderate", 3)):
+    assert q[0]["contribution"] == 21 and h[0]["contribution"] == 15
+    for cls, w in (("Very High", 15), ("High", 9), ("Moderate", 4)):
         assert signal_components([sig("fire_hazard_zone", details={"hazard_class": cls})], CFG, AS_OF)[0]["contribution"] == w
 
 
@@ -121,17 +121,17 @@ def test_sb79_bands_and_fire_classes():
 def test_owner_modifiers():
     def total(**kw):
         return {c["key"]: c["contribution"] for c in owner_components(owner(**kw), CFG, AS_OF, 100.0)}
-    assert total(last_sale_date=date(1996, 11, 18))["owner:years_owned"] == 15      # exactly 30 years
-    assert total(last_sale_date=date(1996, 11, 19))["owner:years_owned"] == 10      # 29 years
-    assert total(last_sale_date=date(2006, 11, 18))["owner:years_owned"] == 10      # exactly 20
+    assert total(last_sale_date=date(1996, 11, 18))["owner:years_owned"] == 20      # exactly 30 years
+    assert total(last_sale_date=date(1996, 11, 19))["owner:years_owned"] == 13      # 29 years
+    assert total(last_sale_date=date(2006, 11, 18))["owner:years_owned"] == 13      # exactly 20
     assert "owner:years_owned" not in total(last_sale_date=date(2006, 11, 19))      # 19 years
-    assert total(absentee=True)["owner:absentee"] == 10
-    assert total(out_of_state=True)["owner:out_of_state"] == 12
+    assert total(absentee=True)["owner:absentee"] == 13
+    assert total(out_of_state=True)["owner:out_of_state"] == 15
     both = total(absentee=True, out_of_state=True)           # not additive: out_of_state wins
-    assert both["owner:out_of_state"] == 12 and "owner:absentee" not in both
-    assert total(mortgage_open=False)["owner:mortgage_open_false"] == 10
+    assert both["owner:out_of_state"] == 15 and "owner:absentee" not in both
+    assert total(mortgage_open=False)["owner:mortgage_open_false"] == 13
     assert "owner:mortgage_open_false" not in total(mortgage_open=None)
-    assert total(est_equity=100.0)["owner:est_equity_top_quartile"] == 5
+    assert total(est_equity=100.0)["owner:est_equity_top_quartile"] == 6
     assert "owner:est_equity_top_quartile" not in total(est_equity=99.9)
 
 
@@ -143,26 +143,26 @@ def test_equity_cutoff_is_the_territory_75th_percentile():
 # ---- stacking and the cap -------------------------------------------------------------------
 def test_stacking_multiplier_and_cap():
     assert [stacking_multiplier(n, CFG) for n in (0, 1)] == [1.0, 1.0]
-    assert stacking_multiplier(2, CFG) == pytest.approx(1.1)
-    assert stacking_multiplier(3, CFG) == pytest.approx(1.2)
-    assert stacking_multiplier(4, CFG) == pytest.approx(1.3)
-    assert stacking_multiplier(5, CFG) == pytest.approx(1.3)     # capped at +30%
-    assert stacking_multiplier(6, CFG) == pytest.approx(1.3)
+    assert stacking_multiplier(2, CFG) == pytest.approx(1.15)
+    assert stacking_multiplier(3, CFG) == pytest.approx(1.30)
+    assert stacking_multiplier(4, CFG) == pytest.approx(1.45)
+    assert stacking_multiplier(5, CFG) == pytest.approx(1.45)    # capped at +45%
+    assert stacking_multiplier(6, CFG) == pytest.approx(1.45)
 
 
 def test_score_applies_stacking_rounding_and_cap_of_100():
     # one family: no bonus
-    assert score([sig("tax_default", 0)])["score"] == 30
-    # two families: financial 30 + owner 10 -> 40 x 1.1 = 44
+    assert score([sig("tax_default", 0)])["score"] == 40
+    # two families: financial 40 + owner 13 -> 53 x 1.15 = 60.95 -> 61
     r = score([sig("tax_default", 0)], owner(absentee=True, last_sale_date=date(2020, 1, 1), mortgage_open=True))
-    assert r["families"] == ["financial", "owner"] and r["score"] == 44
+    assert r["families"] == ["financial", "owner"] and r["score"] == 61
     # many families, big weights: capped at 100
     sigs = [sig("tax_default", 0), sig("stro_license_removed", 0), sig("permit_approved", 0, "pre_sale_prep"),
             sig("sb79_transit_estimate", details={"distance_band": "within_quarter_mile"}),
             sig("fire_hazard_zone", details={"hazard_class": "very high"})]
     r = score(sigs, owner(absentee=True, out_of_state=True, mortgage_open=False), cutoff=0.5)
-    assert len(r["families"]) == 6 and r["multiplier"] == pytest.approx(1.3)
-    assert r["weighted_sum"] * 1.3 > 100 and r["score"] == 100
+    assert len(r["families"]) == 6 and r["multiplier"] == pytest.approx(1.45)
+    assert r["weighted_sum"] * 1.45 > 100 and r["score"] == 100
 
 
 def test_round_half_up_not_bankers():
@@ -206,7 +206,7 @@ def test_all_snapshot_signal_types_use_the_snapshot_rule():
 
 
 def test_permit_stalled_only_counts_for_the_three_groups():
-    for g, expect in (("remodel_addition", 15), ("adu", 15), ("demolition_lot_split", 15),
+    for g, expect in (("remodel_addition", 27), ("adu", 27), ("demolition_lot_split", 27),
                       ("other", 0), ("pre_sale_prep", 0), ("solar_energy", 0)):
         r = score([sig("permit_stalled", 0, g, {"days_past_expiry": 100})])
         assert r["score"] == expect, g
@@ -357,7 +357,7 @@ def test_spec_example_wording():
                sig("sb9_lot_split_estimate", 0, estimate=True, details={"zoning": "RS-1-7"})],
               owner(last_sale_date=date(1995, 3, 3), mortgage_open=False))
     assert r["reason_text"] == ("Electrical work approved Nov 4, 2026, owned 31 years (sample data), "
-                                "no open mortgage (sample data), lot may qualify for an SB 9 split (estimated).")
+                                "lot may qualify for an SB 9 split (estimated), no open mortgage (sample data).")
 
 
 def test_no_sample_label_when_nothing_is_sample():
@@ -381,25 +381,25 @@ def test_same_inputs_same_scores_in_any_order():
 
 
 # ---- checkpoint corrections ---------------------------------------------------------------------
-def test_owner_modifiers_are_capped_at_30():
+def test_owner_modifiers_are_capped_at_40():
     o = owner(last_sale_date=date(1990, 1, 1), out_of_state=True, absentee=True, mortgage_open=False)
-    comps = owner_components(o, CFG, AS_OF, 0.5)           # 15 + 12 + 10 + 5 = 42 before the cap
+    comps = owner_components(o, CFG, AS_OF, 0.5)           # 20 + 15 + 13 + 6 = 54 before the cap
     assert {c["key"] for c in comps} == {"owner:years_owned", "owner:out_of_state",
                                          "owner:mortgage_open_false", "owner:est_equity_top_quartile"}
-    assert sum(c["contribution"] for c in comps) == pytest.approx(30, abs=0.001)
-    assert all(c["cap_multiplier"] == pytest.approx(30 / 42, abs=1e-5) for c in comps)
+    assert sum(c["contribution"] for c in comps) == pytest.approx(40, abs=0.001)
+    assert all(c["cap_multiplier"] == pytest.approx(40 / 54, abs=1e-5) for c in comps)
     assert [c["raw_weight"] for c in comps] and all(c["raw_weight"] > c["contribution"] for c in comps)
     # under the cap nothing is scaled
     small = owner_components(owner(absentee=True, last_sale_date=date(2020, 1, 1)), CFG, AS_OF, None)
-    assert [c["cap_multiplier"] for c in small] == [1.0] and small[0]["contribution"] == 10
+    assert [c["cap_multiplier"] for c in small] == [1.0] and small[0]["contribution"] == 13
 
 
 def test_confidence_multiplies_the_contribution_and_is_recorded():
     c = signal_components([sig("tax_default", 0, conf=0.5)], CFG, AS_OF)[0]
-    assert c["confidence_multiplier"] == 0.5 and c["contribution"] == pytest.approx(15.0)
+    assert c["confidence_multiplier"] == 0.5 and c["contribution"] == pytest.approx(20.0)
     c = signal_components([sig("permit_approved", 120, "pre_sale_prep", conf=0.8)], CFG, AS_OF)[0]
-    assert c["contribution"] == pytest.approx(20 * 0.5 * 0.8)
-    assert score([sig("tax_default", 0, conf=0.5)])["score"] == 15
+    assert c["contribution"] == pytest.approx(36 * 0.5 * 0.8)
+    assert score([sig("tax_default", 0, conf=0.5)])["score"] == 20
 
 
 def test_every_permit_type_has_a_plain_english_label():

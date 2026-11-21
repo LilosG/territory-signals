@@ -642,20 +642,77 @@ test('Today has a "This week" card with the intro and a link to the briefing; Re
   await expect(page.locator('[data-newsletter-paragraph]')).toContainText('E2E newsletter paragraph');
 });
 
-test('Pipeline shows a row per AI task with the month against the budget, and the warnings', async ({ page }) => {
-  await page.goto('/pipeline');
+test('Data sources shows the AI task rows with the month against the budget and the warnings; Pipeline shows none of it', async ({ page }) => {
+  await page.goto('/data-sources');
+  await expect(page.getByRole('heading', { name: 'System & AI pipeline status' })).toBeVisible();
   const row = page.locator('[data-ai-task="lead_brief"]');
   await expect(row).toBeVisible();
   await expect(row).toContainText('$0.0123');
   await expect(page.locator('[data-ai-budget]')).toContainText('budget');
   await expect(page.locator('[data-ai-warnings]')).toContainText('E2E warning');
+  // The AI block is the last thing on the page, below every data source card.
+  const [cards, ai] = await Promise.all([page.locator('[data-source]').last().boundingBox(), page.locator('[data-ai-pipeline]').boundingBox()]);
+  expect(ai!.y).toBeGreaterThan(cards!.y);
+  // Agents and brokers never see tokens or costs in their sales funnel.
+  await page.goto('/pipeline');
+  await expect(page.locator('[data-ai-pipeline], [data-ai-task], [data-ai-budget]')).toHaveCount(0);
+  const text = await page.locator('main').innerText();
+  expect(text).not.toMatch(/OpenRouter|token|Spent this month|budget|\$0\.0/i);
+});
+
+test('Pipeline is a sales progression: Flagged to Listing with conversion and estimated GCI, labeled est. and Sample', async ({ page }) => {
+  await page.goto(brief);                                    // log one outcome so the funnel has events
+  await page.getByRole('tab', { name: 'Activity' }).click();
+  await page.locator('[data-outcome=contacted]').click();
+  await expect(page.locator('[data-flash=ok]')).toContainText('Outcome recorded');
+  await page.goto('/pipeline');
+  const stages = page.locator('[data-pipeline-stage]');
+  await expect(stages).toHaveCount(5);
+  expect(await stages.evaluateAll((els) => els.map((e) => e.querySelector('.eyebrow')!.textContent))).toEqual(['Flagged', 'Contacted', 'Conversation', 'Appointment', 'Listing']);
+  await expect(page.locator('[data-pipeline-stage=contacted] [data-stage-rate]')).toContainText('of flagged');
+  const gci = page.locator('[data-pipeline-stage=signal] [data-stage-gci]');
+  await expect(gci).toContainText('est. GCI');
+  await expect(gci).toContainText('Sample');                // the test parcel's owner value is sample data
+  await expect(page.locator('[data-pipeline-progression]')).toContainText('2.5%');
+  await expect(page.locator('[data-outcome-row]').first()).toBeVisible();
+});
+
+test('Recipes: each lead shows a fact from its own recipe, never the global active-STR-license line', async ({ page }) => {
+  await page.goto('/recipes');
+  for (const key of ['builder_bait', 'downsizer', 'stalled_project', 'tired_landlord', 'pre_list_prep', 'insurance_squeeze']) {
+    const lines = page.locator(`article[data-recipe=${key}] [data-top-signal]`);
+    for (const t of await lines.allInnerTexts()) expect(t, key).not.toMatch(/Active short-term rental license/);
+  }
+  const down = page.locator('article[data-recipe=downsizer] [data-top-signal]');
+  if (await down.count()) for (const t of await down.allInnerTexts()) expect(t).toMatch(/years? owned|No open mortgage/);
+  const bait = page.locator('article[data-recipe=builder_bait] [data-top-signal]');
+  if (await bait.count()) for (const t of await bait.allInnerTexts()) expect(t).toMatch(/SB 9|SB 79|lot split|Parcel map|Demolition/i);
+});
+
+test('Trends: routine systems work and other permits are hidden by default and come back with the toggle', async ({ page }) => {
+  await page.goto('/trends');
+  const toggle = page.locator('[data-chart-toggle]:visible').first();
+  await expect(page.getByLabel('Include routine & other permits').first()).toBeVisible();
+  const id = (await toggle.getAttribute('data-chart-toggle'))!;
+  const legend = page.locator(`[data-chart-legend="${id}"]`);
+  await expect(legend).not.toContainText('Routine systems work');
+  await expect(legend).not.toContainText('Other');
+  await toggle.check();
+  await expect(legend).toContainText('Routine systems work');
+});
+
+test('Today: the Active leads tile says "Scoring updated" (no percentage) while the scoring model differs between the two weeks', async ({ page }) => {
+  await page.goto('/');
+  const delta = page.locator('[data-stat=active_leads] [data-delta]');
+  await expect(delta).toHaveText('Scoring updated');
+  await expect(delta).not.toContainText('%');
 });
 
 test('with no AI rows the dashboard renders normally and shows nothing AI-related', async ({ page }) => {
   holdAiRows();
   try {
     const errors = noConsoleErrors(page);
-    for (const path of ['/', '/leads', brief, '/reports', '/reports/briefings', '/pipeline', '/trends/newsletter']) {
+    for (const path of ['/', '/leads', brief, '/reports', '/reports/briefings', '/pipeline', '/data-sources', '/trends/newsletter']) {
       const res = await page.goto(path);
       expect(res!.status(), path).toBeLessThan(400);
       await expect(page.locator('[data-ai-tag], [data-ai-brief], [data-week-card], [data-ai-pipeline], [data-ai-headline], [data-newsletter-ai]'), path).toHaveCount(0);
@@ -685,7 +742,7 @@ test('Today: the "New signals" tile and the "New signals" panel use one definiti
 });
 
 test('lead lists: the gray line is the top-contribution signal, with a correct plural, and no duplicate "New" chip', async ({ page }) => {
-  await page.goto(`/leads?search=${TEST_APN}`);
+  await page.goto("/leads?q=E2E");          // the filter parameter is q; it keeps the test parcel on the page whatever the score spread
   const card = page.locator('article', { hasText: '1 E2E Test Way' }).first();
   await expect(card).toBeVisible();
   const text = await card.innerText();

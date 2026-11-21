@@ -1,7 +1,7 @@
 {
   "catalog_version": 1,
   "client_id": "kaiser-team",
-  "model_version": "v0.4.1-handset",
+  "model_version": "v0.5-handset",
   "signal_types": [
     {
       "key": "fire_hazard_zone",
@@ -752,7 +752,7 @@
       "key": "tax_default",
       "kind": "signal",
       "family": "financial",
-      "max_points": 30.0,
+      "max_points": 40.0,
       "label": "Tax default",
       "family_label": "Financial"
     },
@@ -760,7 +760,7 @@
       "key": "stro_license_removed",
       "kind": "signal",
       "family": "rental",
-      "max_points": 25.0,
+      "max_points": 40.0,
       "label": "STR license removed",
       "family_label": "Short-term rentals"
     },
@@ -776,7 +776,7 @@
       "key": "permit_approved:pre_sale_prep",
       "kind": "signal",
       "family": "permits",
-      "max_points": 20.0,
+      "max_points": 36.0,
       "label": "Pre-sale prep permit approved",
       "family_label": "Permits"
     },
@@ -784,7 +784,7 @@
       "key": "permit_approved:demolition_lot_split",
       "kind": "signal",
       "family": "permits",
-      "max_points": 15.0,
+      "max_points": 27.0,
       "label": "Demolition or lot-split permit approved",
       "family_label": "Permits"
     },
@@ -792,7 +792,7 @@
       "key": "permit_approved:adu",
       "kind": "signal",
       "family": "permits",
-      "max_points": 10.0,
+      "max_points": 18.0,
       "label": "ADU permit approved",
       "family_label": "Permits"
     },
@@ -800,7 +800,7 @@
       "key": "permit_approved:remodel_addition",
       "kind": "signal",
       "family": "permits",
-      "max_points": 8.0,
+      "max_points": 14.0,
       "label": "Remodel or addition permit approved",
       "family_label": "Permits"
     },
@@ -816,7 +816,7 @@
       "key": "permit_stalled",
       "kind": "signal",
       "family": "permits",
-      "max_points": 15.0,
+      "max_points": 27.0,
       "label": "Permit expired with no close date",
       "family_label": "Permits"
     },
@@ -824,7 +824,7 @@
       "key": "sb79_transit_estimate",
       "kind": "signal",
       "family": "upzoning",
-      "max_points": 14.0,
+      "max_points": 21.0,
       "label": "SB 79 transit eligibility (estimated)",
       "family_label": "Upzoning"
     },
@@ -832,7 +832,7 @@
       "key": "sb9_lot_split_estimate",
       "kind": "signal",
       "family": "upzoning",
-      "max_points": 8.0,
+      "max_points": 14.0,
       "label": "SB 9 lot-split eligibility (estimated)",
       "family_label": "Upzoning"
     },
@@ -840,7 +840,7 @@
       "key": "fire_hazard_zone",
       "kind": "signal",
       "family": "fire",
-      "max_points": 10.0,
+      "max_points": 15.0,
       "label": "Fire hazard severity zone",
       "family_label": "Fire hazard"
     },
@@ -848,7 +848,7 @@
       "key": "owner:years_owned",
       "kind": "owner",
       "family": "owner",
-      "max_points": 15.0,
+      "max_points": 20.0,
       "label": "Years owned",
       "family_label": "Owner"
     },
@@ -856,7 +856,7 @@
       "key": "owner:absentee",
       "kind": "owner",
       "family": "owner",
-      "max_points": 10.0,
+      "max_points": 13.0,
       "label": "Absentee owner",
       "family_label": "Owner"
     },
@@ -864,7 +864,7 @@
       "key": "owner:out_of_state",
       "kind": "owner",
       "family": "owner",
-      "max_points": 12.0,
+      "max_points": 15.0,
       "label": "Out-of-state owner",
       "family_label": "Owner"
     },
@@ -872,7 +872,7 @@
       "key": "owner:mortgage_open_false",
       "kind": "owner",
       "family": "owner",
-      "max_points": 10.0,
+      "max_points": 13.0,
       "label": "No open mortgage",
       "family_label": "Owner"
     },
@@ -880,7 +880,7 @@
       "key": "owner:est_equity_top_quartile",
       "kind": "owner",
       "family": "owner",
-      "max_points": 5.0,
+      "max_points": 6.0,
       "label": "Equity in the top quarter (estimated)",
       "family_label": "Owner"
     },
@@ -893,7 +893,7 @@
       "family_label": "Owner"
     }
   ],
-  "owner_modifier_cap": 30.0,
+  "owner_modifier_cap": 40.0,
   "score_bands": [
     {
       "key": "hot",

@@ -439,7 +439,9 @@ export interface Trends {
 export interface FunnelStage { key: 'signal' | 'contacted' | 'conversation' | 'appointment' | 'listing'; label: string; count: number }
 export interface FunnelRow { label: string; stages: FunnelStage[] }
 export interface RecentOutcome { apn: string; situs_address: string | null; neighborhood: string | null; stage: string; by: string | null; note: string | null; occurred_at: IsoTimestamp }
-export interface Pipeline { ai: AiStatus | null; by_agent: FunnelRow[]; by_recipe: FunnelRow[]; overall: FunnelRow; has_events: boolean; recent: RecentOutcome[]; is_sample: boolean }
+/** Estimated property value behind one funnel stage: distinct parcels that reached it, and the sum of their owners' est_value. */
+export interface StageValue { key: FunnelStage['key']; parcels: number; valued_parcels: number; est_value: number; sample_parcels: number }
+export interface Pipeline { by_agent: FunnelRow[]; by_recipe: FunnelRow[]; overall: FunnelRow; stage_values: StageValue[]; has_events: boolean; recent: RecentOutcome[]; is_sample: boolean }
 
 /** `null` from the supabase provider until owner sale history exists (Phase 6). */
 export interface Backtest {

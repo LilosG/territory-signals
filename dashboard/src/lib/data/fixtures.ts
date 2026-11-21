@@ -1,12 +1,12 @@
 import raw from '../../data/fixtures.json';
-import { leadHeadline } from '../present';
+import { leadHeadline, recipeSignalLine } from '../present';
 import { loadClientConfig } from '../config';
 import { EVENT_TYPES, RECIPE_LABELS, SENSITIVE_TYPES, SOURCE_CATALOG, STAGES, TRAIT_TYPES, bandOf } from './catalog';
 import type { DataProvider, MarkSample, SharePageReader } from './provider';
 import { buildTrends, leadStatus, scoreItems, yearsSince } from './shared';
 import type {
   Backtest, FixtureBundle, FunnelRow, LeadDetail, LeadFilters, LeadPage, LeadSummary, MapData, NavCounts, OffMarketPage, OutreachItem,
-  OutreachTab, Performance, Pipeline, RecipeCard, SearchHit, Signal, SharePage, SignalEvent, SourceCard, StageEvent, StatSeries, TodayFeed,
+  OutreachTab, Performance, Pipeline, RecipeCard, SearchHit, Signal, SharePage, SignalEvent, SourceCard, StageEvent, StageValue, StatSeries, TodayFeed,
 } from './types';
 
 const db = raw as unknown as FixtureBundle;
@@ -145,9 +145,15 @@ export function fixturesProvider(mark: MarkSample, territory: string | null = nu
     },
     async getPipeline(): Promise<Pipeline> {
       const events = db.stage_events.filter((e) => inHood(e.apn));
-      return { ai: null, overall: funnel('All leads', events), has_events: events.length > 0, is_sample: true, by_recipe: [], by_agent: [],
+      const stage_values: StageValue[] = FUNNEL.map((key) => {
+        const apns = [...new Set(events.filter((e) => e.stage === key).map((e) => e.apn))];
+        const owners = apns.map((a) => ownerBy.get(a)).filter((o) => o?.est_value != null);
+        return { key, parcels: apns.length, valued_parcels: owners.length, est_value: owners.reduce((t, o) => t + Number(o!.est_value), 0), sample_parcels: owners.filter((o) => o!.is_sample).length };
+      });
+      return { overall: funnel('All leads', events), stage_values, has_events: events.length > 0, is_sample: true, by_recipe: [], by_agent: [],
         recent: events.filter((e) => e.source === 'dashboard').slice(0, 10).map((e) => ({ apn: e.apn, situs_address: parcelBy.get(e.apn)?.situs_address ?? null, neighborhood: parcelBy.get(e.apn)?.neighborhood ?? null, stage: e.stage, by: e.team_member_email, note: e.note, occurred_at: e.occurred_at })) };
     },
+    async getAiStatus(): Promise<null> { return null; },
     async getBriefings() { return []; },
     async getPerformance(): Promise<Performance> {
       const events = db.stage_events.filter((e) => inHood(e.apn));
@@ -179,7 +185,7 @@ export function fixturesProvider(mark: MarkSample, territory: string | null = nu
       return loadClientConfig().recipes.map((r) => {
         const apns = ranked({}).filter((a) => (scoreBy.get(a)!.recipe_matches ?? []).includes(r.key));
         return { key: r.key, name: r.name, description: r.description, enabled: r.enabled, parcels: apns.length, new_this_week: 0, strong: apns.filter((a) => scoreBy.get(a)!.score >= 60).length,
-          top: apns.slice(0, 5).map((a) => ({ apn: a, score: scoreBy.get(a)!.score, situs_address: parcelBy.get(a)!.situs_address, neighborhood: parcelBy.get(a)!.neighborhood, top_signal: leadHeadline(summary(a)) })),
+          top: apns.slice(0, 5).map((a) => ({ apn: a, score: scoreBy.get(a)!.score, situs_address: parcelBy.get(a)!.situs_address, neighborhood: parcelBy.get(a)!.neighborhood, top_signal: recipeSignalLine(r.key, scoreBy.get(a)!.components) })),
           idle_reason: apns.length ? null : 'No matching properties yet', is_sample: true };
       });
     },

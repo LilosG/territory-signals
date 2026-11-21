@@ -1,5 +1,5 @@
 import type {
-  Backtest, ClientConfig, Coverage, LeadDetail, LeadFilters, LeadPage, MapData, NavCounts, OffMarketFilters, OffMarketPage,
+  AiStatus, Backtest, ClientConfig, Coverage, LeadDetail, LeadFilters, LeadPage, MapData, NavCounts, OffMarketFilters, OffMarketPage,
   OutreachPage, OutreachTab, Performance, Pipeline, RecipeCard, SearchHit, SharePage, SourceCard, TeamMember, TodayFeed, Trends, WeeklyBriefAi,
 } from './types';
 
@@ -28,6 +28,8 @@ export interface DataProvider {
   /** Client config (config/clients/<id>.yaml) joined with the recipe catalog. */
   getConfig(): Promise<ClientConfig>;
   getSources(): Promise<SourceCard[]>;
+  /** AI task health and monthly spend (system status, shown on Data sources only). Null when AI is switched off. */
+  getAiStatus(): Promise<AiStatus | null>;
   getTeam(): Promise<TeamMember[]>;
   getOutreach(tab: OutreachTab, page?: number, pageSize?: number): Promise<OutreachPage>;
   getRecipes(): Promise<RecipeCard[]>;

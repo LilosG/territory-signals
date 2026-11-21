@@ -245,3 +245,50 @@ def test_today_stat_history_buckets_weeks_and_reports_the_first_data_day(d):
     with as_user(d, MEMBER, role="anon"):
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             d.execute("select * from today_stat_history(null)")
+
+
+def _score_at(db, model, days_ago):
+    db.execute("insert into scores (apn, score, components, reason_text, recipe_matches, model_version, scored_at) "
+               "values (%s, 60, '[]'::jsonb, 'x', '{}', %s, current_date - %s * interval '1 day' + interval '10 hours')", (APN, model, days_ago))
+
+
+def test_scoring_model_weeks_flags_a_model_change_between_the_two_weeks(d):
+    """Phase 5I: the Active leads tile shows "Scoring updated" (no %) whenever the model of this week differs from the comparison week's."""
+    d.execute("truncate scores")                # TRUNCATE is not blocked by the append-only trigger; test database only
+    _score_at(d, "v0.4.1-handset", 10)          # comparison week
+    _score_at(d, "v0.5-handset", 0)             # this week
+    with as_user(d, MEMBER):
+        cur, cmp_, updated = d.execute("select current_model, comparison_model, updated from scoring_model_weeks()").fetchone()
+    assert (cur, cmp_, updated) == ("v0.5-handset", "v0.4.1-handset", True)
+
+
+def test_scoring_model_weeks_is_quiet_when_the_model_is_unchanged(d):
+    d.execute("truncate scores")                # TRUNCATE is not blocked by the append-only trigger; test database only
+    _score_at(d, "v0.5-handset", 10)
+    _score_at(d, "v0.5-handset", 0)
+    with as_user(d, MEMBER):
+        assert d.execute("select updated from scoring_model_weeks()").fetchone()[0] is False
+
+
+def test_scoring_model_weeks_flags_a_change_made_mid_week(d):
+    d.execute("truncate scores")                # TRUNCATE is not blocked by the append-only trigger; test database only
+    _score_at(d, "v0.4.1-handset", 3)
+    _score_at(d, "v0.5-handset", 0)             # two models scored inside this week, nothing before it
+    with as_user(d, MEMBER):
+        assert d.execute("select updated from scoring_model_weeks()").fetchone()[0] is True
+
+
+def test_pipeline_stage_value_sums_latest_owner_value_per_parcel_once_per_stage(d):
+    """Phase 5I: /pipeline estimated GCI = 2.5% of this sum. A parcel counts once per stage; the latest owner row supplies the value."""
+    d.execute("insert into owners (apn, owner_name, est_value, provider, is_sample, as_of) values (%s,'Old Owner',100000,'sample',true,'2026-01-01')", (APN,))
+    d.execute("insert into owners (apn, owner_name, est_value, provider, is_sample, as_of) values (%s,'New Owner',2000000,'sample',true,'2026-06-01')", (APN,))
+    for stage in ("signal", "contacted", "contacted"):
+        d.execute("insert into stage_events (apn, stage, team_member_email, source) values (%s,%s,%s,'dashboard')", (APN, stage, MEMBER))
+    with as_user(d, MEMBER):
+        rows = {r[0]: r[1:] for r in d.execute("select stage, parcels, valued_parcels, est_value, sample_parcels from pipeline_stage_value(null)").fetchall()}
+        hood = d.execute("select count(*) from pipeline_stage_value('Nowhere')").fetchone()[0]
+    assert rows == {"signal": (1, 1, 2000000, 1), "contacted": (1, 1, 2000000, 1)}
+    assert hood == 0
+    with as_user(d, MEMBER, role="anon"):
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            d.execute("select * from pipeline_stage_value(null)")

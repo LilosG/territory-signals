@@ -1,6 +1,6 @@
 # Deterministic scoring model. No AI is used anywhere in scoring (CLAUDE.md AI rules).
 # Score = min(100, round_half_up(weighted_sum x stacking_multiplier)).
-model_version: "v0.4.1-handset"
+model_version: "v0.5-handset"
 
 # ---- Residential filter ------------------------------------------------------------
 # Only parcels whose parcels.land_use is one of these codes are scored.
@@ -21,10 +21,11 @@ suppression:
   # also: any row in suppressions that is active (until_date null or >= as-of date)
 
 # ---- Stacking ---------------------------------------------------------------------------
-# +10% for each independent signal family beyond the first, capped at +30%.
+# +15% for each independent signal family beyond the first, capped at +45% (v0.5: was +10% / +30%, which squeezed the best
+# multi-signal leads into 47-63). Base weights below were raised at the same time; see DECISIONS.md D17.
 stacking:
-  bonus_per_extra_family: 0.10
-  cap: 0.30
+  bonus_per_extra_family: 0.15
+  cap: 0.45
   families: [financial, rental, permits, upzoning, fire, owner]
 
 # ---- Signals ----------------------------------------------------------------------------
@@ -38,11 +39,11 @@ stacking:
 signals:
   tax_default:          # signal_date = date of the notice/list the parcel appears on (decay runs from it)
     family: financial
-    weight: 30
+    weight: 40
     half_life_days: 365
   stro_license_removed:
     family: rental
-    weight: 25
+    weight: 40
     half_life_days: 90
   stro_license_active:
     family: rental
@@ -52,16 +53,16 @@ signals:
   permit_approved:
     family: permits
     by_group:
-      pre_sale_prep:        {weight: 20, half_life_days: 120}   # v0.4: cosmetic/remodel scope only (D14)
+      pre_sale_prep:        {weight: 36, half_life_days: 120}   # v0.4: cosmetic/remodel scope only (D14)
       maintenance:          {weight: 0,  half_life_days: 180}   # v0.4: like-for-like systems work, no weight
-      demolition_lot_split: {weight: 15, half_life_days: 180}
-      adu:                  {weight: 10, half_life_days: 180}
-      remodel_addition:     {weight: 8,  half_life_days: 180}
+      demolition_lot_split: {weight: 27, half_life_days: 180}
+      adu:                  {weight: 18, half_life_days: 180}
+      remodel_addition:     {weight: 14, half_life_days: 180}
       solar_energy:         {weight: 3,  half_life_days: 180}
       other:                {weight: 0,  half_life_days: 180}
   permit_stalled:
     family: permits
-    weight: 15
+    weight: 27
     half_life_days: 365
     groups: [remodel_addition, adu, demolition_lot_split]   # derivation also enforces expired > 90 days
   sb79_transit_estimate:
@@ -70,12 +71,12 @@ signals:
     snapshot: true
     by_detail: distance_band
     values:
-      within_200ft: 14          # inside 1/4 mile
-      within_quarter_mile: 14
-      within_half_mile: 10
+      within_200ft: 21          # inside 1/4 mile
+      within_quarter_mile: 21
+      within_half_mile: 15
   sb9_lot_split_estimate:
     family: upzoning
-    weight: 8
+    weight: 14
     half_life_days: null
     snapshot: true
   fire_hazard_zone:
@@ -85,23 +86,23 @@ signals:
     by_detail: hazard_class
     # Values are matched after lower-casing and turning spaces/underscores into one space.
     values:
-      very high: 10
-      high: 6
-      moderate: 3
+      very high: 15
+      high: 9
+      moderate: 4
 
 # ---- Owner modifiers (owners table, latest as_of per parcel; static) ---------------------
-# out_of_state and absentee are not additive: out_of_state (+12) when true, otherwise absentee (+10).
+# out_of_state and absentee are not additive: out_of_state (+15) when true, otherwise absentee (+13).
 # Total owner-modifier contribution is capped (over the cap, every owner component is scaled
 # by the same factor, recorded as cap_multiplier).
 owner_modifiers:
-  cap: 30
+  cap: 40
   years_owned:                  # from owners.last_sale_date; highest matching tier only
-    - {min_years: 30, weight: 15}
-    - {min_years: 20, weight: 10}
-  absentee:         {weight: 10}
-  out_of_state:     {weight: 12}
-  mortgage_open_false: {weight: 10}
-  est_equity_top_quartile: {weight: 5, percentile: 75}   # est_equity >= territory 75th percentile
+    - {min_years: 30, weight: 20}
+    - {min_years: 20, weight: 13}
+  absentee:         {weight: 13}
+  out_of_state:     {weight: 15}
+  mortgage_open_false: {weight: 13}
+  est_equity_top_quartile: {weight: 6, percentile: 75}   # est_equity >= territory 75th percentile
 
 # ---- Score bands --------------------------------------------------------------------------------
 # Display bands (a score at or above `min` is in the band; first match from the top). The dashboard reads

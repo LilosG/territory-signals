@@ -5,9 +5,13 @@ import Card from '../../components/ui/Card.astro';
 import Grid from '../../components/ui/Grid.astro';
 import Stack from '../../components/ui/Stack.astro';
 import StatusPill from '../../components/ui/StatusPill.astro';
+import Section from '../../components/ui/Section.astro';
+import AiTag from '../../components/ui/AiTag.astro';
 import { fmtDateTime, fmtNum } from '../../lib/format';
 export const prerender = false;
 const sources = await Astro.locals.data.getSources();
+const ai = await Astro.locals.data.getAiStatus();
+const usd = (n: number, digits: number) => '$' + n.toFixed(digits);
 // "Not connected yet" is neutral. Red is only for a source that is connected and whose last update failed.
 const tone = { live: 'good', failed: 'critical', running: 'warning', not_connected: 'neutral', sample: 'neutral' } as const;
 const word = { live: 'Live', failed: 'Last update failed', running: 'Updating now', not_connected: 'Not connected yet', sample: 'Sample data' } as const;
@@ -35,5 +39,35 @@ const live = sources.filter((s) => s.state === 'live').length;
         </Card>
       ))}
     </Grid>
+    {ai && (
+      <Section title="System & AI pipeline status" description="The last run of each AI task, and this month's spend against the budget.">
+        <Card padded={false} data-ai-pipeline>
+          {ai.warnings.length > 0 && (
+            <ul class="border-b border-line bg-warning-soft px-5 py-3 text-sm text-warning" data-ai-warnings>{ai.warnings.map((w) => <li>{w}</li>)}</ul>
+          )}
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[44rem] text-sm">
+              <caption class="sr-only">AI tasks, last run</caption>
+              <thead><tr class="border-b border-line text-left text-xs text-ink-muted">
+                <th scope="col" class="px-5 py-2.5 font-medium">Task</th><th scope="col" class="px-3 py-2.5 text-right font-medium">Calls</th><th scope="col" class="px-3 py-2.5 text-right font-medium">Cached</th>
+                <th scope="col" class="px-3 py-2.5 text-right font-medium">Invalid</th><th scope="col" class="px-3 py-2.5 text-right font-medium">Rejected</th><th scope="col" class="px-3 py-2.5 text-right font-medium">Tokens</th>
+                <th scope="col" class="px-3 py-2.5 text-right font-medium">Cost this run</th><th scope="col" class="px-5 py-2.5 text-right font-medium">This month</th>
+              </tr></thead>
+              <tbody class="divide-y divide-line">
+                {ai.tasks.map((t) => (
+                  <tr data-ai-task={t.task}>
+                    <th scope="row" class="px-5 py-3 text-left font-medium"><span class="block">{t.task.replace(/_/g, ' ')}</span><span class="t-meta block font-normal text-ink-muted">{t.status === 'skipped' ? `Skipped: ${t.skip_reason ?? ''}` : t.status === 'budget_stopped' ? 'Stopped at budget' : t.status === 'failed' ? 'Failed' : t.last_run_at ? fmtDateTime(t.last_run_at) : ''}</span></th>
+                    <td class="px-3 py-3 text-right tabular-nums">{fmtNum(t.calls)}</td><td class="px-3 py-3 text-right tabular-nums">{fmtNum(t.cached)}</td>
+                    <td class="px-3 py-3 text-right tabular-nums">{fmtNum(t.invalid)}</td><td class="px-3 py-3 text-right tabular-nums">{fmtNum(t.rejected)}</td><td class="px-3 py-3 text-right tabular-nums">{fmtNum(t.tokens)}</td>
+                    <td class="px-3 py-3 text-right tabular-nums">{t.cost_unknown ? 'unknown' : usd(t.cost_run ?? 0, 4)}</td><td class="px-5 py-3 text-right tabular-nums">{usd(t.cost_month, 2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p class="border-t border-line px-5 py-3 text-sm" data-ai-budget>Spent this month: <strong class="tabular-nums">{usd(ai.cost_month, 2)}</strong> of <strong class="tabular-nums">{usd(ai.monthly_budget_usd, 2)}</strong> budget <AiTag class="ml-1" /></p>
+        </Card>
+      </Section>
+    )}
   </Stack>
 </AppShell>

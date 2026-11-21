@@ -112,7 +112,7 @@ def test_scores_are_append_only_history_with_required_columns(db):
     rows = db.execute("select score, model_version, uses_sample_data, recipe_matches, components, "
                       "reason_text from scores where apn='3000000400' order by scored_at").fetchall()
     assert len(rows) == 2 and rows[0][:4] == rows[1][:4]
-    assert rows[0][1] == "v0.4.1-handset" and rows[0][2] is False
+    assert rows[0][1] == "v0.5-handset" and rows[0][2] is False
     assert rows[0][4][0]["signal_id"] and rows[0][5].startswith("Tax-defaulted")
     with pytest.raises(psycopg.errors.RestrictViolation):
         db.execute("update scores set score = 1")
@@ -167,7 +167,7 @@ def test_fire_recipe_only_when_fire_zones_are_loaded(db):
     add_signal(db, "3000000800", "fire_hazard_zone", "risk", on=AS_OF, details={"hazard_class": "Very High"})
     run_score(db, CFG, AS_OF, datetime(2026, 12, 1, tzinfo=timezone.utc))
     row = db.execute("select score, recipe_matches from scores order by scored_at desc limit 1").fetchone()
-    assert row[0] == 9 and "insurance_squeeze" in row[1]      # 10 x confidence 0.9
+    assert row[0] == 14 and "insurance_squeeze" in row[1]     # 15 x confidence 0.9 = 13.5, rounded half up
 
 
 # ---- sample owner layer -----------------------------------------------------------------------------

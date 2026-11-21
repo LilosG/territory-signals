@@ -64,6 +64,9 @@ function direction(last3: number, prev3: number) {
   return { pct, dir: !prev3 ? (last3 ? 'new' : 'flat') : pct > 0 ? `up ${pct}%` : pct < 0 ? `down ${Math.abs(pct)}%` : 'flat' };
 }
 
+/** Permit groups left out of the Trends permit chart and takeaway unless the viewer asks for them. */
+export const ROUTINE_PERMIT_GROUPS: ReadonlySet<string> = new Set(['maintenance', 'other']);
+
 export function buildTrends(area: string, hoods: string[], now: Date, rows: TrendRows): Trends {
   const months = monthKeys(now);
   const inArea = <T extends { neighborhood: string }>(xs: T[]) => xs.filter((r) => hoods.includes(r.neighborhood));
@@ -95,17 +98,19 @@ export function buildTrends(area: string, hoods: string[], now: Date, rows: Tren
       : `${last3(tSeries)} sales in the last 3 full months, ${tDir.dir} vs ${prev3(tSeries)} in the prior 3.`, sampleIn(turnover),
     (turnover.length === 0 || allSample(turnover, (x) => x.sales)) ? { empty_state: 'Connects when owner sale history is added in Phase 6' } : {}));
 
-  const mainGroups = groupTotals.filter(({ g }) => g !== 'other');
+  // Routine systems work ('maintenance') and 'other' are hidden by default: only groups that can signal a sale are charted and counted
+  // in the takeaway (remodel_addition, adu, pre_sale_prep, demolition_lot_split, solar_energy). A toggle adds the routine groups back.
+  const mainGroups = groupTotals.filter(({ g }) => !ROUTINE_PERMIT_GROUPS.has(g));
   const pSeries = mainGroups.map(({ g }) => line(g, SIGNAL_GROUPS[g] ?? g, monthly(permits.filter((r) => r.signal_group === g).map((r) => ({ month: r.month, n: r.signals })))));
-  const otherRows = permits.filter((r) => r.signal_group === 'other');
-  const otherSeries = otherRows.length ? [line('other', SIGNAL_GROUPS.other ?? 'Other permits', monthly(otherRows.map((r) => ({ month: r.month, n: r.signals }))))] : [];
+  const otherSeries = groupTotals.filter(({ g }) => ROUTINE_PERMIT_GROUPS.has(g))
+    .map(({ g }) => line(g, SIGNAL_GROUPS[g] ?? g, monthly(permits.filter((r) => r.signal_group === g).map((r) => ({ month: r.month, n: r.signals })))));
   const pTotal = months.map((_, i) => sum(pSeries.map((s) => s.points[i]!.value)));
   const pDir = direction(last3(pTotal), prev3(pTotal));
   const pLead = pSeries.map((s) => ({ s, n: sum(s.points.map((p) => p.value)) })).sort((a, b) => b.n - a.n)[0];
   metrics.push(mk('permits', pSeries.length ? pSeries : [line('none', 'Permits', months.map(() => 0))],
     pLead && pLead.n ? `${last3(pTotal)} permits that matter for selling were approved in the last 3 full months, ${pDir.dir} vs the prior 3; ${pLead.s.label} leads.` : '0 permits that matter for selling were approved in this period.',
-    sampleIn(permits.filter((r) => r.signal_group !== 'other')),
-    otherSeries.length ? { optional_series: otherSeries, optional_label: 'Include other permits' } : {}));
+    sampleIn(permits.filter((r) => !ROUTINE_PERMIT_GROUPS.has(r.signal_group))),
+    otherSeries.length ? { optional_series: otherSeries, optional_label: 'Include routine & other permits' } : {}));
 
   const sSeries = monthly(str.map((r) => ({ month: r.month, n: r.signals })));
   metrics.push(mk('str_lost', [line('removed', 'Licenses removed', sSeries)],
