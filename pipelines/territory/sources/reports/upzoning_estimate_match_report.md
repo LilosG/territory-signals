@@ -1,13 +1,13 @@
 # Match report: upzoning_estimate
 
-Generated 2026-11-18T06:29:26
+Generated 2026-11-21T13:46:52
 
 | Measure | Count |
 |---|---|
 | Rows fetched (in territory scope, stored in raw_records) | 10675 |
 | Matched to a parcel | 10675 |
 | Unmatched | 0 |
-| Signals written (new rows) | 10790 |
+| Signals written (new rows) | 0 |
 
 ## Match method breakdown
 

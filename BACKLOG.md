@@ -165,3 +165,11 @@ Added during Phase 5I:
 - [ ] **Build warning**: the MapLibre bundle exceeds Vite's 500 kB chunk limit (present before Phase 5J). Set `build.chunkSizeWarningLimit` or split the chunk (astro.config.mjs).
 - [ ] **Net-proceeds cost range is a flat 5-7%**: make it a client config value.
 - [ ] **Lead page: mobile order.** The co-pilot sits below the whole left column on a phone; consider a sticky "Log outcome" bar.
+
+Added during Phase 5K:
+
+- [ ] **`fire_zones` has no automated source.** The weekly run reports it as `awaiting manual download` and continues; the digest shows the gap in source health. Automate the CalFire FHSZ download when a stable URL exists (D6).
+- [ ] **Digest GCI uses the flat 2.5% rate** hard-coded in `digest.py` (matching the dashboard's `estGci`). Move it to the client config together with the pipeline GCI rate.
+- [ ] **Digest lead links assume the production dashboard URL.** Make the base URL a client config value (or `DASHBOARD_BASE_URL`) so a second client's digest points at its own Worker.
+- [ ] **Weekly digest AI briefs are shared with the dashboard.** The digest shows the latest valid `weekly_brief`; if the AI stage is skipped or over budget, the digest falls back to deterministic signal counts only. Consider a deterministic newsletter fallback.
+- [ ] **No retry/alert on a failed weekly run.** A failed stage stops the run and systemd records the failure; nothing emails Mike. Add `OnFailure=` (a mail unit or a healthcheck ping).

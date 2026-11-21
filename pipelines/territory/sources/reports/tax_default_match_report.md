@@ -1,13 +1,13 @@
 # Match report: tax_default
 
-Generated 2026-11-18T06:29:03
+Generated 2026-11-21T13:46:24
 
 | Measure | Count |
 |---|---|
 | Rows fetched (in territory scope, stored in raw_records) | 39 |
 | Matched to a parcel | 39 |
 | Unmatched | 0 |
-| Signals written (new rows) | 39 |
+| Signals written (new rows) | 0 |
 
 ## Match method breakdown
 

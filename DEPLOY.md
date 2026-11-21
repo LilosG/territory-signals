@@ -4,7 +4,7 @@
 |---|---|---|
 | Dashboard | Cloudflare Workers | `kaiser-team-signals` → https://kaiser-team-signals.mike-1d7.workers.dev |
 | Database + Auth | Supabase cloud (West US, North California; free plan) | project `territory-signals-kaiser`, ref `ukpfksabatofcczdrphm` |
-| Pipelines | Mike's laptop for now (Hetzner VPS later, see `BACKLOG.md`) | `pipelines/` |
+| Pipelines | Mike's laptop; Hetzner VPS weekly timer (see below) | `pipelines/` |
 
 The Worker holds only public values (Supabase URL and anon key) and `DATA_PROVIDER=supabase`. It has no service-role key. Every read runs as the signed-in user under RLS.
 
@@ -198,6 +198,76 @@ cd ~/territory-signals && source .venv/bin/activate \
 ```
 
 **Cloud guard (Phase 5H).** Every pipeline command (`run`, `score`, `permit_rederive`, `outreach`, `owner_data.load`, the AI tasks) refuses to connect to any database host other than 127.0.0.1/localhost unless `--cloud` is passed, and exits naming the host. A shell that still has `SUPABASE_DB_URL` exported will therefore never write to the cloud by accident; for local work run `env -u SUPABASE_DB_URL ...`.
+
+## Hetzner VPS: weekly pipeline and Monday digest (Phase 5K)
+
+The weekly run lives on Mike's Hetzner server as a systemd timer. It runs `python -m territory.weekly_run --client kaiser-team --cloud --send-digest` every Monday at 05:30 America/Los_Angeles. The kit is `deploy/vps/` (`install.sh`, `territory-weekly.service`, `territory-weekly.timer`).
+
+Assumptions: Ubuntu 22.04+ or Debian 12+, root or sudo, the repository at `/opt/territory-signals`, DNS and the database already reachable. `install.sh` substitutes the actual checkout path, so another location also works.
+
+### 1. Install (idempotent; safe to re-run after a `git pull`)
+
+```bash
+ssh mike@<hetzner-host>
+sudo mkdir -p /opt && sudo git clone <repo-url> /opt/territory-signals   # or git pull if it already exists
+cd /opt/territory-signals && git checkout main && git pull --ff-only
+sudo bash deploy/vps/install.sh
+```
+
+`install.sh` installs the system packages, creates the `territory` system user, builds `/opt/territory-signals/.venv`, installs `requirements.txt`, writes `/etc/territory-signals/kaiser-team.env` (mode 600) only when it is missing, installs the systemd units and enables the timer (not the run). It never starts a run and never overwrites an existing env file.
+
+### 2. Fill in the secrets (once)
+
+```bash
+sudo editor /etc/territory-signals/kaiser-team.env
+sudo chmod 600 /etc/territory-signals/kaiser-team.env
+sudo chown root:root /etc/territory-signals/kaiser-team.env
+```
+
+Set `SUPABASE_DB_URL` (cloud, session pooler or direct), `LLM_API_KEY`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `DIGEST_FROM` and `DIGEST_TO`. `DIGEST_TO` must list internal team member emails only; the digest refuses to send to anyone not in `team_members`.
+
+### 3. Verify the units before the first run
+
+```bash
+systemd-analyze verify /etc/systemd/system/territory-weekly.service /etc/systemd/system/territory-weekly.timer
+systemctl cat territory-weekly.service
+systemctl cat territory-weekly.timer
+systemd-analyze calendar 'Mon *-*-* 05:30:00 America/Los_Angeles'   # prints the next elapse time
+```
+
+### 4. First run now (sends the digest)
+
+```bash
+sudo systemctl start territory-weekly.service
+sudo journalctl -u territory-weekly.service -n 200 --no-pager
+ls -l /opt/territory-signals/data/outbox/
+```
+
+### 5. Start the timer and confirm the schedule
+
+```bash
+sudo systemctl start territory-weekly.timer
+sudo systemctl enable territory-weekly.timer
+systemctl list-timers territory-weekly.timer --no-pager
+systemctl status territory-weekly.timer --no-pager
+```
+
+### 6. Day-to-day checks
+
+```bash
+systemctl list-timers territory-weekly.timer --no-pager      # next elapse
+sudo journalctl -u territory-weekly.service --since "7 days ago" --no-pager
+sudo systemctl restart territory-weekly.timer                # after editing the unit files
+sudo systemctl disable --now territory-weekly.timer          # pause the schedule
+```
+
+A dry run without sending, on the server or locally:
+
+```bash
+cd /opt/territory-signals/pipelines && env -u SUPABASE_DB_URL /opt/territory-signals/.venv/bin/python -m territory.weekly_run --client kaiser-team --skip-ai
+```
+
+It writes `/opt/territory-signals/data/outbox/latest_digest.html` and `.txt` and sends nothing. Locally the same command uses the cached files in `data/raw/`; on the server with `--cloud` it fetches the live sources.
 
 ## Runtime notes
 

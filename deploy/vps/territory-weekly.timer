@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the Territory Signals weekly pipeline every Monday at 05:30 America/Los_Angeles
+
+[Timer]
+OnCalendar=Mon *-*-* 05:30:00 America/Los_Angeles
+Persistent=true
+RandomizedDelaySec=0
+Unit=territory-weekly.service
+
+[Install]
+WantedBy=timers.target

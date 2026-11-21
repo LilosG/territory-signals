@@ -1,6 +1,6 @@
 # Match report: stro_licenses
 
-Generated 2026-11-18T06:25:41
+Generated 2026-11-21T13:43:17
 
 | Measure | Count |
 |---|---|
@@ -19,7 +19,7 @@ Generated 2026-11-18T06:25:41
 
 - rows in City file: 8432
 - excluded: outside territory: 5066
-- previous run: d65a07d5-0641-4bba-a7e6-e1872bcdb0ef (2026-11-18)
+- previous run: 87d67640-fcea-428c-b6ef-b39657fbe238 (2026-11-21)
 - licenses removed since previous run: 0
 
 ## Example unmatched rows (max 10, no personal data)
