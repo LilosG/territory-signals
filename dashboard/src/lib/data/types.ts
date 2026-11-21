@@ -226,6 +226,16 @@ export type LeadStatus = 'new' | 'draft_ready' | 'awaiting_approval' | 'approved
 
 export interface TopComponent { key: string; facts: Record<string, unknown> | null; points: number; signal_date: IsoDate | null; is_sample: boolean; is_estimate: boolean }
 
+/** One row of the deterministic territory portfolio clustering (public.parcel_portfolios). */
+export interface PortfolioInfo {
+  portfolio_key: string;
+  entity_type: 'trust' | 'llc_corp' | 'individual_multi' | 'single';
+  territory_parcel_count: number;
+  total_est_value: number | null;
+  total_est_equity: number | null;
+  is_sample: boolean;
+}
+
 /** AI layer (Phase 5F). Every AI output is stored, validated and cites the records it used. Never sets scores. */
 export interface AiClaim { text: string; /** signal ids, `owner:<field>`, `parcel:<apn>` or `score:<id>` */ record_ids: string[] }
 export interface LeadBriefAi {
@@ -300,6 +310,8 @@ export interface LeadDetail {
   is_sample: boolean;
   /** Validated AI summary with its cited records, or null (also null when the AI layer is off). */
   ai_brief: LeadBriefAi | null;
+  /** Territory portfolio when the owner holds 2+ territory parcels (internal pages only; never on a share page). */
+  portfolio: PortfolioInfo | null;
 }
 
 export interface MapPoint { apn: string; score: number; band: ScoreBand; recipe: string | null; neighborhood: string; lng: number; lat: number }
@@ -394,6 +406,8 @@ export interface OffMarketRow {
   year_built: number | null; land_use: string | null; kinds: string[]; upzoning: string[]; has_share_link: boolean;
   /** The top-contribution signal line (same rule as the lead lists). */
   top_signal?: Marked | null;
+  /** Territory portfolio when the owner holds 2+ territory parcels (internal page only). */
+  portfolio?: PortfolioInfo | null;
 }
 export interface ActiveShareLink { token: string; apn: string; situs_address: string | null; neighborhood: string | null; created_by: string; created_at: IsoTimestamp }
 export interface OffMarketPage { items: OffMarketRow[]; total: number; page: number; pageSize: number; links: ActiveShareLink[] }

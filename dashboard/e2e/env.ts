@@ -34,6 +34,11 @@ export function psql(sql: string) {
   execFileSync('docker', ['exec', '-i', 'supabase_db_territory-signals', 'psql', '-U', 'supabase_admin', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-c', sql], { stdio: ['ignore', 'ignore', 'inherit'] });
 }
 
+/** Runs one SQL query and returns its first value (test seeding only). */
+export function psqlValue(sql: string): string {
+  return execFileSync('docker', ['exec', '-i', 'supabase_db_territory-signals', 'psql', '-U', 'supabase_admin', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-tAc', sql], { encoding: 'utf8' }).trim();
+}
+
 /** The dashboard lists read a materialized view; refresh it after seeding or removing test rows. */
 export const refreshAggregates = () => psql('select private.refresh_dashboard_aggregates();');
 

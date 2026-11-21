@@ -1,8 +1,16 @@
 {
   "catalog_version": 1,
   "client_id": "kaiser-team",
-  "model_version": "v0.5-handset",
+  "model_version": "v0.6-handset",
   "signal_types": [
+    {
+      "key": "code_violation_closed",
+      "label": "Code enforcement case closed"
+    },
+    {
+      "key": "code_violation_open",
+      "label": "Open code enforcement case"
+    },
     {
       "key": "fire_hazard_zone",
       "label": "Fire hazard severity zone"
@@ -51,7 +59,7 @@
     },
     {
       "key": "distress",
-      "label": "Tax distress"
+      "label": "Distress"
     },
     {
       "key": "life_event",
@@ -757,6 +765,22 @@
       "family_label": "Financial"
     },
     {
+      "key": "code_violation_open",
+      "kind": "signal",
+      "family": "financial",
+      "max_points": 24.0,
+      "label": "Open code enforcement case",
+      "family_label": "Financial"
+    },
+    {
+      "key": "code_violation_closed",
+      "kind": "signal",
+      "family": "permits",
+      "max_points": 10.0,
+      "label": "Code enforcement case closed",
+      "family_label": "Permits"
+    },
+    {
       "key": "stro_license_removed",
       "kind": "signal",
       "family": "rental",
@@ -882,6 +906,14 @@
       "family": "owner",
       "max_points": 6.0,
       "label": "Equity in the top quarter (estimated)",
+      "family_label": "Owner"
+    },
+    {
+      "key": "owner:portfolio_owner_multi",
+      "kind": "owner",
+      "family": "owner",
+      "max_points": 6.0,
+      "label": "Multiple parcels in the territory",
       "family_label": "Owner"
     },
     {

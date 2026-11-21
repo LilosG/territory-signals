@@ -7,6 +7,7 @@ delete from ai_task_runs where model = 'e2e-model';
 update ai_outputs set client_id = replace(client_id, '-hold', '') where client_id like '%-hold';
 update ai_task_runs set client_id = replace(client_id, '-hold', '') where client_id like '%-hold';
 delete from stage_events where apn in ('${TEST_APN}', '${TEST_APN2}');
+delete from parcel_portfolios where apn in ('${TEST_APN}', '${TEST_APN2}');
 delete from share_links where apn in ('${TEST_APN}', '${TEST_APN2}');
 delete from outreach where apn in ('${TEST_APN}', '${TEST_APN2}');
 delete from scores where apn in ('${TEST_APN}', '${TEST_APN2}');

@@ -5,6 +5,8 @@
 
 signal_types:
   tax_default: Tax default (power-to-sell list)
+  code_violation_open: Open code enforcement case
+  code_violation_closed: Code enforcement case closed
   stro_license_removed: STR license removed
   stro_license_active: Active STR license
   permit_approved: Permit approved
@@ -16,7 +18,7 @@ signal_types:
 
 # signal_group values written by the adapters.
 signal_groups:
-  distress: Tax distress
+  distress: Distress
   stro: Short-term rentals
   upzoning: Upzoning
   risk: Fire hazard
@@ -32,6 +34,8 @@ signal_groups:
 # Score component keys (components[].key in the scores table) and the families they belong to.
 components:
   tax_default: Tax default
+  code_violation_open: Open code enforcement case
+  code_violation_closed: Code enforcement case closed
   stro_license_removed: STR license removed
   stro_license_active: Active STR license
   "permit_approved:pre_sale_prep": Pre-sale prep permit approved
@@ -50,6 +54,7 @@ components:
   "owner:out_of_state": Out-of-state owner
   "owner:mortgage_open_false": No open mortgage
   "owner:est_equity_top_quartile": Equity in the top quarter (estimated)
+  "owner:portfolio_owner_multi": Multiple parcels in the territory
   "owner:ownership_transfer": Ownership transfer (context only, no points)
 
 families:
@@ -78,6 +83,8 @@ signal_meanings:
   "permit_approved:demolition_lot_split": "A permit to demolish a structure, or to split or adjust the lot, was approved. That points to a redevelopment plan."
   "permit_approved:solar_energy": "A solar or energy permit was approved. It shows investment in the home but is a weak sign of a plan to sell."
   permit_stalled: "A building permit expired more than 90 days ago and was never closed, so the project may be unfinished."
+  code_violation_open: "A City code enforcement case is open on the property. Open cases are a sign of friction that can make a sale conversation timely."
+  code_violation_closed: "A City code enforcement case on the property was closed in the last six months, which often follows repair or cleanup work."
   stro_license_removed: "The short-term rental license for this address was removed, so the home may no longer earn rental income."
   stro_license_active: "The home holds an active short-term rental license, so it is used as a short-term rental. This is context, not a sign of a sale."
   sb9_lot_split_estimate: "An estimated screen against the SB 9 state law suggests the lot may be eligible to be split in two. It is an estimate, not an official finding."
@@ -88,3 +95,4 @@ signal_meanings:
   "owner:out_of_state": "The owner's mailing address is in another state."
   "owner:mortgage_open_false": "No open mortgage is on record, so the home appears to be owned free and clear."
   "owner:est_equity_top_quartile": "Estimated equity is in the top quarter of the territory. It is an estimate from public records, not a verified figure."
+  "owner:portfolio_owner_multi": "The owner holds more than one property in the territory. Investors and absentee owners with several local parcels often review their holdings together."

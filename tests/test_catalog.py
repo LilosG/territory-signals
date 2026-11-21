@@ -43,7 +43,7 @@ def all_labels(cat):
 
 
 def test_catalog_contents_and_counts():
-    assert CAT["model_version"] == CFG["model_version"] == "v0.5-handset"
+    assert CAT["model_version"] == CFG["model_version"] == "v0.6-handset"
     assert CAT["client_id"] == "kaiser-team"
     assert {t["key"] for t in CAT["signal_types"]} == set(CFG["signals"]) | {"ownership_transfer"}
     assert len(CAT["permit_types"]) == len(CFG["permit_labels"]) == 147
@@ -80,6 +80,9 @@ def test_every_component_the_scorer_can_write_is_in_the_catalog():
 def test_component_labels_and_max_points():
     by = {c["key"]: c for c in CAT["components"]}
     assert by["tax_default"]["max_points"] == 40 and by["tax_default"]["family"] == "financial"
+    assert by["code_violation_open"]["max_points"] == 24 and by["code_violation_open"]["family"] == "financial"
+    assert by["code_violation_closed"]["max_points"] == 10 and by["code_violation_closed"]["family"] == "permits"
+    assert by["owner:portfolio_owner_multi"]["max_points"] == 6
     assert by["permit_approved:pre_sale_prep"]["max_points"] == 36
     assert by["sb79_transit_estimate"]["max_points"] == 21 and by["fire_hazard_zone"]["max_points"] == 15
     assert by["owner:years_owned"]["max_points"] == 20 and by["owner:out_of_state"]["max_points"] == 15

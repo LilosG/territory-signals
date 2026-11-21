@@ -57,6 +57,11 @@ class Owner:
     transfer_date: Optional[date] = None
     transfer_kind: Optional[str] = None
     prior_owner_years: Optional[int] = None
+    # Set by the scorer from the parcel_portfolios table (deterministic entity/portfolio clustering).
+    portfolio_parcel_count: Optional[int] = None
+    portfolio_entity_type: Optional[str] = None
+    portfolio_key: Optional[str] = None
+    portfolio_is_sample: bool = False
 
 
 def load_scoring_config(path: str | Path | None = None) -> dict[str, Any]:
@@ -217,6 +222,10 @@ def _signal_facts(s: Sig, cfg: Mapping[str, Any]) -> dict[str, Any]:
         # signal_date is the date of the notice/list the parcel appears on; recency decays from it.
         return {"tax_defaulted_on": d.get("tax_defaulted_on"), "notice": d.get("list"),
                 "notice_date": str(s.date) if s.date else None}
+    if s.type in ("code_violation_open", "code_violation_closed"):
+        return {"case_id": d.get("case_id"), "violation_category": d.get("violation_category"),
+                "open_date": d.get("open_date"), "close_date": d.get("close_date"),
+                "status": d.get("status"), "case_source": d.get("case_source")}
     if s.type == "permit_approved":
         return {"permit_label": permit_label(d.get("approval_type"), cfg),
                 "approval_id": d.get("approval_id"), "group": s.group,
@@ -325,6 +334,16 @@ def owner_components(owner: Optional[Owner], cfg: Mapping[str, Any], as_of: date
         add("owner:est_equity_top_quartile", "est_equity", eq["weight"],
             {"est_equity": float(owner.est_equity), "territory_cutoff": round(float(equity_cutoff), 2),
              "percentile": eq["percentile"]}, estimate=True)
+    # Portfolio modifier: an absentee or investor-held owner with 2+ parcels in the territory.
+    pm = om.get("portfolio_owner_multi")
+    count = owner.portfolio_parcel_count or 0
+    investor_held = (owner.absentee is True or owner.out_of_state is True
+                     or owner.portfolio_entity_type in ("llc_corp", "trust", "individual_multi"))
+    if pm and count >= int(pm.get("min_territory_parcels", 2)) and investor_held:
+        add("owner:portfolio_owner_multi", "portfolio_parcel_count", pm["weight"],
+            {"territory_parcel_count": int(count), "entity_type": owner.portfolio_entity_type,
+             "portfolio_key": owner.portfolio_key})
+        out[-1]["is_sample"] = bool(owner.is_sample or owner.portfolio_is_sample)
     # Total owner-modifier contribution is capped; over the cap every owner component is scaled
     # by the same factor (recorded as cap_multiplier).
     total = sum(c["contribution"] for c in out)
@@ -530,6 +549,9 @@ def phrase(c: Mapping[str, Any], permit_count: Optional[int] = None) -> str:
         p = "no open mortgage"
     elif key == "owner:est_equity_top_quartile":
         p = "equity in the top quarter of the territory"
+    elif key == "owner:portfolio_owner_multi":
+        n = int(f.get("territory_parcel_count") or 0)
+        p = f"holds {n} parcels in the territory"
     elif key.startswith("permit_approved"):
         n = permit_count or f.get("permit_count") or 1
         p = f"{counted_permit_label(f['permit_label'], n)} approved" + (
@@ -544,6 +566,14 @@ def phrase(c: Mapping[str, Any], permit_count: Optional[int] = None) -> str:
         month = m.group(1) if m else (f"{date.fromisoformat(f['notice_date']):%B %Y}" if f.get("notice_date") else None)
         p = ("tax-defaulted" + (f" since {since}" if since else "")
              + f", on the {month + ' ' if month else ''}power-to-sell notice")
+    elif key == "code_violation_open":
+        cat = f.get("violation_category")
+        p = ("open City code enforcement case" + (f" ({cat})" if cat else "")
+             + (f" opened {fmt_date(f['open_date'])}" if f.get("open_date") else ""))
+    elif key == "code_violation_closed":
+        cat = f.get("violation_category")
+        p = ("City code enforcement case closed" + (f" ({cat})" if cat else "")
+             + (f" {fmt_date(f['close_date'])}" if f.get("close_date") else ""))
     elif key == "stro_license_removed":
         p = "short-term rental license removed" + (
             f" (as of {fmt_date(f['removed_as_of'])})" if f.get("removed_as_of") else "")

@@ -42,9 +42,14 @@ def score(signals=(), own=None, snap=None, cutoff=None, data=()):
 
 # ---- config ------------------------------------------------------------------------------
 def test_config_matches_the_spec():
-    assert CFG["model_version"] == "v0.5-handset"
+    assert CFG["model_version"] == "v0.6-handset"
     s = CFG["signals"]
     assert (s["tax_default"]["weight"], s["tax_default"]["half_life_days"]) == (40, 365)
+    assert (s["code_violation_open"]["weight"], s["code_violation_open"]["half_life_days"],
+            s["code_violation_open"]["family"]) == (24, 180, "financial")
+    assert (s["code_violation_closed"]["weight"], s["code_violation_closed"]["half_life_days"],
+            s["code_violation_closed"]["family"]) == (10, 120, "permits")
+    assert CFG["owner_modifiers"]["portfolio_owner_multi"] == {"weight": 6, "min_territory_parcels": 2}
     assert (s["stro_license_removed"]["weight"], s["stro_license_removed"]["half_life_days"]) == (40, 90)
     assert s["stro_license_active"]["weight"] == 5 and s["stro_license_active"]["half_life_days"] is None
     g = s["permit_approved"]["by_group"]
@@ -59,6 +64,8 @@ def test_config_matches_the_spec():
     assert set(CFG["recipes"]) == {"str_exit", "tired_landlord", "builder_bait", "pre_list_prep",
                                    "stalled_project", "downsizer", "insurance_squeeze",
                                    "financial_pressure", "quiet_inheritance"}
+    assert {c.get("signal") for c in CFG["recipes"]["tired_landlord"]["when"]["all"][2]["any"]} >= {"code_violation_open"}
+    assert {c.get("signal") for c in CFG["recipes"]["financial_pressure"]["when"]["any"]} >= {"code_violation_open"}
     q = CFG["recipes"]["quiet_inheritance"]
     assert q["active"] is False and q["note"] == "requires ATTOM recorder data (Phase 6)"
 

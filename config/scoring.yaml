@@ -1,6 +1,6 @@
 # Deterministic scoring model. No AI is used anywhere in scoring (CLAUDE.md AI rules).
 # Score = min(100, round_half_up(weighted_sum x stacking_multiplier)).
-model_version: "v0.5-handset"
+model_version: "v0.6-handset"
 
 # ---- Residential filter ------------------------------------------------------------
 # Only parcels whose parcels.land_use is one of these codes are scored.
@@ -41,6 +41,14 @@ signals:
     family: financial
     weight: 40
     half_life_days: 365
+  code_violation_open:  # City code enforcement case still open; signal_date = date the case opened
+    family: financial
+    weight: 24
+    half_life_days: 180
+  code_violation_closed:  # case resolved in the last 180 days; signal_date = date the case closed
+    family: permits
+    weight: 10
+    half_life_days: 120
   stro_license_removed:
     family: rental
     weight: 40
@@ -103,6 +111,7 @@ owner_modifiers:
   out_of_state:     {weight: 15}
   mortgage_open_false: {weight: 13}
   est_equity_top_quartile: {weight: 6, percentile: 75}   # est_equity >= territory 75th percentile
+  portfolio_owner_multi: {weight: 6, min_territory_parcels: 2}   # absentee/investor owner holding 2+ territory parcels
 
 # ---- Score bands --------------------------------------------------------------------------------
 # Display bands (a score at or above `min` is in the band; first match from the top). The dashboard reads
@@ -136,13 +145,14 @@ recipes:
     label: Tired landlord
     short_description: Long-held absentee owner with a distress signal
     description: Long-held absentee owner with a distress or friction signal.
-    rationale: "The owner does not live at the property, has held it 15 or more years, and there is a sign of friction on it (an expired permit or a removed rental license). Long-held rentals with friction are homes where a conversation about selling can be timely."
+    rationale: "The owner does not live at the property, has held it 15 or more years, and there is a sign of friction on it (an open code enforcement case, an expired permit or a removed rental license). Long-held rentals with friction are homes where a conversation about selling can be timely."
     when:
       all:
         - {owner: absentee, is: true}
         - {owner: years_owned, gte: 15}
         - any:
             - {signal: tax_default}
+            - {signal: code_violation_open}
             - {signal: stro_license_removed, within_days: 730}
             - {signal: permit_stalled}
   builder_bait:
@@ -195,10 +205,11 @@ recipes:
   financial_pressure:
     label: Financial pressure
     short_description: Tax default, or lost rental income with a mortgage
-    description: Tax default, or lost rental income with an open mortgage.
+    description: Tax default, an open code enforcement case, or lost rental income with an open mortgage.
     when:
       any:
         - {signal: tax_default, within_days: 730}
+        - {signal: code_violation_open}
         - all:
             - {signal: stro_license_removed, within_days: 365}
             - {owner: mortgage_open, is: true}

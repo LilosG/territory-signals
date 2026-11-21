@@ -105,6 +105,7 @@ test('a tie goes to the most recent signal', () => {
 
 test('sensitive components never headline', () => {
   assert.equal(topSignal([comp('tax_default', 30, '2026-11-01'), comp('owner:ownership_transfer', 25, null)]), null);
+  assert.equal(topSignal([comp('code_violation_open', 24, '2026-11-01')]), null);
 });
 
 test('plural permit wording', () => {

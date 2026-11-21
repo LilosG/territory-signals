@@ -1,6 +1,6 @@
 import { chromium, type FullConfig } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
-import { refreshAggregates, rest, stack, SECRET_OWNER, TEST_APN, TEST_APN2, TEST_EMAIL, TEST_WEEK } from './env';
+import { refreshAggregates, rest, stack, psqlValue, SECRET_OWNER, TEST_APN, TEST_APN2, TEST_EMAIL, TEST_WEEK } from './env';
 import { cleanup } from './global-teardown';
 
 /**
@@ -18,10 +18,14 @@ export default async function globalSetup(config: FullConfig) {
   await rest('/rest/v1/scores', { method: 'POST', json: { apn: TEST_APN, score: 55, components: [{ key: 'permit_approved:remodel_addition', kind: 'signal', group: 'remodel_addition', family: 'permits', contribution: 8, facts: { group: 'remodel_addition', permit_label: 'Building permit (remodel, addition or new construction)', permit_count: 3, issue_date: '2026-11-10' }, signal_date: '2026-11-10', is_sample: false, is_estimate: false }], reason_text: 'Tax default (Jul 2026)', recipe_matches: ['builder_bait', 'financial_pressure'], primary_recipe: 'financial_pressure', model_version: 'v0.4.1-handset', uses_sample_data: true } });
   await rest('/rest/v1/owners', { method: 'POST', json: { apn: TEST_APN, owner_name: SECRET_OWNER, mailing_address: '9 Secret Mailing Ln, Seattle, WA 98101', owner_occupied: false, absentee: true, out_of_state: true, last_sale_date: '2012-05-01', last_sale_price: 777777, mortgage_open: true, est_value: 3100000, est_equity: 2000000, provider: 'sample', is_sample: true, as_of: '2026-11-18' } });
   await rest('/rest/v1/sales_history', { method: 'POST', json: { apn: TEST_APN, sale_date: '2012-05-01', sale_price: 777777, doc_type: 'grant deed', provider: 'sample', is_sample: true } });
+  // The share page shows only the latest snapshot of each upzoning estimate, so the test row must carry the
+  // same date as the newest sb9 signal in the working database (it moves with each pipeline run).
+  const sb9Date = psqlValue("select coalesce(max(signal_date)::text, current_date::text) from signals where signal_type='sb9_lot_split_estimate' and superseded_by is null");
   const seeded = await rest('/rest/v1/signals', { method: 'POST', json: [
     { apn: TEST_APN, signal_type: 'tax_default', signal_group: 'distress', signal_date: '2026-07-01', source_key: 'tax_default', source_record_id: TEST_APN, confidence: 0.95, match_method: 'apn', is_estimate: false, details: { list: 'e2e' } },
+    { apn: TEST_APN, signal_type: 'code_violation_open', signal_group: 'distress', signal_date: '2026-06-01', source_key: 'code_enforcement', source_record_id: 'E2E-CE-1', confidence: 0.95, match_method: 'apn', is_estimate: false, details: { case_id: 'E2E-CE-1', violation_category: 'GARAGE CONVERSN', status: 'open' } },
     ...['A', 'B', 'C'].map((k) => ({ apn: TEST_APN, signal_type: 'permit_approved', signal_group: 'remodel_addition', signal_date: '2026-11-10', source_key: 'dev_permits', source_record_id: `E2E-PMT-${k}`, confidence: 0.95, match_method: 'apn', is_estimate: false, details: { approval_id: `E2E-PMT-${k}`, scope: 'E2E kitchen remodel', issue_date: '2026-11-10' } })),
-    { apn: TEST_APN, signal_type: 'sb9_lot_split_estimate', signal_group: 'upzoning', signal_date: '2026-11-18', source_key: 'upzoning_estimate', source_record_id: `${TEST_APN}-sb9`, confidence: 0.9, match_method: 'spatial', is_estimate: true, details: {} },
+    { apn: TEST_APN, signal_type: 'sb9_lot_split_estimate', signal_group: 'upzoning', signal_date: sb9Date, source_key: 'upzoning_estimate', source_record_id: `${TEST_APN}-sb9`, confidence: 0.9, match_method: 'spatial', is_estimate: true, details: {} },
   ] });
   const permitId = (seeded as { id: string; signal_type: string }[]).find((x) => x.signal_type === 'permit_approved')!.id;
   // AI rows (Phase 5F): one valid lead brief citing a real signal and a sample owner fact, and one weekly briefing.
@@ -48,6 +52,10 @@ export default async function globalSetup(config: FullConfig) {
   await rest('/rest/v1/parcels', { method: 'POST', json: { apn: TEST_APN2, situs_address: '2 E2E Beach Walk', zip: '92109', planning_area: 'Pacific Beach', neighborhood: 'Pacific Beach', lot_sqft: 5200, land_use: '11', zoning: 'RS-1-7', year_built: 1958 } });
   await rest('/rest/v1/scores', { method: 'POST', json: { apn: TEST_APN2, score: 45, components: [], reason_text: 'Older home on a large lot', recipe_matches: ['builder_bait'], primary_recipe: 'builder_bait', model_version: 'v0.4.1-handset', uses_sample_data: false } });
   await rest('/rest/v1/owners', { method: 'POST', json: { apn: TEST_APN2, owner_name: SECRET_OWNER, mailing_address: '9 Secret Mailing Ln, Seattle, WA 98101', owner_occupied: false, absentee: true, out_of_state: true, mortgage_open: true, est_value: 3100000, est_equity: 2000000, provider: 'sample', is_sample: true, as_of: '2026-11-18' } });
+  await rest('/rest/v1/parcel_portfolios', { method: 'POST', json: [
+    { apn: TEST_APN, portfolio_key: 'name:pacific holdings llc', entity_type: 'llc_corp', territory_parcel_count: 2, total_est_value: 6400000, total_est_equity: 4000000, is_sample: true },
+    { apn: TEST_APN2, portfolio_key: 'name:pacific holdings llc', entity_type: 'llc_corp', territory_parcel_count: 2, total_est_value: 6400000, total_est_equity: 4000000, is_sample: true },
+  ] });
   await rest('/rest/v1/outreach', { method: 'POST', json: { apn: TEST_APN2, recipe: 'builder_bait', uses_sample_data: false, channel: 'mail', status: 'draft', content: 'Hello neighbor,\n\nE2E bulk letter.', source_facts: [{ kind: 'parcel_field', parcel_field: 'neighborhood', value: 'Pacific Beach', apn: TEST_APN2 }], blocked_reason: null } });
   refreshAggregates(); // lists, search and counts read the materialized view
 

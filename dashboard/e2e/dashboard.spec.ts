@@ -154,7 +154,12 @@ test('lead brief shows the data, labels from the catalog and the owner panel', a
   await expect(owner.locator('h3').getByText('Sample', { exact: true })).toHaveCount(1);   // one badge, in the header
   await expect(owner.getByText('14 years')).toBeVisible();                                  // whole years
   await expect(owner.getByText('Open mortgage')).toBeVisible();
+  const portfolio = owner.locator('[data-portfolio]');
+  await expect(portfolio).toContainText('Territory Portfolio');
+  await expect(portfolio).toContainText('Holds 2 parcels in territory');
+  await expect(portfolio).toContainText('est.');
   await expect(page.getByRole('heading', { name: 'Sensitive records' })).toBeVisible();     // tax default only appears here, labeled
+  await expect(page.locator('[data-sensitive]')).toContainText('Open code enforcement case');
   const timeline = page.locator('[data-timeline] ol').first();
   await expect(timeline.locator('[data-event]')).toHaveCount(1);                              // same-day permits collapse into one event
   await expect(timeline).toContainText('3 permits approved');
@@ -162,14 +167,14 @@ test('lead brief shows the data, labels from the catalog and the owner panel', a
   await timeline.getByText('Show all 3').click();
   await expect(timeline.locator('details li')).toHaveCount(3);
   await expect(timeline).toContainText('Matched by parcel number · 95%');
-  await expect(timeline).not.toContainText(/years owned|absentee|equity|mortgage|tax default|death|deceased/i);   // owner traits and distress are not timeline events
+  await expect(timeline).not.toContainText(/years owned|absentee|equity|mortgage|tax default|death|deceased|code enforcement/i);   // owner traits and distress are not timeline events
   await expect(page.getByRole('region', { name: 'Property traits' })).toContainText('SB 9 lot-split eligibility');
 });
 
 test('lead cards and lists never show distress or life-event chips', async ({ page }) => {
   await page.goto('/leads');
   const text = (await page.locator('main').innerText()).toLowerCase();
-  for (const word of ['tax default', 'ownership transfer', 'financial pressure', 'death', 'deceased', 'probate']) expect(text, word).not.toContain(word);
+  for (const word of ['tax default', 'ownership transfer', 'financial pressure', 'death', 'deceased', 'probate', 'code enforcement', 'code violation']) expect(text, word).not.toContain(word);
 });
 
 test('a blocked draft cannot be approved; an unblocked one can, after an edit', async ({ page }) => {
@@ -279,6 +284,8 @@ test('Off-market: bulk share link shows property facts only, then revoke', async
   }
   await expect(row).toContainText('Builder bait');
   await expect(row).toContainText('5,200 sq ft lot');
+  await expect(row.locator('[data-portfolio]')).toContainText('Territory Portfolio');
+  await expect(row.locator('[data-portfolio]')).toContainText('Holds 2 parcels in territory');
   await expect(row).not.toContainText(/owner|equity|mortgage|Seattle/i);
   await row.locator('input[data-bulk-item]').check();
   await page.locator('#create-links').click();
@@ -293,7 +300,7 @@ test('Off-market: bulk share link shows property facts only, then revoke', async
   const body = await pub.locator('body').innerText();
   expect(body).toContain('Pacific Beach');
   expect(body).toContain('5,200 sq ft');
-  for (const secret of [SECRET_OWNER, 'Secret Mailing', 'Seattle', '3,100,000', '2,000,000', 'mortgage', 'equity', 'tax', 'default', 'E2E Beach Walk', TEST_APN2, 'Sample']) {
+  for (const secret of [SECRET_OWNER, 'Secret Mailing', 'Seattle', '3,100,000', '2,000,000', 'mortgage', 'equity', 'tax', 'default', 'E2E Beach Walk', TEST_APN2, 'Sample', 'Territory Portfolio', 'code enforcement']) {
     expect(body, `share page must not contain "${secret}"`).not.toContain(secret);
   }
   expect(await pub.content()).not.toContain(SECRET_OWNER);
