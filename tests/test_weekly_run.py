@@ -174,9 +174,10 @@ def test_local_dry_run_skip_ai_runs_every_stage_and_writes_the_digest(db, tmp_pa
     statuses = {s.name: s.status for s in result.stages}
     assert result.ok, out.getvalue()
     for name in ("stro_licenses", "dev_permits", "code_enforcement", "tax_default", "upzoning_estimate",
-                 "permit_rederive", "portfolio", "score", "refresh_aggregates", "digest"):
+                 "permit_rederive", "portfolio", "score", "backtest", "refresh_aggregates", "digest"):
         assert statuses[name] == "success", (name, statuses, out.getvalue())
     assert statuses["fire_zones"] == "awaiting"
+    assert statuses["attom"] == "skipped"
     assert statuses["ai"] == "skipped"
     assert result.digest_path == tmp_path / "outbox" / "latest_digest.html"
     html = result.digest_path.read_text(encoding="utf-8")

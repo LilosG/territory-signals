@@ -1,0 +1,77 @@
+{
+  "status": {
+    "version": "1.0.0",
+    "code": 0,
+    "msg": "SuccessWithResult",
+    "total": 1
+  },
+  "property": [
+    {
+      "identifier": {
+        "apn": "3505101234",
+        "fips": "06073",
+        "apnOrig": "3505101234"
+      },
+      "address": {
+        "line1": "4321 Turquoise St",
+        "line2": "",
+        "locality": "Pacific Beach",
+        "countrySubd": "CA",
+        "postal1": "92109"
+      },
+      "lot": {
+        "lotsize1": 6000,
+        "lotsize2": 0
+      },
+      "building": {
+        "size": {
+          "universalsize": 2100
+        },
+        "rooms": {
+          "beds": 3,
+          "bathstotal": 2
+        },
+        "yearbuilt": 1968
+      },
+      "assessment": {
+        "owner": {
+          "owner1": {
+            "fullname": "PACIFIC HOLDINGS LLC"
+          },
+          "owner2": {
+            "fullname": ""
+          },
+          "mailingaddressunparsed": "500 Corporate Way, San Diego, CA 92101",
+          "mailingaddress": {
+            "line1": "500 Corporate Way",
+            "locality": "San Diego",
+            "countrySubd": "CA",
+            "postal1": "92101"
+          }
+        },
+        "assessed": {
+          "assdTtlValue": 1200000,
+          "assdLandValue": 720000.0,
+          "assdImprValue": 480000.0
+        }
+      },
+      "avm": {
+        "amount": {
+          "value": 1800000,
+          "low": 1656000,
+          "high": 1944000
+        }
+      },
+      "sale": {
+        "salesearchdate": "2001-03-01",
+        "saleamt": 600000,
+        "saleTransDate": "2001-03-01",
+        "documentType": "Grant Deed"
+      },
+      "mortgage": {
+        "open": true,
+        "amount": 300000
+      }
+    }
+  ]
+}

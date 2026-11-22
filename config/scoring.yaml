@@ -1,6 +1,6 @@
 # Deterministic scoring model. No AI is used anywhere in scoring (CLAUDE.md AI rules).
 # Score = min(100, round_half_up(weighted_sum x stacking_multiplier)).
-model_version: "v0.6-handset"
+model_version: "v0.7-attom"
 
 # ---- Residential filter ------------------------------------------------------------
 # Only parcels whose parcels.land_use is one of these codes are scored.
@@ -49,6 +49,14 @@ signals:
     family: permits
     weight: 10
     half_life_days: 120
+  notice_of_default:    # ATTOM recorder filing: notice of default, trustee sale or lis pendens
+    family: financial
+    weight: 35
+    half_life_days: 180
+  ownership_transfer_inheritance:  # recorder transfer by death/trust/inheritance; enables quiet_inheritance, never scores
+    family: owner
+    weight: 0
+    half_life_days: null
   stro_license_removed:
     family: rental
     weight: 40
@@ -204,11 +212,12 @@ recipes:
       detail: {hazard_class: [high, very high]}
   financial_pressure:
     label: Financial pressure
-    short_description: Tax default, or lost rental income with a mortgage
-    description: Tax default, an open code enforcement case, or lost rental income with an open mortgage.
+    short_description: Tax default, a recorder default notice, or lost rental income with a mortgage
+    description: Tax default, a recorder notice of default, an open code enforcement case, or lost rental income with an open mortgage.
     when:
       any:
         - {signal: tax_default, within_days: 730}
+        - {signal: notice_of_default, within_days: 730}
         - {signal: code_violation_open}
         - all:
             - {signal: stro_license_removed, within_days: 365}
@@ -216,7 +225,8 @@ recipes:
   quiet_inheritance:
     label: Quiet inheritance
     short_description: Recent transfer by death, trust or inheritance
-    active: false
-    note: requires ATTOM recorder data (Phase 6)
+    description: A recorded transfer by death, trust or inheritance in the last two years.
+    rationale: "A recorder document shows the home changed hands by death, trust or inheritance. A new owner or trustee may be deciding what to do with the property, and a neutral conversation about its value can be timely."
     when:
-      signal: ownership_transfer
+      signal: ownership_transfer_inheritance
+      within_days: 730

@@ -93,7 +93,7 @@ export const INTERNAL_SOURCES = new Set(['permit_rederive', 'parcels', 'zoning',
 /** Signal types that make a dated selling event (shown in timelines, feeds and counts). Permits in the "other" group never are. */
 export const EVENT_TYPES = ['permit_approved', 'permit_stalled', 'stro_license_removed', 'code_violation_closed'] as const;
 /** Tax default, ownership transfer and open code enforcement: only the lead brief shows these, in a labeled section. */
-export const SENSITIVE_TYPES = ['tax_default', 'ownership_transfer', 'code_violation_open'] as const;
+export const SENSITIVE_TYPES = ['tax_default', 'ownership_transfer', 'ownership_transfer_inheritance', 'notice_of_default', 'code_violation_open'] as const;
 /** Property traits (latest snapshot): upzoning estimates, an active STR license, fire zone. */
 export const TRAIT_TYPES = ['sb9_lot_split_estimate', 'sb79_transit_estimate', 'stro_license_active', 'fire_hazard_zone'] as const;
 /** Recipes that describe an owner in distress. Their tags never appear on lead cards or lists. */

@@ -44,6 +44,8 @@ def test_allow_cloud_lifts_the_guard(monkeypatch):
     ("territory.permit_rederive", ["--client", "kaiser-team"]),
     ("territory.outreach", ["--client", "kaiser-team"]),
     ("territory.run", ["--client", "kaiser-team", "--only-ai", "--tasks", "weekly_brief"]),
+    ("territory.backtest", ["--client", "kaiser-team"]),
+    ("territory.enrich_attom", ["--client", "kaiser-team", "--limit", "1"]),
 ])
 def test_entry_points_exit_with_host_error(module, args, monkeypatch):
     env = {**__import__("os").environ, "SUPABASE_DB_URL": CLOUD}

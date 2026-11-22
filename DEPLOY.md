@@ -199,6 +199,32 @@ cd ~/territory-signals && source .venv/bin/activate \
 
 **Cloud guard (Phase 5H).** Every pipeline command (`run`, `score`, `permit_rederive`, `outreach`, `owner_data.load`, the AI tasks) refuses to connect to any database host other than 127.0.0.1/localhost unless `--cloud` is passed, and exits naming the host. A shell that still has `SUPABASE_DB_URL` exported will therefore never write to the cloud by accident; for local work run `env -u SUPABASE_DB_URL ...`.
 
+## ATTOM owner data and the trial quota (Phase 6)
+Add Mike's ATTOM trial key to the environment, never to a config file or git:
+
+```bash
+export ATTOM_API_KEY="$(security find-generic-password -a mike -s territory-signals-attom -w)"
+cd pipelines && ../.venv/bin/python -m territory.enrich_attom --client kaiser-team --limit 250 --max-calls 450
+```
+
+- `--max-calls` defaults to 450, below ATTOM's 500/day trial cap. The provider logs every attempt in `api_usage_log` and refuses the call that would cross the day's budget. Cached raw responses in `raw_records` are reused forever unless `--refresh-days` is set, so the same parcel is never billed twice.
+- `config/clients/kaiser-team.yaml` uses `owner_data_provider: hybrid`: prioritized parcels get real `provider='attom', is_sample=false` rows; every other parcel keeps its labeled sample row. A response with no property becomes a labeled sample fallback.
+- The dashboard shows ATTOM trial usage on `/pipeline` (calls today of 450, calls this month, last call) and the newest `backtest_runs` row on `/performance`.
+- The weekly VPS run can add capped incremental enrichment with `--with-attom --attom-max-calls 100`; it always refreshes the backtest.
+
+**Schema first (Phase 6):**
+
+```bash
+supabase db push --remote --yes          # applies 20261126000000_attom_backtest.sql (api_usage_log, backtest_runs)
+cd dashboard && npm run deploy
+```
+
+Then run the one-off trial pull once the key is in the environment (above). The backtest alone can be run without any ATTOM key:
+
+```bash
+cd pipelines && ../.venv/bin/python -m territory.backtest --client kaiser-team
+```
+
 ## Hetzner VPS: weekly pipeline and Monday digest (Phase 5K)
 
 The weekly run lives on Mike's Hetzner server as a systemd timer. It runs `python -m territory.weekly_run --client kaiser-team --cloud --send-digest` every Monday at 05:30 America/Los_Angeles. The kit is `deploy/vps/` (`install.sh`, `territory-weekly.service`, `territory-weekly.timer`).

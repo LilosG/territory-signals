@@ -9,7 +9,7 @@ def test_kaiser_team_loads():
     cfg = load_client("kaiser-team")
     assert cfg.client_id == "kaiser-team"
     assert cfg.territory.zips == ["92037", "92109"]
-    assert cfg.owner_data_provider == "sample"
+    assert cfg.owner_data_provider == "hybrid"
     assert cfg.outreach.mode == "preview"
     assert cfg.team_members == []                       # empty until Mike supplies agents and DRE numbers
 
@@ -22,9 +22,10 @@ def test_phase5_client_settings():
     assert (o.weekly_send_cap_per_agent, o.drafts_per_run, o.cooldown_days) == (25, 50, 90)
     assert o.approval_required_recipes == ["quiet_inheritance", "financial_pressure", "insurance_squeeze"]
     enabled = {k for k, v in cfg.recipes.items() if v.enabled}
-    assert set(cfg.recipes) - enabled == {"quiet_inheritance"}           # the only disabled recipe
+    assert set(cfg.recipes) - enabled == set()                           # all recipes on in Phase 6
     assert cfg.recipes["insurance_squeeze"].enabled                      # enabled, idle until fire zones load
-    assert cfg.enabled_recipes() == [k for k in cfg.recipes if k != "quiet_inheritance"]
+    assert cfg.recipes["quiet_inheritance"].enabled                      # now active on ATTOM recorder data
+    assert cfg.enabled_recipes() == list(cfg.recipes)
 
 
 def test_recipe_keys_match_scoring_yaml():

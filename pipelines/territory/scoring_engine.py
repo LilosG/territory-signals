@@ -18,6 +18,7 @@ from dateutil.relativedelta import relativedelta
 SCORING_PATH = Path(__file__).resolve().parents[2] / "config" / "scoring.yaml"
 LABELS_PATH = Path(__file__).resolve().parents[2] / "config" / "permit_labels.yaml"
 TRANSFER_TYPES_PATH = Path(__file__).resolve().parents[2] / "config" / "transfer_types.yaml"
+RECORDER_SIGNALS_PATH = TRANSFER_TYPES_PATH
 SAMPLE_LABEL = "(sample data)"
 ESTIMATE_LABEL = "(estimated)"
 SAMPLE_ESTIMATE_LABEL = "(sample data, estimated)"
@@ -73,6 +74,7 @@ def load_scoring_config(path: str | Path | None = None) -> dict[str, Any]:
     cfg["residential_codes"] = [str(c) for c in cfg["residential_land_use"]]
     cfg["permit_labels"] = load_permit_labels()
     cfg["transfer_types"] = load_transfer_types()
+    cfg["recorder_signals"] = load_recorder_signals()
     return cfg
 
 
@@ -92,6 +94,12 @@ def load_transfer_types(path: str | Path | None = None) -> dict[str, dict[str, s
     """doc_type (normalized) -> {kind, label} for transfers by death, trust or inheritance."""
     raw = yaml.safe_load(Path(path or TRANSFER_TYPES_PATH).read_text(encoding="utf-8"))["transfer_types"]
     return {norm_doc_type(k): dict(v) for k, v in raw.items()}
+
+
+def load_recorder_signals(path: str | Path | None = None) -> dict[str, dict[str, str]]:
+    """doc_type or ATTOM documentTypeCode (normalized) -> {signal, kind, label} for distress recordings."""
+    raw = yaml.safe_load(Path(path or RECORDER_SIGNALS_PATH).read_text(encoding="utf-8"))
+    return {norm_doc_type(k): dict(v) for k, v in (raw.get("recorder_signals") or {}).items()}
 
 
 def resolve_tenure(owner: Optional[Owner], sales: Sequence[tuple[Optional[date], Optional[str]]],
@@ -246,6 +254,9 @@ def _signal_facts(s: Sig, cfg: Mapping[str, Any]) -> dict[str, Any]:
         return {"zoning": d.get("zoning"), "lot_sqft": d.get("lot_sqft")}
     if s.type == "fire_hazard_zone":
         return {"hazard_class": d.get("hazard_class")}
+    if s.type == "notice_of_default":
+        return {"doc_type": d.get("doc_type"), "notice_kind": d.get("notice_kind"),
+                "label": d.get("label"), "notice_date": str(s.date) if s.date else None}
     return {}
 
 
@@ -588,6 +599,9 @@ def phrase(c: Mapping[str, Any], permit_count: Optional[int] = None) -> str:
         p = "lot may qualify for an SB 9 split"
     elif key == "fire_hazard_zone":
         p = f"in a {norm_class(f.get('hazard_class'))} fire hazard severity zone"
+    elif key == "notice_of_default":
+        p = (f"a {str(f.get('label') or 'notice of default').lower()} was recorded"
+             + (f" {fmt_date(f['notice_date'])}" if f.get("notice_date") else ""))
     else:  # pragma: no cover - every configured key has a phrase
         raise ValueError(f"no reason phrase for component {key}")
     return p + _flags(c)

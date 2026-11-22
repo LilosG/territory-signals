@@ -1,0 +1,24 @@
+{
+  "status": {
+    "version": "1.0.0",
+    "code": 0,
+    "msg": "SuccessWithResult",
+    "total": 1
+  },
+  "property": [
+    {
+      "identifier": {
+        "apn": "3505101235",
+        "fips": "06073"
+      },
+      "salehistory": [
+        {
+          "saleTransDate": "2003-09-01",
+          "saleAmt": 550000,
+          "documentType": "Grant Deed",
+          "documentTypeCode": "GD"
+        }
+      ]
+    }
+  ]
+}

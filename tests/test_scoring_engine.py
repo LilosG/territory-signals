@@ -42,7 +42,7 @@ def score(signals=(), own=None, snap=None, cutoff=None, data=()):
 
 # ---- config ------------------------------------------------------------------------------
 def test_config_matches_the_spec():
-    assert CFG["model_version"] == "v0.6-handset"
+    assert CFG["model_version"] == "v0.7-attom"
     s = CFG["signals"]
     assert (s["tax_default"]["weight"], s["tax_default"]["half_life_days"]) == (40, 365)
     assert (s["code_violation_open"]["weight"], s["code_violation_open"]["half_life_days"],
@@ -67,7 +67,8 @@ def test_config_matches_the_spec():
     assert {c.get("signal") for c in CFG["recipes"]["tired_landlord"]["when"]["all"][2]["any"]} >= {"code_violation_open"}
     assert {c.get("signal") for c in CFG["recipes"]["financial_pressure"]["when"]["any"]} >= {"code_violation_open"}
     q = CFG["recipes"]["quiet_inheritance"]
-    assert q["active"] is False and q["note"] == "requires ATTOM recorder data (Phase 6)"
+    assert q.get("active") is not False and q["when"]["signal"] == "ownership_transfer_inheritance"
+    assert s["notice_of_default"]["weight"] == 35 and s["notice_of_default"]["half_life_days"] == 180
 
 
 # ---- decay ---------------------------------------------------------------------------------
@@ -295,9 +296,12 @@ def test_financial_pressure():
     assert "financial_pressure" not in recipes([sig("tax_default", 900)])
 
 
-def test_quiet_inheritance_never_matches():
-    everything = [sig("tax_default", 1), sig("attom_recorder_transfer", 1)]
-    assert "quiet_inheritance" not in recipes(everything, owner(), data=["fire_zones", "attom"])
+def test_quiet_inheritance_matches_only_a_real_recorder_transfer():
+    legacy = [sig("tax_default", 1), sig("ownership_transfer", 30, group="life_event")]
+    assert "quiet_inheritance" not in recipes(legacy, owner())
+    recorder = [sig("ownership_transfer_inheritance", 30, group="life_event")]
+    assert "quiet_inheritance" in recipes(recorder, owner())
+    assert "quiet_inheritance" not in recipes([sig("ownership_transfer_inheritance", 800, group="life_event")], owner())
 
 
 # ---- reason text ---------------------------------------------------------------------------------

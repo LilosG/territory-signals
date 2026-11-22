@@ -1,0 +1,80 @@
+{
+  "status": {
+    "version": "1.0.0",
+    "code": 0,
+    "msg": "SuccessWithResult",
+    "total": 1
+  },
+  "property": [
+    {
+      "identifier": {
+        "apn": "3461201100",
+        "fips": "06073",
+        "apnOrig": "3461201100"
+      },
+      "address": {
+        "line1": "1234 Prospect St",
+        "line2": "",
+        "locality": "La Jolla",
+        "countrySubd": "CA",
+        "postal1": "92037"
+      },
+      "lot": {
+        "lotsize1": 6000,
+        "lotsize2": 0
+      },
+      "building": {
+        "size": {
+          "universalsize": 2100
+        },
+        "rooms": {
+          "beds": 3,
+          "bathstotal": 2
+        },
+        "yearbuilt": 1962
+      },
+      "assessment": {
+        "owner": {
+          "owner1": {
+            "fullname": "JOHN A DOE"
+          },
+          "owner2": {
+            "fullname": ""
+          },
+          "mailingaddressunparsed": "9 Secret Mailing Ln, Seattle, WA 98101",
+          "mailingaddress": {
+            "line1": "9 Secret Mailing Ln",
+            "locality": "Seattle",
+            "countrySubd": "WA",
+            "postal1": "98101"
+          },
+          "phone": "619-555-9999",
+          "ssn": "123-45-6789",
+          "email": "jdoe@example.test"
+        },
+        "assessed": {
+          "assdTtlValue": 2100000,
+          "assdLandValue": 1260000.0,
+          "assdImprValue": 840000.0
+        }
+      },
+      "avm": {
+        "amount": {
+          "value": 3100000,
+          "low": 2852000,
+          "high": 3348000
+        }
+      },
+      "sale": {
+        "salesearchdate": "2012-05-01",
+        "saleamt": 777777,
+        "saleTransDate": "2012-05-01",
+        "documentType": "Grant Deed"
+      },
+      "mortgage": {
+        "open": false,
+        "amount": 0
+      }
+    }
+  ]
+}

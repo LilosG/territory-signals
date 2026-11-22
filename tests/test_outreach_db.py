@@ -308,7 +308,7 @@ def test_recipe_choice_uses_the_highest_contributing_recipe():
     enabled = list(client().enabled_recipes())
     assert primary_recipe(["str_exit", "financial_pressure"], enabled, CFG, comps) == "financial_pressure"
     assert primary_recipe(["str_exit", "financial_pressure"], ["str_exit"], CFG, comps) == "str_exit"
-    assert primary_recipe(["quiet_inheritance"], enabled, CFG, comps) is None
+    assert primary_recipe(["quiet_inheritance"], [], CFG, comps) is None
     # ties go to config order
     assert primary_recipe(["downsizer", "str_exit"], enabled, CFG, []) == "str_exit"
 

@@ -4,7 +4,7 @@ territory:
   planning_areas: [La Jolla, Pacific Beach, Mission Beach]
   zips: ["92037", "92109"]
   neighborhoods: [La Jolla, Pacific Beach, Mission Beach]
-owner_data_provider: sample   # switches to attom in Phase 6
+owner_data_provider: hybrid   # ATTOM for prioritized parcels; labeled sample data for the rest
 
 # Agents and assistants. Empty until Mike supplies real names and DRE license numbers (D11):
 # drafts are still created but are flagged blocked and cannot be approved.
@@ -28,7 +28,7 @@ recipes:
   downsizer:          {enabled: true}
   insurance_squeeze:  {enabled: true}    # enabled, but idle until fire zones load (D6)
   financial_pressure: {enabled: true}
-  quiet_inheritance:  {enabled: false}   # needs ATTOM recorder data (Phase 6, D1)
+  quiet_inheritance:  {enabled: true}    # active on real ATTOM recorder transfers (Phase 6, D1)
 
 outreach:
   mode: preview               # nothing is ever sent in preview; there is no send mode yet

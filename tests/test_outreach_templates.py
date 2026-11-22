@@ -58,12 +58,12 @@ def test_every_enabled_recipe_and_the_general_fallback_has_all_three_channels():
     for recipe in RECIPES + [GENERAL]:
         for fname in CHANNEL_FILE.values():
             assert (TEMPLATES_DIR / recipe / f"{fname}.md").exists(), f"missing {recipe}/{fname}.md"
-    assert "quiet_inheritance" not in RECIPES
+    assert "quiet_inheritance" in RECIPES                  # Phase 6: real ATTOM recorder transfers
     assert len(all_template_files()) == (len(RECIPES) + 1) * 3
 
 
 def test_a_recipe_without_templates_falls_back_to_general():
-    assert load_template("quiet_inheritance", "mail").key == "general/letter"
+    assert load_template("no_such_recipe", "mail").key == "general/letter"
     assert load_template("builder_bait", "mail").key == "builder_bait/letter"
 
 
@@ -133,6 +133,7 @@ OFFERS = {   # the one concrete offer of each recipe (phrases that must be in th
     "downsizer": ["Prop 19", "55 and over", "tax advisor"],
     "financial_pressure": ["neutral, no-pressure summary", "would likely sell for today"],
     "insurance_squeeze": ["neutral, no-pressure summary", "would likely sell for today"],
+    "quiet_inheritance": ["change in ownership", "neutral, no-pressure summary"],
     "general": ["current value summary"],
 }
 

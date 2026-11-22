@@ -1,7 +1,7 @@
 {
   "catalog_version": 1,
   "client_id": "kaiser-team",
-  "model_version": "v0.6-handset",
+  "model_version": "v0.7-attom",
   "signal_types": [
     {
       "key": "code_violation_closed",
@@ -16,8 +16,16 @@
       "label": "Fire hazard severity zone"
     },
     {
+      "key": "notice_of_default",
+      "label": "Notice of default or trustee sale"
+    },
+    {
       "key": "ownership_transfer",
       "label": "Ownership transfer (death, trust or inheritance)"
+    },
+    {
+      "key": "ownership_transfer_inheritance",
+      "label": "Ownership transfer by inheritance"
     },
     {
       "key": "permit_approved",
@@ -743,7 +751,7 @@
     {
       "key": "financial_pressure",
       "label": "Financial pressure",
-      "short_description": "Tax default, or lost rental income with a mortgage",
+      "short_description": "Tax default, a recorder default notice, or lost rental income with a mortgage",
       "enabled": true,
       "requires_data": []
     },
@@ -751,7 +759,7 @@
       "key": "quiet_inheritance",
       "label": "Quiet inheritance",
       "short_description": "Recent transfer by death, trust or inheritance",
-      "enabled": false,
+      "enabled": true,
       "requires_data": []
     }
   ],
@@ -779,6 +787,22 @@
       "max_points": 10.0,
       "label": "Code enforcement case closed",
       "family_label": "Permits"
+    },
+    {
+      "key": "notice_of_default",
+      "kind": "signal",
+      "family": "financial",
+      "max_points": 35.0,
+      "label": "Notice of default",
+      "family_label": "Financial"
+    },
+    {
+      "key": "ownership_transfer_inheritance",
+      "kind": "signal",
+      "family": "owner",
+      "max_points": 0.0,
+      "label": "Ownership transfer by inheritance (context only, no points)",
+      "family_label": "Owner"
     },
     {
       "key": "stro_license_removed",

@@ -10,7 +10,8 @@ import StatTile from '../../components/ui/StatTile.astro';
 import SampleDataBadge from '../../components/ui/SampleDataBadge.astro';
 import EmptyState from '../../components/ui/EmptyState.astro';
 import Chart from '../../components/ui/Chart.astro';
-import { fmtDate, fmtNum, fmtPct } from '../../lib/format';
+import { fmtDate, fmtDateTime, fmtNum, fmtPct } from '../../lib/format';
+import { SOURCE_LABEL } from '../../lib/data/catalog';
 export const prerender = false;
 const [perf, bt] = await Promise.all([Astro.locals.data.getPerformance(), Astro.locals.data.getBacktest()]);
 const weeks = perf.coverage.map((w) => fmtDate(w.week).replace(/, \d{4}$/, ''));
@@ -41,13 +42,23 @@ const hasCoverage = perf.coverage.length > 1 && perf.coverage.some((w) => w.parc
       <Card as="div" id="backtest">
         {bt
           ? <>
-              <div class="mb-1 flex items-center gap-2">{bt.is_sample && <SampleDataBadge label="Sample until Phase 6" />}<span class="t-meta text-ink-muted">{fmtDate(bt.window.from)} – {fmtDate(bt.window.to)}</span></div>
+              <div class="mb-1 flex flex-wrap items-center gap-2">{bt.is_sample && <SampleDataBadge label="Sample backtest" />}<span class="t-meta text-ink-muted">{fmtDate(bt.window.from)} – {fmtDate(bt.window.to)}</span>{bt.computed_at && <span class="t-meta text-ink-faint">· computed {fmtDateTime(bt.computed_at)}</span>}</div>
               <dl class="mt-4 grid grid-cols-2 gap-6 sm:grid-cols-4">
                 <StatTile emphasis label="Flagged before listing" value={fmtPct(bt.share_flagged)} hint={`of past sales · ${bt.flagged_before_listing} of ${bt.past_sales_considered}`} smallSample={bt.flagged_before_listing < 5} />
                 <StatTile emphasis label="Average days early" value={String(bt.avg_days_early)} hint="days" />
                 <StatTile label="Median days early" value={String(bt.median_days_early)} hint="days" />
                 <StatTile label="Past sales considered" value={String(bt.past_sales_considered)} hint="sales" />
               </dl>
+              {bt.breakdown_by_signal_group && Object.keys(bt.breakdown_by_signal_group).length > 0 && (
+                <div class="mt-5 border-t border-line pt-4">
+                  <p class="eyebrow mb-2">Sales flagged, by public source</p>
+                  <ul class="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                    {Object.entries(bt.breakdown_by_signal_group).sort((a, b) => b[1] - a[1]).map(([key, n]) => (
+                      <li class="flex items-center gap-2"><span class="text-ink-muted">{SOURCE_LABEL(key)}</span><span class="font-medium tabular-nums">{fmtNum(n)}</span></li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <p class="mt-5 border-t border-line pt-4 text-xs text-ink-muted">{bt.note}</p>
             </>
           : <EmptyState title="Connects when owner sale history is added in Phase 6" description="No backtest numbers until real past sales exist." />}
