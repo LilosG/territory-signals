@@ -43,12 +43,12 @@ def all_labels(cat):
 
 
 def test_catalog_contents_and_counts():
-    assert CAT["model_version"] == CFG["model_version"] == "v0.6-handset"
+    assert CAT["model_version"] == CFG["model_version"] == "v0.7-attom"
     assert CAT["client_id"] == "kaiser-team"
     assert {t["key"] for t in CAT["signal_types"]} == set(CFG["signals"]) | {"ownership_transfer"}
     assert len(CAT["permit_types"]) == len(CFG["permit_labels"]) == 147
     assert [r["key"] for r in CAT["recipes"]] == list(CFG["recipes"])
-    assert len(CAT["recipes"]) == 9 and sum(r["enabled"] for r in CAT["recipes"]) == 8
+    assert len(CAT["recipes"]) == 9 and sum(r["enabled"] for r in CAT["recipes"]) == 9
     assert [s["key"] for s in CAT["stages"]] == ["signal", "contacted", "conversation", "appointment", "listing",
                                                  "not_interested", "bad_data"]
 
@@ -95,7 +95,7 @@ def test_component_labels_and_max_points():
 
 def test_recipes_carry_label_description_and_enabled_flag():
     by = {r["key"]: r for r in CAT["recipes"]}
-    assert by["quiet_inheritance"]["enabled"] is False
+    assert by["quiet_inheritance"]["enabled"] is True
     assert by["insurance_squeeze"]["enabled"] is True and by["insurance_squeeze"]["requires_data"] == ["fire_zones"]
     assert by["builder_bait"]["label"] == "Builder bait" and by["str_exit"]["label"] == "Short-term rental exit"
     assert all(r["short_description"] and r["label"] for r in CAT["recipes"])

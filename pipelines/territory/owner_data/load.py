@@ -17,7 +17,7 @@ from psycopg.types.json import Jsonb
 
 from territory.config import load_client
 from territory.db import connect, refresh_dashboard_aggregates
-from territory.owner_data.attom import AttomOwnerProvider
+from territory.owner_data.base import NotConfiguredError
 from territory.owner_data.sample import SampleOwnerProvider
 from territory.portfolio import recompute_portfolios
 from territory.scoring_engine import load_scoring_config, norm_doc_type
@@ -26,7 +26,18 @@ BATCH = 2000
 
 
 def provider_for(client):
-    return SampleOwnerProvider() if client.owner_data_provider == "sample" else AttomOwnerProvider()
+    """The bulk layer is always the labeled sample provider.
+
+    Hybrid mode overlays real ATTOM rows for prioritized parcels with ``territory.enrich_attom``; this
+    loader fills every remaining residential parcel with the deterministic sample so a hybrid demo is
+    complete and honestly labeled. A pure ATTOM client must use the enrichment command (it is budgeted
+    and caches every response), not this every-parcel loader.
+    """
+    if client.owner_data_provider == "attom":
+        raise NotConfiguredError(
+            "owner_data_provider is 'attom'; use `python -m territory.enrich_attom --client <id>` so the "
+            "daily call budget and the permanent cache are enforced.")
+    return SampleOwnerProvider()
 
 
 def _num(v):

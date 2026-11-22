@@ -22,6 +22,7 @@ Probe scripts: `recon/scripts/` (one per source, plus `_http.py` which sets the 
 | 9 | Community planning areas | USABLE | No | n/a | n/a | Weekly (catalog) | GeoJSON download |
 | 10 | Obituaries | BLOCKED (terms) | n/a | n/a | n/a | n/a | Not accessed |
 | 11 | City code enforcement violations | USABLE-WITH-LIMITS | Yes (`apn`, 10-digit) | n/a (historical extract) | n/a (historical extract) | Historical extract; last updated Jan 19, 2018 | Direct CSV download (seshat.datasd.org) |
+| 12 | ATTOM Property API (owner, value, mortgage, recorder) | USABLE-WITH-LIMITS (trial) | Yes (`apn` + fips `06073`) | via APN | via APN | Per ATTOM licence; trial capped at 500 calls/day for 30 days | REST API, `apikey` header |
 
 ---
 
@@ -130,6 +131,15 @@ Probe scripts: `recon/scripts/` (one per source, plus `_http.py` which sets the 
 - **Privacy:** `investigator_name`, `investigator_phone_number` and `investigator_email_address` are personal data and are dropped on read. `description` and `close_note` can contain owner names; the adapter stores only the violation category (text before the source's `[Addr: ... Owner: ...]` bracket) and drops reassignment notes. No phone number or email is stored.
 - **Endpoint status (2026-11-21):** the direct CSV was reachable. Because the published extract is historical, the adapter keeps a trimmed, non-personal cache at `data/raw/code_enforcement/<date>/` (and a small packaged fallback at `pipelines/territory/sources/fixtures/code_enforcement_fallback.csv`) and falls back to it cleanly when the endpoint is unreachable or blocked in a local/offline run; with neither the source reports `awaiting manual download` and the weekly batch continues.
 - **Next step:** confirm a current City code enforcement feed (the Open Data page has no current extract) or use the City's Get It Done / 311 case data under its own terms. Tracked in BACKLOG.md.
+
+## 12. ATTOM Property API — owner, mailing, value, mortgage and recorder history
+- **Access:** `https://api.gateway.attomdata.com/propertyapi/v1.0.0`, header `apikey: <ATTOM_API_KEY>` and `Accept: application/json`. Phase 6 calls `/property/expandedprofile` (owner, mailing address, assessment/AVM value, mortgage status and latest sale) and `/saleshistory/expandedhistory` (deed and recorder history), matching by `apn` plus San Diego County FIPS `06073`, with a street-address fallback when the APN returns no property.
+- **Trial limits:** the 30-day trial is capped at 500 calls/day. The quota governor's default `--max-calls 450` leaves headroom. Every attempt is counted in `api_usage_log`; a call that would cross the day's budget is refused before it is made. The weekly run can add at most `--attom-max-calls 100` incremental calls.
+- **Cache:** raw responses are stored permanently in `raw_records` (`source_key='attom'`) and reused, so a parcel is never billed twice. `--refresh-days` is the only way to expire an entry. Phone numbers, SSNs and email addresses are redacted from the cached payload and are never written to `owners` or `sales_history`.
+- **Fields stored:** owner name, mailing address, owner-occupied/absentee/out-of-state, last sale date and price, open-mortgage flag and amount, estimated value/equity, plus recorder document date/type. No phone, SSN or email is stored. `raw_records` keeps the redacted response for lineage.
+- **Recorder document mapping:** `config/transfer_types.yaml` maps real `documentType` and `documentTypeCode` values. `AFFIDAVIT OF DEATH`, `EXECUTOR DEED`, `ADMINISTRATOR DEED`, `TRUST TRANSFER` and `PROBATE` (and the deed-of-distribution / transfer-on-death variants) are transfers: they restart tenure and emit `ownership_transfer_inheritance`. `NOTICE OF DEFAULT`, `NOTICE OF TRUSTEE SALE` and `LIS PENDENS` emit `notice_of_default`. Distress recordings are not sales.
+- **Fixtures:** `tests/fixtures/attom/` holds recorded expanded-profile and expanded-history JSON for an out-of-state free-and-clear owner, an inheritance/death affidavit, a notice of default, and a two-parcel LLC. Tests inject a fixture fetcher, so the suite makes zero live calls and spends $0.00.
+- **Terms:** ATTOM's API licence governs retention and display. This recon used no live API call; confirm the trial terms and redistribution limits with ATTOM before publishing owner records to a client dashboard.
 
 ---
 

@@ -1,14 +1,35 @@
-# Sale/recorder document types that are a transfer by death, trust or inheritance rather than an
-# arm's-length sale. When the latest owners or sales_history record is one of these, the current
-# owner's tenure starts at the transfer date and the previous tenure is stored separately as
-# prior_owner_years (never described as the current owner's tenure). Keys are matched after
-# lower-casing and collapsing whitespace. Real ATTOM doc types are confirmed in Phase 6 (BACKLOG.md).
+# Sale/recorder document types. Keys are matched after lower-casing and collapsing whitespace.
+#
+# transfer_types: a transfer by death, trust or inheritance rather than an arm's-length sale. When the
+# latest owners or sales_history record is one of these, the current owner's tenure starts at the
+# transfer date and the previous tenure is stored separately as prior_owner_years. These never trigger
+# the 24-month sale suppression. Real ATTOM documentType values are mapped here (Phase 6); the spellings
+# with and without an apostrophe are both listed because recorder feeds vary.
 transfer_types:
   "transfer on death deed":              {kind: inheritance, label: Transfer on death deed}
   "deed of distribution":                {kind: inheritance, label: Deed of distribution}
   "executor's deed":                     {kind: inheritance, label: Executor's deed}
+  "executor deed":                       {kind: inheritance, label: Executor deed}
+  "administrator's deed":                {kind: inheritance, label: Administrator's deed}
+  "administrator deed":                  {kind: inheritance, label: Administrator deed}
+  "affidavit of death":                  {kind: death,       label: Affidavit of death}
   "affidavit of death of joint tenant":  {kind: death,       label: Affidavit of death of joint tenant}
   "certificate of death":                {kind: death,       label: Certificate of death}
+  "trust transfer":                      {kind: trust,       label: Trust transfer}
   "trust transfer deed":                 {kind: trust,       label: Trust transfer deed}
   "trustee's deed":                      {kind: trust,       label: Trustee's deed}
+  "trustee deed":                        {kind: trust,       label: Trustee deed}
   "certification of trust":              {kind: trust,       label: Certification of trust}
+  "probate":                             {kind: inheritance, label: Probate}
+
+# recorder_signals: recordable distress filings that are not conveyances. They become the named signal
+# (never a sale, never a tenure change). ATTOM returns these in the expanded sales/recorder history.
+recorder_signals:
+  "notice of default":        {signal: notice_of_default, kind: preforeclosure, label: Notice of default}
+  "notice of trustee sale":   {signal: notice_of_default, kind: trustee_sale,  label: Notice of trustee sale}
+  "notice of trustee's sale": {signal: notice_of_default, kind: trustee_sale,  label: Notice of trustee's sale}
+  "lis pendens":              {signal: notice_of_default, kind: litigation,    label: Lis pendens}
+  # Short ATTOM documentTypeCode aliases.
+  "nod":                      {signal: notice_of_default, kind: preforeclosure, label: Notice of default}
+  "nots":                     {signal: notice_of_default, kind: trustee_sale,  label: Notice of trustee sale}
+  "lis":                      {signal: notice_of_default, kind: litigation,    label: Lis pendens}

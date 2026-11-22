@@ -1,0 +1,77 @@
+{
+  "status": {
+    "version": "1.0.0",
+    "code": 0,
+    "msg": "SuccessWithResult",
+    "total": 1
+  },
+  "property": [
+    {
+      "identifier": {
+        "apn": "3500701802",
+        "fips": "06073",
+        "apnOrig": "3500701802"
+      },
+      "address": {
+        "line1": "5678 Girard Ave",
+        "line2": "",
+        "locality": "La Jolla",
+        "countrySubd": "CA",
+        "postal1": "92037"
+      },
+      "lot": {
+        "lotsize1": 6000,
+        "lotsize2": 0
+      },
+      "building": {
+        "size": {
+          "universalsize": 2100
+        },
+        "rooms": {
+          "beds": 3,
+          "bathstotal": 2
+        },
+        "yearbuilt": 1958
+      },
+      "assessment": {
+        "owner": {
+          "owner1": {
+            "fullname": "ESTATE OF MARY R SMITH"
+          },
+          "owner2": {
+            "fullname": ""
+          },
+          "mailingaddressunparsed": "5678 Girard Ave, La Jolla, CA 92037",
+          "mailingaddress": {
+            "line1": "5678 Girard Ave",
+            "locality": "La Jolla",
+            "countrySubd": "CA",
+            "postal1": "92037"
+          }
+        },
+        "assessed": {
+          "assdTtlValue": 1700000,
+          "assdLandValue": 1020000.0,
+          "assdImprValue": 680000.0
+        }
+      },
+      "avm": {
+        "amount": {
+          "value": 2450000,
+          "low": 2254000,
+          "high": 2646000
+        }
+      },
+      "sale": {
+        "salesearchdate": "2025-10-01",
+        "saleamt": 0,
+        "saleTransDate": "2025-10-01",
+        "documentType": "Grant Deed"
+      },
+      "mortgage": {
+        "open": false,
+        "amount": 0
+      }
+    }
+  ]
+}

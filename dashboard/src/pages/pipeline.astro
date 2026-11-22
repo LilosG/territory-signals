@@ -67,5 +67,16 @@ const engaged = steps.find((s) => s.key === 'conversation');
             </Card>
           </Section>
         </>}
+    {pipe.attom_usage && (
+      <Section title="Owner data (ATTOM)" description="Trial calls are capped per day and every response is cached, so a parcel is never billed twice.">
+        <Card data-attom-usage>
+          <dl class="grid grid-cols-2 gap-6 sm:grid-cols-3">
+            <div><dt class="eyebrow">Calls today</dt><dd class="mt-0.5 text-2xl font-semibold tabular-nums" data-attom-calls-today>{fmtNum(pipe.attom_usage.calls_today)}</dd><p class="t-meta text-ink-muted">of {fmtNum(pipe.attom_usage.daily_call_cap)} daily cap</p></div>
+            <div><dt class="eyebrow">Calls this month</dt><dd class="mt-0.5 text-2xl font-semibold tabular-nums">{fmtNum(pipe.attom_usage.calls_this_month)}</dd><p class="t-meta text-ink-muted">trial usage</p></div>
+            <div><dt class="eyebrow">Last call</dt><dd class="mt-0.5 text-sm font-medium">{pipe.attom_usage.last_call_at ? fmtDateTime(pipe.attom_usage.last_call_at) : 'No ATTOM call yet'}</dd><p class="t-meta text-ink-muted">cached responses are free</p></div>
+          </dl>
+        </Card>
+      </Section>
+    )}
   </Stack>
 </AppShell>

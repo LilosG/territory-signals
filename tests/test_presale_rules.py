@@ -119,7 +119,7 @@ def test_maintenance_is_a_known_group_with_no_weight():
     cfg = yaml.safe_load((rules.MAP_PATH.parent / "scoring.yaml").read_text())
     assert "maintenance" in rules.SIGNAL_GROUPS
     assert cfg["signals"]["permit_approved"]["by_group"]["maintenance"]["weight"] == 0
-    assert cfg["model_version"] == "v0.6-handset"
+    assert cfg["model_version"] == "v0.7-attom"
 
 
 # ---- v0.4.1: MEP permits for ADU work are ADU permits (same weight as other ADU permits) ---------------------

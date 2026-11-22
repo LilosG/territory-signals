@@ -20,7 +20,7 @@ from territory.llm.validators import (
 from territory.scoring_engine import load_scoring_config, phrase
 
 TASK = "lead_brief"
-SENSITIVE_KEYS = ("tax_default", "owner:ownership_transfer")
+SENSITIVE_KEYS = ("tax_default", "owner:ownership_transfer", "ownership_transfer_inheritance", "notice_of_default", "code_violation_open")
 SENSITIVE_RECIPES = {"financial_pressure", "quiet_inheritance"}
 
 

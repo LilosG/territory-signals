@@ -1,0 +1,9 @@
+{
+  "status": {
+    "version": "1.0.0",
+    "code": 400,
+    "msg": "No property found",
+    "total": 0
+  },
+  "property": []
+}

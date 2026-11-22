@@ -15,6 +15,8 @@ signal_types:
   sb9_lot_split_estimate: SB 9 lot-split eligibility (estimated)
   fire_hazard_zone: Fire hazard severity zone
   ownership_transfer: Ownership transfer (death, trust or inheritance)
+  ownership_transfer_inheritance: Ownership transfer by inheritance
+  notice_of_default: Notice of default or trustee sale
 
 # signal_group values written by the adapters.
 signal_groups:
@@ -49,6 +51,8 @@ components:
   sb79_transit_estimate: SB 79 transit eligibility (estimated)
   sb9_lot_split_estimate: SB 9 lot-split eligibility (estimated)
   fire_hazard_zone: Fire hazard severity zone
+  notice_of_default: Notice of default
+  ownership_transfer_inheritance: Ownership transfer by inheritance (context only, no points)
   "owner:years_owned": Years owned
   "owner:absentee": Absentee owner
   "owner:out_of_state": Out-of-state owner
@@ -96,3 +100,5 @@ signal_meanings:
   "owner:mortgage_open_false": "No open mortgage is on record, so the home appears to be owned free and clear."
   "owner:est_equity_top_quartile": "Estimated equity is in the top quarter of the territory. It is an estimate from public records, not a verified figure."
   "owner:portfolio_owner_multi": "The owner holds more than one property in the territory. Investors and absentee owners with several local parcels often review their holdings together."
+  notice_of_default: "A notice of default, notice of trustee sale or lis pendens was recorded against the property. It is a public distress filing, not a completed sale."
+  ownership_transfer_inheritance: "A recorded transfer by death, trust or inheritance changed who owns the property, so a new owner or trustee may be deciding what to do with it."

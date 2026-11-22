@@ -27,9 +27,12 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from territory import db, digest
+from territory.backtest import run_backtest
 from territory.config import ClientConfig, load_client
 from territory.db import connect, db_host, refresh_dashboard_aggregates, LOCAL_HOSTS
+from territory.enrich_attom import DEFAULT_MAX_CALLS as ATTOM_DEFAULT_MAX_CALLS, enrich_owners
 from territory.net import DATA_DIR
+from territory.owner_data.base import NotConfiguredError
 from territory.permit_rederive import SOURCE_KEY as PERMIT_REDERIVE_KEY, rederive, write_report as write_permit_report
 from territory.portfolio import recompute_portfolios
 from territory.run import run_one
@@ -161,6 +164,41 @@ def _permit_rederive_stage(run_date: date, report_dir: Path | None) -> Stage:
                  f"superseded={out.get('superseded', 0)} inserted={out.get('inserted', 0)}")
 
 
+def _attom_stage(client: ClientConfig, run_date: date, max_calls: int,
+                 fetcher=None) -> Stage:
+    """Optional incremental ATTOM enrichment (top parcels only, capped by --attom-max-calls)."""
+    started = time.perf_counter()
+    try:
+        with connect() as conn:
+            summary = enrich_owners(conn, client, limit=max(1, max_calls // 2), max_calls=max_calls,
+                                    as_of=run_date, fetcher=fetcher)
+    except NotConfiguredError as exc:
+        return Stage("attom", "skipped", time.perf_counter() - started, 0, str(exc))
+    except SystemExit:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        return Stage("attom", "failed", time.perf_counter() - started, 0, f"{type(exc).__name__}: {exc}")
+    detail = (f"attom={summary['attom_owners']} sample={summary['sample_fallback_owners']} "
+              f"calls={summary['calls_made']} cached={summary['cache_hits']}")
+    if summary.get("stopped"):
+        detail += f" stopped={summary['stopped']}"
+    return Stage("attom", "success", time.perf_counter() - started, summary["selected"], detail)
+
+
+def _backtest_stage(client: ClientConfig, run_date: date) -> Stage:
+    started = time.perf_counter()
+    try:
+        with connect() as conn:
+            r = run_backtest(conn, client, run_date)
+    except SystemExit:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        return Stage("backtest", "failed", time.perf_counter() - started, 0, f"{type(exc).__name__}: {exc}")
+    return Stage("backtest", "success", time.perf_counter() - started, r["total_sales_evaluated"],
+                 f"flagged={r['flagged_before_sale_count']} capture={r['capture_rate_pct']}% "
+                 f"median_days={r['median_days_early']}")
+
+
 def _portfolio_stage() -> Stage:
     started = time.perf_counter()
     try:
@@ -249,7 +287,9 @@ def _digest_stage(client: ClientConfig, run_date: date, send: bool,
 def run_weekly(client: ClientConfig, run_date: date | None = None, *, skip_ai: bool = False,
                send_digest: bool = False, local_files: Mapping[str, Any] | None = None,
                report_dir: Path | None = None, outbox_dir: Path | None = None,
-               provider=None, out=sys.stdout, use_cached_ingest: bool | None = None) -> WeeklyResult:
+               provider=None, out=sys.stdout, use_cached_ingest: bool | None = None,
+               with_attom: bool = False, attom_max_calls: int = 100,
+               attom_fetcher=None) -> WeeklyResult:
     """Run every stage once, in order. Individual source failures are recorded and do not stop the rest of the batch;
     the fire_zones 'awaiting manual download' state is not a failure. Returns a result with every stage and the digest path."""
     run_date = run_date or date.today()
@@ -272,11 +312,22 @@ def run_weekly(client: ClientConfig, run_date: date | None = None, *, skip_ai: b
     result.stages.append(stage)
     print(stage.line(), file=out)
 
+    if with_attom:
+        stage = _attom_stage(client, run_date, attom_max_calls, attom_fetcher)
+    else:
+        stage = Stage("attom", "skipped", 0.0, 0, "pass --with-attom to enrich owner data")
+    result.stages.append(stage)
+    print(stage.line(), file=out)
+
     stage = _portfolio_stage()
     result.stages.append(stage)
     print(stage.line(), file=out)
 
     stage = _score_stage(run_date, report_dir)
+    result.stages.append(stage)
+    print(stage.line(), file=out)
+
+    stage = _backtest_stage(client, run_date)
     result.stages.append(stage)
     print(stage.line(), file=out)
 
@@ -314,6 +365,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--skip-ai", action="store_true", help="do not run lead_brief or weekly_brief")
     ap.add_argument("--send-digest", action="store_true",
                     help="email the digest to DIGEST_TO (internal team members) instead of only writing the preview")
+    ap.add_argument("--with-attom", action="store_true",
+                    help="optionally enrich the top parcels from ATTOM this week")
+    ap.add_argument("--attom-max-calls", type=int, default=100,
+                    help="strict ATTOM calls for the optional weekly enrichment (default 100)")
     args = ap.parse_args(argv)
     if args.cloud:
         db.allow_cloud(True)
@@ -321,7 +376,8 @@ def main(argv: list[str] | None = None) -> int:
     cloud = args.cloud or db._CLOUD_OK
     client = load_client(args.client)
     result = run_weekly(client, skip_ai=args.skip_ai, send_digest=args.send_digest,
-                        use_cached_ingest=not cloud)
+                        use_cached_ingest=not cloud, with_attom=args.with_attom,
+                        attom_max_calls=args.attom_max_calls)
     return 0 if result.ok else 1
 
 

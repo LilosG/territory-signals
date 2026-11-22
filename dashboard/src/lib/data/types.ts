@@ -82,6 +82,7 @@ export interface Signal {
 }
 
 export type OwnerProvider = 'attom' | 'sample';
+export type OwnerDataMode = 'attom' | 'sample' | 'hybrid';
 export interface Owner {
   id: Uuid;
   apn: string;
@@ -213,7 +214,7 @@ export interface ClientConfig {
   client_id: string;
   display_name: string;
   territory: { planning_areas: string[]; zips: string[]; neighborhoods: string[] };
-  owner_data_provider: OwnerProvider;
+  owner_data_provider: OwnerDataMode;
   outreach: { mode: 'preview'; weekly_send_cap_per_agent: number; drafts_per_run: number; cooldown_days: number; approval_required_recipes: string[] };
   team_profile: { display_name: string; brokerage: string; office_address: string };
   recipes: Recipe[];
@@ -455,18 +456,29 @@ export interface FunnelRow { label: string; stages: FunnelStage[] }
 export interface RecentOutcome { apn: string; situs_address: string | null; neighborhood: string | null; stage: string; by: string | null; note: string | null; occurred_at: IsoTimestamp }
 /** Estimated property value behind one funnel stage: distinct parcels that reached it, and the sum of their owners' est_value. */
 export interface StageValue { key: FunnelStage['key']; parcels: number; valued_parcels: number; est_value: number; sample_parcels: number }
-export interface Pipeline { by_agent: FunnelRow[]; by_recipe: FunnelRow[]; overall: FunnelRow; stage_values: StageValue[]; has_events: boolean; recent: RecentOutcome[]; is_sample: boolean }
+/** ATTOM trial-quota status (from api_usage_log); null when the table is not present yet. */
+export interface AttomUsage {
+  calls_today: number;
+  daily_call_cap: number;
+  calls_this_month: number;
+  last_call_at: IsoTimestamp | null;
+}
 
-/** `null` from the supabase provider until owner sale history exists (Phase 6). */
+export interface Pipeline { by_agent: FunnelRow[]; by_recipe: FunnelRow[]; overall: FunnelRow; stage_values: StageValue[]; has_events: boolean; recent: RecentOutcome[]; is_sample: boolean; attom_usage?: AttomUsage | null }
+
+/** A real historical backtest row (backtest_runs). Null until a run exists. */
 export interface Backtest {
   past_sales_considered: number;
   flagged_before_listing: number;
   share_flagged: number; // 0..1, computed
   avg_days_early: number;
   median_days_early: number;
+  capture_rate_pct?: number;
+  breakdown_by_signal_group?: Record<string, number>;
   window: { from: IsoDate; to: IsoDate };
   is_sample: boolean;
   note: string;
+  computed_at?: IsoTimestamp;
 }
 
 export interface CoverageSource {

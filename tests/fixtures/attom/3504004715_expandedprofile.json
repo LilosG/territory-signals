@@ -1,0 +1,77 @@
+{
+  "status": {
+    "version": "1.0.0",
+    "code": 0,
+    "msg": "SuccessWithResult",
+    "total": 1
+  },
+  "property": [
+    {
+      "identifier": {
+        "apn": "3504004715",
+        "fips": "06073",
+        "apnOrig": "3504004715"
+      },
+      "address": {
+        "line1": "901 Ocean Front Walk",
+        "line2": "",
+        "locality": "Pacific Beach",
+        "countrySubd": "CA",
+        "postal1": "92109"
+      },
+      "lot": {
+        "lotsize1": 6000,
+        "lotsize2": 0
+      },
+      "building": {
+        "size": {
+          "universalsize": 2100
+        },
+        "rooms": {
+          "beds": 3,
+          "bathstotal": 2
+        },
+        "yearbuilt": 1975
+      },
+      "assessment": {
+        "owner": {
+          "owner1": {
+            "fullname": "ROBERT J LEE"
+          },
+          "owner2": {
+            "fullname": ""
+          },
+          "mailingaddressunparsed": "901 Ocean Front Walk, Pacific Beach, CA 92109",
+          "mailingaddress": {
+            "line1": "901 Ocean Front Walk",
+            "locality": "Pacific Beach",
+            "countrySubd": "CA",
+            "postal1": "92109"
+          }
+        },
+        "assessed": {
+          "assdTtlValue": 1850000,
+          "assdLandValue": 1110000.0,
+          "assdImprValue": 740000.0
+        }
+      },
+      "avm": {
+        "amount": {
+          "value": 2900000,
+          "low": 2668000,
+          "high": 3132000
+        }
+      },
+      "sale": {
+        "salesearchdate": "2016-08-01",
+        "saleamt": 1450000,
+        "saleTransDate": "2016-08-01",
+        "documentType": "Grant Deed"
+      },
+      "mortgage": {
+        "open": true,
+        "amount": 650000
+      }
+    }
+  ]
+}

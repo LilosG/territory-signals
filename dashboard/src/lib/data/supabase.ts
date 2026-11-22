@@ -6,7 +6,7 @@ import { EVENT_TYPES, INTERNAL_SOURCES, RECIPE_LABELS, SENSITIVE_TYPES, SOURCE_C
 import type { DataProvider, MarkSample, SharePageReader } from './provider';
 import { buildTrends, leadStatus, scoreItems, yearsSince, type TrendRows } from './shared';
 import type {
-  AiStatus, AiTaskRow, StageValue, WeeklyBriefAi, Backtest, ClientConfig, Coverage, FunnelRow, LeadDetail, LeadFilters, LeadPage, LeadSummary, MapData, NavCounts, OffMarketPage,
+  AiStatus, AiTaskRow, AttomUsage, StageValue, WeeklyBriefAi, Backtest, ClientConfig, Coverage, FunnelRow, LeadDetail, LeadFilters, LeadPage, LeadSummary, MapData, NavCounts, OffMarketPage,
   Outreach, OutreachItem, OutreachPage, Performance, Pipeline, RecentOutcome, RecipeCard, SearchHit, SharePage,
   SignalEvent, SourceCard, StatSeries, TeamMember, TodayFeed, Trends,
 } from './types';
@@ -168,6 +168,23 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
     return { tasks, monthly_budget_usd: cfg.ai.monthly_budget_usd, cost_month: [...monthBy.values()].reduce((a, b) => a + b, 0), warnings };
   }
 
+
+  /** ATTOM trial usage from the append-only api_usage_log. Null when the table does not exist yet. */
+  async function attomUsage(): Promise<AttomUsage | null> {
+    const today = new Date().toISOString().slice(0, 10);
+    const monthStart = today.slice(0, 7) + '-01';
+    const [todayRes, monthRes, lastRes] = await Promise.all([
+      db.from('api_usage_log').select('request_count').eq('source_key', 'attom').eq('call_date', today),
+      db.from('api_usage_log').select('request_count').eq('source_key', 'attom').gte('call_date', monthStart),
+      db.from('api_usage_log').select('created_at').eq('source_key', 'attom').order('created_at', { ascending: false }).limit(1),
+    ]);
+    if (todayRes.error || monthRes.error) return null;
+    const sum = (rows: Row[]) => rows.reduce((total, r) => total + num(r.request_count), 0);
+    const last = (lastRes.error ? [] : lastRes.data ?? []) as Row[];
+    return { calls_today: sum((todayRes.data ?? []) as Row[]), daily_call_cap: 450,
+      calls_this_month: sum((monthRes.data ?? []) as Row[]), last_call_at: last[0]?.created_at ?? null };
+  }
+
   const provider: DataProvider = {
     name: 'supabase',
     territory: hood,
@@ -310,10 +327,11 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
     },
 
     async getPipeline(): Promise<Pipeline> {
-      const [overall, recent, values] = await Promise.all([
+      const [overall, recent, values, usage] = await Promise.all([
         db.rpc('funnel_by', { p_dim: 'all', p_hood: hood }),
         db.from('stage_events').select('apn,stage,team_member_email,note,occurred_at').eq('source', 'dashboard').order('occurred_at', { ascending: false }).limit(40),
         db.rpc('pipeline_stage_value', { p_hood: hood }),
+        attomUsage(),
       ]);
       const o = (must(overall, 'funnel_by') as Row[])[0];
       const valueBy = new Map((values.error ? [] : (values.data ?? []) as Row[]).map((r) => [String(r.stage), r]));    // older database: no value, GCI shows as unavailable
@@ -327,7 +345,7 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
       }));
       const is_sample = (await anySample()) && num(o?.signal) > 0;
       if (is_sample) mark();
-      return { overall: funnelRow('All leads', o), stage_values, has_events: num(o?.signal) > 0, recent: recentOut, by_agent: [], by_recipe: [], is_sample };
+      return { overall: funnelRow('All leads', o), stage_values, has_events: num(o?.signal) > 0, recent: recentOut, by_agent: [], by_recipe: [], is_sample, attom_usage: usage };
     },
 
     async getAiStatus(): Promise<AiStatus | null> { return aiStatus(); },
@@ -356,7 +374,30 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
       };
     },
 
-    async getBacktest(): Promise<Backtest | null> { return null; },
+    async getBacktest(): Promise<Backtest | null> {
+      const cfg = loadClientConfig();
+      const res = await db.from('backtest_runs').select('*').eq('client_id', cfg.client_id)
+        .order('computed_at', { ascending: false }).limit(1);
+      if (res.error) return null;                                  // older database: designed empty state
+      const row = ((res.data ?? []) as Row[])[0];
+      if (!row) return null;
+      if (row.is_sample) mark();
+      const total = num(row.total_sales_evaluated);
+      const flagged = num(row.flagged_before_sale_count);
+      return {
+        past_sales_considered: total,
+        flagged_before_listing: flagged,
+        share_flagged: total ? flagged / total : 0,
+        capture_rate_pct: num(row.capture_rate_pct),
+        avg_days_early: row.avg_days_early != null ? Number(row.avg_days_early) : 0,
+        median_days_early: row.median_days_early != null ? Number(row.median_days_early) : 0,
+        breakdown_by_signal_group: (row.breakdown_by_signal_group as Record<string, number>) ?? {},
+        window: { from: String(row.window_start), to: String(row.window_end) },
+        is_sample: !!row.is_sample,
+        note: `Evaluated ${total} recorded sales; ${flagged} had a public signal 14 to 365 days before the sale.`,
+        computed_at: row.computed_at,
+      };
+    },
 
     async getCoverage(): Promise<Coverage> {
       const since = new Date(Date.now() - 7 * DAY).toISOString();
@@ -382,9 +423,12 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
       const cfg = loadClientConfig();
       return SOURCE_CATALOG.map((c): SourceCard => {
         if (c.key === 'owner_data') {
-          const sample = cfg.owner_data_provider === 'sample';
-          return { key: c.key, label: c.label, description: c.description, state: sample ? 'sample' : 'live', last_run: null, rows_fetched: null, rows_matched: null,
-            note: sample ? 'Sample records are in use until the owner data provider is connected (Phase 6).' : null };
+          const mode = cfg.owner_data_provider;
+          if (mode !== 'attom') {
+            return { key: c.key, label: c.label, description: c.description, state: 'sample', last_run: null, rows_fetched: null, rows_matched: null,
+              note: mode === 'hybrid' ? 'ATTOM for prioritized parcels; labeled sample data for the rest.' : 'Sample records are in use until the owner data provider is connected (Phase 6).' };
+          }
+          return { key: c.key, label: c.label, description: c.description, state: 'live', last_run: null, rows_fetched: null, rows_matched: null, note: null };
         }
         const r = by.get(c.key);
         if (!r) return { key: c.key, label: c.label, description: c.description, state: 'not_connected', last_run: null, rows_fetched: null, rows_matched: null, note: 'Not connected yet.' };

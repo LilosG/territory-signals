@@ -83,7 +83,7 @@ class ClientConfig(_Strict):
     client_id: str = Field(pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$")
     display_name: str = Field(min_length=1)
     territory: Territory
-    owner_data_provider: Literal["sample", "attom"]
+    owner_data_provider: Literal["sample", "attom", "hybrid"]
     outreach: Outreach
     team_members: list[TeamMember] = Field(default_factory=list)
     team_profile: TeamProfile

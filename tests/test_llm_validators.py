@@ -128,7 +128,8 @@ def test_packet_carries_the_meaning_of_each_signal_and_the_rationale_of_each_mat
 def test_every_scoring_component_and_public_recipe_has_a_plain_meaning_in_config():
     from territory.export_catalog import component_specs
     meanings = lb.load_meanings()
-    missing = [c["key"] for c in component_specs(CFG) if c["key"] not in ("owner:ownership_transfer", "tax_default") and c["key"] not in meanings]   # sensitive: never in a brief
+    sensitive = ("owner:ownership_transfer", "ownership_transfer_inheritance", "notice_of_default", "tax_default", "code_violation_open")
+    missing = [c["key"] for c in component_specs(CFG) if c["key"] not in sensitive and c["key"] not in meanings]   # sensitive: never in a brief
     assert missing == []
     no_rationale = [k for k, r in CFG["recipes"].items() if k not in lb.SENSITIVE_RECIPES and r.get("active") is not False
                     and not r.get("rationale")]
