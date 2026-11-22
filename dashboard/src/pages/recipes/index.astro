@@ -38,7 +38,7 @@ const where = Astro.locals.territory ?? 'the whole territory';
             <p class="eyebrow mb-2">Top leads</p>
             <ul class="flex flex-col gap-2">
               {r.top.slice(0, 5).map((t) => (
-                <li><a href={`/leads/${t.apn}`} class="flex items-center gap-3 rounded-md py-1 hover:text-accent">
+                <li><a href={`/leads/${t.apn}`} data-lead-row data-dossier-open={t.apn} aria-haspopup="dialog" class="flex items-center gap-3 rounded-md py-1 hover:text-accent">
                   <ScoreRing score={t.score} size="xs" />
                   <span class="min-w-0 flex-1"><span class="block truncate text-sm font-medium">{t.situs_address}</span>{t.top_signal && <span class="block truncate text-xs text-ink-muted" data-top-signal><Fact {...t.top_signal} /></span>}</span>
                   <span class="t-meta shrink-0 text-ink-muted max-sm:hidden">{t.neighborhood}</span>

@@ -26,8 +26,10 @@ const num = (v: unknown) => Number(v ?? 0);
 // Whether any displayed score is sample data. Cached briefly so every page does not pay for it.
 let sampleCache: { at: number; value: boolean } | null = null;
 
-/** Parcel columns without the polygon geometry (the dashboard never needs it). */
+/** Parcel columns without the polygon geometry (the dashboard list and map never need it). */
 const PARCEL_COLS = 'apn,situs_address,zip,planning_area,neighborhood,centroid,lot_sqft,land_use,zoning,year_built,last_recorded_doc_date,source_key,created_at,updated_at';
+/** The lead workspace and dossier show one parcel at a time, so the polygon geometry is cheap enough to include. */
+const PARCEL_DETAIL_COLS = `${PARCEL_COLS},geom`;
 
 function toLead(r: Row, now: Date): LeadSummary {
   return {
@@ -249,7 +251,7 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
 
     async getLead(apn): Promise<LeadDetail | null> {
       const [parcel, score, owner, sales, events, context, outreach, stages, links] = await Promise.all([
-        db.from('parcels').select(PARCEL_COLS).eq('apn', apn).maybeSingle(),
+        db.from('parcels').select(PARCEL_DETAIL_COLS).eq('apn', apn).maybeSingle(),
         db.from('latest_scores').select('*').eq('apn', apn).maybeSingle(),
         db.from('latest_owners').select('*').eq('apn', apn).maybeSingle(),
         db.from('sales_history').select('*').eq('apn', apn).order('sale_date', { ascending: false }).limit(25),
@@ -282,7 +284,7 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
       return {
         ai_brief: briefRow && bo ? { headline: bo.headline, summary: bo.summary, claims: bo.claims ?? [], suggested_angle: bo.suggested_angle, uses_sample: !!briefRow.uses_sample, model: briefRow.model, created_at: briefRow.created_at } : null,
         portfolio: portfolioBy.get(apn) ?? null,
-        parcel: { ...p, situs_address: titleAddress(p.situs_address) || null, geom: null, centroid: p.centroid ?? null } as LeadDetail['parcel'],
+        parcel: { ...p, situs_address: titleAddress(p.situs_address) || null, geom: (p.geom as LeadDetail['parcel']['geom']) ?? null, centroid: p.centroid ?? null } as LeadDetail['parcel'],
         score: sc as LeadDetail['score'],
         score_items: scoreItems(sc.components),
         owner: o as LeadDetail['owner'],

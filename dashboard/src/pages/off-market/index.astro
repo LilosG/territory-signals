@@ -60,9 +60,9 @@ const KIND_LABEL: Record<string, string> = { builder_bait: 'Builder bait', tired
                 return (
                   <li class="flex items-start gap-3 px-4 py-4 sm:px-5" data-offmarket-row={p.apn}>
                     <input type="checkbox" name="apn" value={p.apn} form="share-form" data-bulk-item aria-label={`Select ${p.situs_address ?? p.apn}`} class="mt-1 h-4 w-4 shrink-0 rounded border-line-strong accent-[var(--color-accent)]" />
-                    <div class="min-w-0 flex-1">
+                    <div class="min-w-0 flex-1" data-dossier-open={p.apn} aria-haspopup="dialog">
                       <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <a href={`/leads/${p.apn}`} class="truncate text-sm font-semibold text-ink hover:text-accent">{p.situs_address ?? fmtApn(p.apn)}</a>
+                        <a href={`/leads/${p.apn}`} data-lead-row data-dossier-open={p.apn} aria-haspopup="dialog" class="truncate text-sm font-semibold text-ink hover:text-accent">{p.situs_address ?? fmtApn(p.apn)}</a>
                         <span class="t-meta text-ink-muted">{p.neighborhood}</span>
                         {p.has_share_link && <StatusPill tone="good">Link active</StatusPill>}
                       </div>

@@ -7,16 +7,32 @@ import TabPanel from '../../components/ui/TabPanel.astro';
 import Tabs from '../../components/ui/Tabs.astro';
 import Grid from '../../components/ui/Grid.astro';
 import TrendCard from '../../components/ui/TrendCard.astro';
+import OpportunityMatrix from '../../components/charts/OpportunityMatrix.astro';
+import { estGci } from '../../lib/present';
+import { tierOf } from '../../lib/ring';
+import type { MatrixPoint } from '../../lib/data/types';
 import { slugify } from '../../lib/format';
 const config = await Astro.locals.data.getConfig();
 const areas = ['All', ...config.territory.neighborhoods];
 const trends = await Promise.all(areas.map((a) => Astro.locals.data.getTrends(a)));
+const matrixLeads = await Astro.locals.data.getLeads({ minScore: 30, sort: 'score' }, 1, 300);
+const matrixPoints: MatrixPoint[] = matrixLeads.items.flatMap((l) => {
+  const equity = l.owner?.est_equity;
+  const value = l.owner?.est_value;
+  if (equity == null || !(equity > 0) || value == null || !(value > 0)) return [];
+  return [{
+    apn: l.parcel.apn, address: l.parcel.situs_address, neighborhood: l.parcel.neighborhood,
+    score: l.score.score, equity, gci: estGci(value), lot_sqft: l.lot_sqft, zoning: l.zoning,
+    is_sample: l.is_sample, tier: tierOf(l.score.score),
+  }];
+});
 const slug = slugify;
 ---
 <AppShell title="Trends" active="trends">
   <PageHeader eyebrow="Last 12 months" title="Neighborhood trends" description="What is moving in each neighborhood, month over month.">
     <Button href="/trends/newsletter" variant="secondary" icon="mail">Export for newsletter</Button>
   </PageHeader>
+  <OpportunityMatrix points={matrixPoints} class="mb-8" />
   <Tabs label="Neighborhood" tabs={areas.map((a) => ({ id: slug(a), label: a === 'All' ? 'All neighborhoods' : a }))}>
     {trends.map((t, i) => (
       <TabPanel id={slug(t.area)} active={i === 0}>

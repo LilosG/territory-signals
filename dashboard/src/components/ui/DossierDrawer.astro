@@ -1,0 +1,316 @@
+---
+/**
+ * Universal right-hand Quick-Dossier drawer (Phase 7). List rows across Today, Leads, Recipes, Off-market and the
+ * Trends Opportunity Matrix open it without a page reload. Keyboard: J next, K previous, Escape close.
+ * The panel shows a satellite aerial, AI thesis, score breakdown, facts and a copy-ready draft. It never shows
+ * owner identity, mailing address, sales or sensitive signals: those stay in the full workspace.
+ */
+---
+<div id="dossier-drawer" data-dossier-root hidden class="no-print fixed inset-0 z-50">
+  <div data-dossier-scrim class="absolute inset-0 bg-ink/35 backdrop-blur-[2px]"></div>
+  <aside role="dialog" aria-modal="true" aria-labelledby="dossier-title" tabindex="-1"
+    class="dossier-panel absolute inset-y-0 right-0 flex w-full flex-col border-l border-line bg-surface shadow-lg outline-none sm:w-[30rem] lg:w-[33rem]">
+    <header class="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
+      <div class="min-w-0">
+        <p class="eyebrow flex items-center gap-2">Quick dossier <span data-dossier-index class="hidden rounded-full bg-sunken px-2 py-0.5 text-2xs font-semibold normal-case tracking-normal text-ink-muted"></span></p>
+        <h2 id="dossier-title" class="mt-1 truncate text-lg font-semibold tracking-tight text-ink" data-dossier-title>Lead dossier</h2>
+        <p class="mt-0.5 truncate text-xs text-ink-muted" data-dossier-subtitle>Loading…</p>
+      </div>
+      <button type="button" data-dossier-close aria-label="Close dossier" class="grid h-9 w-9 shrink-0 place-items-center rounded-md text-ink-muted hover:bg-sunken hover:text-ink">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+      </button>
+    </header>
+    <div data-dossier-body class="dossier-scroll flex-1 overflow-y-auto px-5 py-5">
+      <p class="text-sm text-ink-muted">Loading dossier…</p>
+    </div>
+    <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-surface px-5 py-3">
+      <p class="text-2xs text-ink-muted">
+        <kbd class="rounded border border-line px-1 py-0.5 font-sans">J</kbd> next
+        <span class="px-1 text-line-strong">·</span>
+        <kbd class="rounded border border-line px-1 py-0.5 font-sans">K</kbd> previous
+        <span class="px-1 text-line-strong">·</span>
+        <kbd class="rounded border border-line px-1 py-0.5 font-sans">Esc</kbd> close
+      </p>
+      <a data-dossier-open-full href="#" class="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-accent px-3 text-sm font-semibold text-accent-fg hover:bg-accent-strong">
+        Open full workspace <span aria-hidden="true">→</span>
+      </a>
+    </footer>
+  </aside>
+</div>
+
+<script>
+  import { ringSvg, tierLabel, tierOf } from '../../lib/ring';
+  import { fmtGci } from '../../lib/present';
+  import { fmtNum, fmtUsdCompact } from '../../lib/format';
+  import { renderAerial } from '../../lib/aerial';
+  import { RECIPE_LABELS } from '../../lib/data/catalog';
+  import type { Dossier } from '../../lib/data/types';
+
+  const root = document.getElementById('dossier-drawer') as HTMLElement | null;
+  if (root) {
+    const panel = root.querySelector<HTMLElement>('[role=dialog]')!;
+    const body = root.querySelector<HTMLElement>('[data-dossier-body]')!;
+    const titleEl = root.querySelector<HTMLElement>('[data-dossier-title]')!;
+    const subEl = root.querySelector<HTMLElement>('[data-dossier-subtitle]')!;
+    const indexEl = root.querySelector<HTMLElement>('[data-dossier-index]')!;
+    const fullLink = root.querySelector<HTMLAnchorElement>('[data-dossier-open-full]')!;
+    let rows: { apn: string; el: HTMLElement }[] = [];
+    let current = -1;
+    let seq = 0;
+    let opener: HTMLElement | null = null;
+    let aerialCleanup: (() => void) | null = null;
+
+    const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+    const isOpen = () => !root.hidden;
+    const isTyping = (el: Element | null) => !!el && ((el as HTMLElement).isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
+
+    function refreshRows() {
+      const seen = new Set<string>();
+      rows = Array.from(document.querySelectorAll<HTMLElement>('[data-dossier-open]'))
+        .filter((el) => !root!.contains(el) && el.offsetParent !== null && !!el.dataset.dossierOpen)
+        .map((el) => ({ apn: el.dataset.dossierOpen!, el }))
+        .filter((x) => (seen.has(x.apn) ? false : (seen.add(x.apn), true)));
+    }
+
+    function markRow() {
+      document.querySelectorAll<HTMLElement>('[data-dossier-open].is-active').forEach((el) => { el.classList.remove('is-active'); el.removeAttribute('aria-current'); });
+      const row = rows[current];
+      if (row) { row.el.classList.add('is-active'); row.el.setAttribute('aria-current', 'true'); row.el.scrollIntoView({ block: 'nearest' }); }
+      indexEl.textContent = current >= 0 && rows.length ? `${current + 1} / ${rows.length}` : '';
+      indexEl.classList.toggle('hidden', current < 0 || rows.length === 0);
+    }
+
+    function show(html: string) {
+      body.innerHTML = html;
+    }
+
+    function skeleton() {
+      show(`<div class="flex flex-col gap-4" aria-busy="true">
+        <div class="skeleton h-48 w-full"></div>
+        <div class="skeleton h-16 w-3/4"></div>
+        <div class="skeleton h-24 w-full"></div>
+        <div class="skeleton h-32 w-full"></div>
+      </div>`);
+    }
+
+    function sampleBadge() {
+      return '<span class="inline-flex items-center rounded-full border border-warning/30 bg-warning-soft px-1.5 py-px text-2xs font-semibold uppercase tracking-wide text-warning">Sample</span>';
+    }
+    const estTag = '<span class="est-tag" title="Estimated; not official">est.</span>';
+    const fact = (value: string, sample = false, estimate = false) =>
+      `<span${sample ? ' class="sample-fact" title="Based on sample data, not a real record"' : ''}>${esc(value)}</span>${estimate ? estTag : ''}`;
+
+    function render(d: Dossier) {
+      const p = d.parcel;
+      const sample = d.is_sample || !!d.owner?.is_sample || d.score.uses_sample_data;
+      const ownerSample = !!d.owner?.is_sample;
+      const tier = tierOf(d.score.score);
+      const tierColor = `var(--color-tier-${tier})`;
+      const recipes = (d.score.recipe_matches ?? []).filter((r) => r !== 'financial_pressure').slice(0, 4);
+      const items = [...d.score_items].sort((a, b) => b.points - a.points).slice(0, 5);
+      const topSignal = d.top_signal;
+      const thesis = d.ai_brief;
+      const draft = d.outreach;
+      const channelLabel = draft?.channel === 'mail' ? 'Letter' : draft?.channel === 'email' ? 'Email' : 'Call script';
+      const occupancy = d.owner ? (d.owner.absentee ? (d.owner.out_of_state ? 'Absentee, out of state' : 'Absentee') : 'Owner-occupied') : null;
+      const facts = [
+        p.lot_sqft ? ['Lot size', fact(`${fmtNum(Math.round(p.lot_sqft))} sq ft`), false] : null,
+        p.zoning ? ['Zoning', fact(p.zoning), false] : null,
+        d.gci != null ? ['Est. GCI', fact(fmtGci(d.gci), ownerSample, true), ownerSample] : null,
+        d.owner?.est_equity != null ? ['Est. equity', fact(fmtUsdCompact(d.owner.est_equity), ownerSample, true), ownerSample] : null,
+        d.owner?.est_value != null ? ['Est. value', fact(fmtUsdCompact(d.owner.est_value), ownerSample, true), ownerSample] : null,
+        d.years_owned != null ? ['Years owned', fact(String(d.years_owned), ownerSample), ownerSample] : null,
+        occupancy ? ['Occupancy', fact(occupancy, ownerSample), ownerSample] : null,
+      ].filter((x): x is [string, string, boolean] => !!x);
+
+      show(`
+        <div class="flex flex-col gap-5">
+          <div class="aerial-frame" style="height:196px" data-dossier-aerial></div>
+
+          <div class="flex items-start gap-3">
+            ${ringSvg(d.score.score, 'lg')}
+            <div class="min-w-0 flex-1">
+              <p class="text-base font-semibold" style="color:${tierColor}">${esc(tierLabel(d.score.score))}</p>
+              <p class="mt-0.5 text-xs text-ink-muted">Score ${d.score.score} / 100 · Model ${esc(d.score.model_version)}</p>
+              <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                ${sample ? sampleBadge() : ''}
+                ${recipes.map((r) => `<span class="inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent">${esc(RECIPE_LABELS[r] ?? r)}</span>`).join('')}
+              </div>
+            </div>
+          </div>
+
+          ${topSignal ? `<div class="rounded-md border border-line bg-sunken/60 px-3 py-2"><p class="eyebrow">Top signal</p><p class="mt-1 text-sm font-medium text-ink">${fact(topSignal.text, topSignal.sample, topSignal.estimate)}</p></div>` : ''}
+
+          <section aria-labelledby="dossier-thesis-h">
+            <div class="flex items-center gap-2">
+              <h3 id="dossier-thesis-h" class="eyebrow">${thesis ? 'AI thesis' : 'Why this lead'}</h3>
+              ${thesis ? `<span class="inline-flex items-center gap-1 rounded-full bg-accent-soft px-1.5 py-px text-2xs font-semibold text-accent"><span aria-hidden="true">✦</span> AI summary</span>` : ''}
+            </div>
+            ${thesis
+              ? `<p class="mt-1.5 text-base font-semibold leading-snug text-ink" data-dossier-headline>${esc(thesis.headline)}</p>
+                 <p class="mt-1.5 text-sm leading-relaxed text-ink-muted" data-dossier-summary>${esc(thesis.summary)}</p>
+                 ${thesis.suggested_angle ? `<details class="mt-2"><summary class="cursor-pointer text-xs font-medium text-ink-muted hover:text-ink">Suggested angle (internal)</summary><p class="mt-1 text-sm text-ink-muted">${esc(thesis.suggested_angle)}</p></details>` : ''}`
+              : `<p class="mt-1.5 text-sm leading-relaxed text-ink-muted">${esc(d.score.reason_text || 'No AI summary is available for this lead.')}</p>`}
+          </section>
+
+          ${items.length ? `<section aria-labelledby="dossier-score-h">
+            <h3 id="dossier-score-h" class="eyebrow">Score breakdown</h3>
+            <ul class="mt-2 flex flex-col gap-2.5">
+              ${items.map((i) => {
+                const pct = i.max > 0 ? Math.max(3, Math.min(100, Math.round((i.points / i.max) * 100))) : 0;
+                return `<li>
+                  <div class="flex items-center justify-between gap-3 text-sm">
+                    <span class="min-w-0 truncate ${i.is_sample ? 'sample-fact' : ''}" title="${i.is_sample ? 'Based on sample data, not a real record' : ''}">${esc(i.label)}${i.is_estimate ? estTag : ''}</span>
+                    <span class="shrink-0 tabular-nums text-ink-muted">+${Math.round(i.points)} <span class="text-ink-faint">/ ${i.max}</span></span>
+                  </div>
+                  <div class="mt-1 h-1 overflow-hidden rounded-full bg-line"><div class="h-full rounded-full" style="width:${pct}%;background:${tierColor}"></div></div>
+                </li>`;
+              }).join('')}
+            </ul>
+          </section>` : ''}
+
+          <section aria-labelledby="dossier-facts-h">
+            <h3 id="dossier-facts-h" class="eyebrow">Property and owner facts</h3>
+            <dl class="mt-2 grid grid-cols-2 gap-x-4 gap-y-3">
+              ${facts.map(([label, value]) => `<div class="min-w-0"><dt class="text-2xs font-medium uppercase tracking-[0.07em] text-ink-muted">${esc(label)}</dt><dd class="mt-0.5 truncate text-sm font-semibold tabular-nums">${value}</dd></div>`).join('')}
+            </dl>
+            ${d.portfolio ? `<div class="mt-3 rounded-md bg-accent-soft px-3 py-2 text-xs text-ink"><span class="font-semibold">Territory Portfolio</span><span class="text-ink-muted"> · ${d.portfolio.territory_parcel_count} parcels${d.portfolio.total_est_value != null ? ` · ${fmtUsdCompact(d.portfolio.total_est_value)} est. combined value` : ''}</span>${d.portfolio.is_sample ? ` ${sampleBadge()}` : ''}</div>` : ''}
+          </section>
+
+          <section aria-labelledby="dossier-outreach-h">
+            <div class="flex items-center justify-between gap-2">
+              <h3 id="dossier-outreach-h" class="eyebrow">Outreach · ${channelLabel}</h3>
+              ${draft ? `<span class="text-2xs font-medium ${draft.blocked_reason ? 'text-warning' : 'text-ink-muted'}">${draft.blocked_reason ? 'Blocked' : esc(draft.status.replace(/_/g, ' '))}</span>` : ''}
+            </div>
+            ${draft?.content
+              ? `<pre class="dossier-script mt-1.5 max-h-64 overflow-y-auto rounded-md border border-line bg-canvas px-3 py-2.5" data-dossier-script>${esc(draft.content)}</pre>
+                 ${draft.blocked_reason ? `<p class="mt-1.5 text-xs text-warning">A person must resolve: ${esc(draft.blocked_reason.replace(/;/g, '; '))}.</p>` : ''}
+                 <button type="button" data-dossier-copy class="mt-2 inline-flex h-8 items-center gap-1.5 rounded-md border border-line-strong bg-surface px-3 text-xs font-semibold text-ink hover:bg-sunken">Copy script</button>`
+              : '<p class="mt-1.5 rounded-md border border-dashed border-line px-3 py-4 text-sm text-ink-muted">No draft has been prepared for this lead yet.</p>'}
+          </section>
+        </div>`);
+
+      const aerial = body.querySelector<HTMLElement>('[data-dossier-aerial]');
+      if (aerial) {
+        aerialCleanup?.();
+        aerialCleanup = renderAerial(aerial, {
+          apn: p.apn, address: p.situs_address, neighborhood: p.neighborhood, lot_sqft: p.lot_sqft,
+          zoning: p.zoning, score: d.score.score, centroid: p.centroid, geom: p.geom,
+        });
+      }
+      titleEl.textContent = p.situs_address ?? p.apn;
+      subEl.textContent = [p.neighborhood, `APN ${p.apn}`, sample ? 'Sample' : null].filter(Boolean).join(' · ');
+      fullLink.href = `/leads/${encodeURIComponent(p.apn)}`;
+    }
+
+    async function load(apn: string) {
+      const mine = ++seq;
+      titleEl.textContent = 'Lead dossier';
+      subEl.textContent = 'Loading…';
+      skeleton();
+      try {
+        const res = await fetch(`/api/dossier?apn=${encodeURIComponent(apn)}`);
+        if (mine !== seq) return;
+        if (!res.ok) throw new Error(String(res.status));
+        const d = (await res.json()) as Dossier;
+        if (mine !== seq) return;
+        render(d);
+      } catch {
+        if (mine !== seq) return;
+        show(`<div class="rounded-md border border-line bg-surface p-4"><p class="text-sm font-semibold text-ink">This dossier could not load.</p><p class="mt-1 text-sm text-ink-muted">Open the full workspace instead.</p><a href="/leads/${encodeURIComponent(apn)}" class="mt-3 inline-flex h-9 items-center rounded-md bg-accent px-3 text-sm font-semibold text-accent-fg">Open full workspace</a></div>`);
+        fullLink.href = `/leads/${encodeURIComponent(apn)}`;
+      }
+    }
+
+    function openAt(i: number, from?: HTMLElement | null) {
+      refreshRows();
+      if (!rows.length) return;
+      current = ((i % rows.length) + rows.length) % rows.length;
+      if (from) opener = from;
+      else if (!isOpen()) opener = document.activeElement as HTMLElement | null;
+      root!.hidden = false;
+      document.body.style.overflow = 'hidden';
+      markRow();
+      panel.focus();
+      void load(rows[current]!.apn);
+    }
+
+    function openByApn(apn: string, from?: HTMLElement | null) {
+      refreshRows();
+      const i = rows.findIndex((r) => r.apn === apn);
+      if (i >= 0) { openAt(i, from); return; }
+      current = -1;
+      indexEl.classList.add('hidden');
+      if (from) opener = from;
+      root!.hidden = false;
+      document.body.style.overflow = 'hidden';
+      markRow();
+      panel.focus();
+      void load(apn);
+    }
+
+    function close() {
+      if (!isOpen()) return;
+      root!.hidden = true;
+      document.body.style.overflow = '';
+      aerialCleanup?.();
+      aerialCleanup = null;
+      seq++;
+      document.querySelectorAll<HTMLElement>('[data-dossier-open].is-active').forEach((el) => { el.classList.remove('is-active'); el.removeAttribute('aria-current'); });
+      opener?.focus?.();
+    }
+
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const trigger = target.closest<HTMLElement>('[data-dossier-open]');
+      if (!trigger || root!.contains(trigger)) return;
+      if (e instanceof MouseEvent && (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0)) return; // new tab / window stays native
+      e.preventDefault();
+      openByApn(trigger.dataset.dossierOpen!, trigger);
+    });
+
+    document.addEventListener('dossier:open', (e) => {
+      const apn = (e as CustomEvent<{ apn?: string }>).detail?.apn;
+      if (apn) openByApn(apn);
+    });
+
+    root.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t.closest('[data-dossier-close]') || t.hasAttribute('data-dossier-scrim')) { close(); return; }
+      const copy = t.closest<HTMLElement>('[data-dossier-copy]');
+      if (copy) {
+        const text = body.querySelector<HTMLElement>('[data-dossier-script]')?.textContent?.trim() ?? '';
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => { copy.textContent = 'Copied'; window.setTimeout(() => { copy.textContent = 'Copy script'; }, 2500); })
+          .catch(() => { copy.textContent = 'Copy failed'; window.setTimeout(() => { copy.textContent = 'Copy script'; }, 2500); });
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isOpen()) { e.preventDefault(); close(); return; }
+      if (document.querySelector('dialog[open]')) return;             // search/menus own their keys
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isTyping(document.activeElement)) return;
+      const k = e.key.toLowerCase();
+      if (k !== 'j' && k !== 'k') return;
+      refreshRows();
+      if (!rows.length) return;
+      e.preventDefault();
+      if (!isOpen()) { openAt(k === 'k' ? rows.length - 1 : 0); return; }
+      if (current < 0) { openAt(k === 'j' ? 0 : rows.length - 1); return; }
+      openAt(current + (k === 'j' ? 1 : -1));
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab' || !isOpen()) return;
+      const f = Array.from(panel.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])')).filter((x) => x.offsetParent !== null);
+      if (!f.length) return;
+      const first = f[0]!, last = f[f.length - 1]!;
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+
+    window.addEventListener('load', refreshRows);
+    (window as unknown as { __dossierReady?: boolean }).__dossierReady = true;
+  }
+</script>

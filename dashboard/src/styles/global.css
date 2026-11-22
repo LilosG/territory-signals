@@ -20,9 +20,65 @@
 
 @layer components {
   .num { font-variant-numeric: tabular-nums; }
-  .eyebrow { @apply text-2xs font-medium uppercase tracking-[0.08em] text-ink-muted; }
+  .eyebrow { @apply text-2xs font-medium uppercase tracking-[0.09em] text-ink-muted; }
   .maplibregl-popup-content { font-family: var(--font-sans); }
+
+  /* ── Precision chrome: collapsible rail and command header ── */
+  .app-rail { width: 232px; transition: width 180ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .app-main-wrap { padding-left: 0; }
+  .rail-text { transition: opacity 120ms ease; white-space: nowrap; }
+  .rail-collapse { transition: opacity 120ms ease; }
+  html[data-rail='compact'] .app-rail:not(:hover):not(:focus-within) .rail-text,
+  html[data-rail='compact'] .app-rail:not(:hover):not(:focus-within) .rail-group-label,
+  html[data-rail='compact'] .app-rail:not(:hover):not(:focus-within) .rail-expandable,
+  html[data-rail='compact'] .app-rail:not(:hover):not(:focus-within) .side-badge { display: none; }
+  html[data-rail='compact'] .rail-label-expanded { display: none; }
+  html[data-rail='expanded'] .rail-label-compact { display: none; }
+  html[data-rail='compact'] .app-rail:not(:hover):not(:focus-within) .side-link { justify-content: center; padding-left: 0.5rem; padding-right: 0.5rem; }
+  html[data-rail='compact'] .app-rail:not(:hover):not(:focus-within) .rail-brand { justify-content: center; }
+  @media (min-width: 64rem) {
+    .app-rail { position: fixed; inset-block: 0; left: 0; z-index: 40; }
+    .app-main-wrap { padding-left: 232px; transition: padding-left 180ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+    html[data-rail='compact'] .app-rail { width: 64px; }
+    html[data-rail='compact'] .app-main-wrap { padding-left: 64px; }
+    html[data-rail='compact'] .app-rail:hover,
+    html[data-rail='compact'] .app-rail:focus-within { width: 232px; box-shadow: var(--shadow-lg); }
+  }
+  html[data-rail='compact'] [data-rail-toggle] svg { transform: rotate(180deg); }
+
+  .command-bar { height: 48px; }
+  .command-pill { display: inline-flex; align-items: center; gap: 0.375rem; height: 26px; border: 1px solid var(--color-line); border-radius: 9999px; padding: 0 0.625rem; font-size: 0.6875rem; font-weight: 600; color: var(--color-ink-muted); background: var(--color-surface); white-space: nowrap; }
+  .command-pill strong { color: var(--color-ink); font-weight: 600; }
+
+  /* ── High-density triage rows ── */
+  .triage-list { display: flex; flex-direction: column; }
+  .triage-row { position: relative; transition: background-color 120ms ease; }
+  .triage-row + .triage-row { border-top: 1px solid var(--color-line); }
+  .triage-row:hover, .triage-row:focus-within { background: var(--color-sunken); }
+  .triage-row.is-active { background: var(--color-gold-soft); box-shadow: inset 2px 0 0 var(--color-gold); }
+  .triage-row .triage-action { opacity: 0; transition: opacity 120ms ease; }
+  .triage-row:hover .triage-action, .triage-row:focus-within .triage-action { opacity: 1; }
+
+  /* ── Satellite aerial preview ── */
+  .aerial-frame { position: relative; overflow: hidden; border: 1px solid var(--color-line); border-radius: var(--radius-lg); background: var(--color-sunken); }
+  .aerial-map, .aerial-fallback { position: absolute; inset: 0; }
+  .aerial-map .maplibregl-canvas { outline: none; }
+  .aerial-chip { display: inline-flex; align-items: center; gap: 0.375rem; border: 1px solid rgb(255 255 255 / 0.35); border-radius: 9999px; background: rgb(11 18 32 / 0.68); padding: 0.125rem 0.5rem; font-size: 0.625rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #fff; backdrop-filter: blur(6px); }
+  .aerial-grid { background-image: linear-gradient(rgb(148 163 184 / 0.22) 1px, transparent 1px), linear-gradient(90deg, rgb(148 163 184 / 0.22) 1px, transparent 1px); background-size: 18px 18px; }
+
+  /* ── Slide-over dossier ── */
+  .dossier-panel { animation: dossier-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  @keyframes dossier-in { from { transform: translateX(24px); opacity: 0.6; } to { transform: translateX(0); opacity: 1; } }
+  .dossier-scroll { scrollbar-width: thin; scrollbar-color: var(--color-line-strong) transparent; }
+  .dossier-script { white-space: pre-wrap; font-size: 0.8125rem; line-height: 1.45rem; color: var(--color-ink); }
+
+  /* ── Opportunity matrix ── */
+  .matrix-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; font-size: 0.75rem; color: var(--color-ink-muted); }
+  .matrix-dot { display: inline-block; height: 8px; width: 8px; border-radius: 9999px; }
+  .matrix-table th { text-align: left; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-ink-muted); font-weight: 600; }
+  .matrix-table td { padding-block: 0.5rem; border-top: 1px solid var(--color-line); }
 }
+
 
 @media print {
   .no-print { display: none !important; }

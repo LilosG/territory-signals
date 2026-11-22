@@ -1,0 +1,78 @@
+---
+import type { LeadSummary } from '../../lib/data/types';
+import { LEAD_STATUS } from '../../lib/data/catalog';
+import { gciBadge, leadChips, leadHeadline, publicReason } from '../../lib/present';
+import ScoreRing from './ScoreRing.astro';
+import StatusPill from './StatusPill.astro';
+import SampleDataBadge from './SampleDataBadge.astro';
+import Fact from './Fact.astro';
+import Icon from './Icon.astro';
+/**
+ * High-density triage row (Phase 7): score ring, address and neighborhood, AI thesis plus top signal, lot/zoning,
+ * estimated GCI and status on one hairline-separated line. Clicking the row opens the Quick-Dossier drawer; the
+ * same link still opens the full workspace in a new tab (or with a modifier key). Distress and life-event facts
+ * never appear here (leadChips and publicReason enforce it).
+ */
+export interface Props { lead: LeadSummary; rank?: number; isNew?: boolean }
+const { lead, rank, isNew = false } = Astro.props;
+const { parcel: p, score } = lead;
+const status = LEAD_STATUS[lead.status];
+const headline = leadHeadline(lead);
+const chips = leadChips(lead).slice(0, 2);
+const gci = gciBadge(lead);
+const reason = publicReason(score.reason_text);
+const lot = [lead.lot_sqft ? `${Math.round(lead.lot_sqft).toLocaleString('en-US')} sq ft` : null, lead.zoning].filter(Boolean).join(' · ');
+---
+<article class="triage-row group" data-triage-row data-apn={p.apn}>
+  <a href={`/leads/${p.apn}`} data-lead-row data-dossier-open={p.apn} aria-haspopup="dialog" aria-label={`${p.situs_address ?? p.apn}, score ${score.score}. Opens the quick dossier.`}
+    class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3 py-3 sm:grid-cols-[minmax(0,1.35fr)_minmax(0,0.9fr)_auto] sm:gap-4 sm:px-4">
+    <div class="min-w-0">
+      <div class="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+        {rank != null && <span class="text-2xs font-semibold tabular-nums text-ink-faint" aria-label={`Rank ${rank}`}>#{rank}</span>}
+        <h3 class="truncate text-sm font-semibold tracking-tight text-ink group-hover:text-accent">{p.situs_address}</h3>
+        {isNew && lead.status !== 'new' && <span class="new-marker">New</span>}
+        {lead.is_sample && <SampleDataBadge />}
+        <span class="t-meta text-ink-muted">{p.neighborhood}</span>
+      </div>
+      {lead.ai_headline
+        ? (
+          <>
+            <p class="mt-1 flex items-start gap-1.5 text-sm font-semibold text-ink" data-ai-headline>
+              <span class="mt-0.5 shrink-0 text-accent" role="img" aria-label="AI summary" title="AI summary" data-ai-sparkle><Icon name="sparkle" size={13} /></span>
+              <span class="min-w-0">{lead.ai_headline}</span>
+            </p>
+            {headline && <p class="mt-0.5 truncate text-xs text-ink-muted" data-top-signal><Fact {...headline} /></p>}
+          </>
+        )
+        : headline && <p class="mt-1 text-sm font-medium text-ink"><Fact {...headline} /></p>}
+      {chips.length > 0 && (
+        <ul class="mt-1.5 flex flex-wrap gap-1" data-fact-chips>
+          {chips.map((c) => (
+            <li class="inline-flex items-center gap-1 rounded bg-sunken px-1.5 py-0.5 text-2xs font-medium text-ink-muted" data-chip-icon={c.icon}>
+              {c.icon && <Icon name={c.icon} size={11} class="shrink-0 text-gold" />}<Fact {...c} />
+            </li>
+          ))}
+        </ul>
+      )}
+      <p class="mt-1 text-2xs text-ink-faint sm:hidden">{lot || reason || '—'}</p>
+    </div>
+
+    <div class="hidden min-w-0 sm:block">
+      <p class="truncate text-xs font-semibold tabular-nums text-ink" data-row-lot>{lot || '—'}</p>
+      <p class="text-2xs text-ink-muted">Lot · zoning</p>
+      {reason && <p class="mt-1 line-clamp-2 text-2xs text-ink-muted" title={reason}>{reason}</p>}
+    </div>
+
+    <div class="flex shrink-0 items-center gap-2.5" data-card-right>
+      <div class="flex flex-col items-end gap-1">
+        {gci && (
+          <span data-gci-badge class:list={['whitespace-nowrap rounded-full border border-gold/40 bg-gold-soft px-2 py-0.5 text-2xs font-semibold text-gold-strong', gci.sample && 'sample-fact']}
+            title={gci.sample ? 'Estimated at 2.5% of estimated property value, which rests on sample owner data' : 'Estimated gross commission income: 2.5% of estimated property value'}>{gci.text}</span>
+        )}
+        <StatusPill tone={status.tone} class="max-sm:hidden">{status.label}</StatusPill>
+      </div>
+      <ScoreRing score={score.score} size="md" />
+      <span class="triage-action hidden text-ink-faint sm:block" aria-hidden="true"><Icon name="chevron" size={16} /></span>
+    </div>
+  </a>
+</article>

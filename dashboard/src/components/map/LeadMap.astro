@@ -17,7 +17,7 @@ const lenses = [
   { key: 'upzone', label: 'Upzoning / SB 9 & SB 79' }, { key: 'str', label: 'STR Density' },
 ];
 ---
-<div class="flex h-[calc(100dvh-10.5rem)] flex-col lg:h-[calc(100dvh-5.5rem)]" data-leadmap>
+<div class="flex h-[calc(100dvh-10.5rem)] flex-col lg:h-[calc(100dvh-3rem)]" data-leadmap>
   <div class="border-b border-line bg-surface px-4 py-2 sm:px-8">
     <FilterBar id="map-filters" label="Map filters">
       <Select compact hideLabel label="Recipe" name="recipe" class="w-44 shrink-0" options={[{ value: '', label: 'All recipes' }, ...recipes.map((r) => ({ value: r.key, label: r.name }))]} />

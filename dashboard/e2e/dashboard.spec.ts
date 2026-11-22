@@ -544,7 +544,7 @@ for (const [w, h, split] of [[1440, 900, true], [390, 844, false]] as const) {
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     // The briefing card is deep navy.
-    expect(await brief.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(15, 30, 54)');
+    expect(await brief.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(11, 18, 32)');
     // The panel lists only recipes with movement or top leads; the rest sit in a collapsed toggle.
     const quiet = page.locator('[data-quiet-recipes]');
     await expect(quiet).toHaveCount(1);
@@ -918,4 +918,104 @@ test('lead lists: the gray line is the top-contribution signal, with a correct p
   expect(pillNew).toBeLessThanOrEqual(1);
   await page.goto(brief);
   await expect(page.locator('main')).toContainText('3 building permits approved Nov 10');
+});
+
+// ---- Phase 7: precision terminal ---------------------------------------------------------------
+test('precision rail: collapses to 64px, expands on hover, persists, and the command header stays 48px', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const rail = page.locator('#sidebar');
+  const root = page.locator('html');
+  await expect(rail).toBeVisible();
+  await expect(root).toHaveAttribute('data-rail', 'expanded');
+  expect(Math.round((await rail.boundingBox())!.width)).toBe(232);
+
+  const command = page.locator('header.command-bar');
+  await expect(command).toBeVisible();
+  await expect(command).toContainText('Model');
+  expect(Math.round((await command.boundingBox())!.height)).toBe(48);
+
+  await page.locator('[data-rail-toggle]').click();
+  await expect(root).toHaveAttribute('data-rail', 'compact');
+  await page.mouse.move(800, 500);                             // leaving the rail lets the compact width show
+  await page.waitForTimeout(250);
+  expect(Math.round((await rail.boundingBox())!.width)).toBe(64);
+  expect(await page.evaluate(() => localStorage.getItem('ts-rail'))).toBe('compact');
+
+  await page.reload();
+  await expect(root).toHaveAttribute('data-rail', 'compact');
+  await page.mouse.move(800, 500);
+  await page.waitForTimeout(250);
+  expect(Math.round((await rail.boundingBox())!.width)).toBe(64);
+
+  // Hovering the compact rail reveals the labels without pushing the main column.
+  await rail.hover();
+  await page.waitForTimeout(250);
+  expect(Math.round((await rail.boundingBox())!.width)).toBe(232);
+
+  await page.locator('[data-rail-toggle]').click();
+  await expect(root).toHaveAttribute('data-rail', 'expanded');
+  await page.waitForTimeout(250);
+  expect(Math.round((await rail.boundingBox())!.width)).toBe(232);
+});
+
+test('slide-over dossier: rows open in place, J/K triage, copy works, Escape closes, and the page never reloads', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/leads?q=E2E');
+  const rows = page.locator('[data-lead-row]');
+  await expect(rows.first()).toBeVisible();
+  expect(await rows.count()).toBeGreaterThan(1);
+  const url = page.url();
+
+  await rows.first().click();
+  const drawer = page.locator('#dossier-drawer');
+  await expect(drawer).toBeVisible();
+  await expect.poll(async () => drawer.locator('[data-dossier-title]').innerText()).not.toBe('Lead dossier');
+  await expect(drawer.locator('[data-dossier-open-full]')).toHaveAttribute('href', /^\/leads\//);
+  await expect(drawer.locator('[data-dossier-aerial] svg, [data-dossier-aerial] canvas').first()).toBeVisible();
+  await expect(drawer.locator('[data-dossier-script]')).toBeVisible();
+  const copy = drawer.locator('[data-dossier-copy]');
+  await copy.click();
+  await expect(copy).toHaveText('Copied');
+  expect((await page.evaluate(() => navigator.clipboard.readText())).length).toBeGreaterThan(20);
+
+  const first = await drawer.locator('[data-dossier-title]').innerText();
+  await page.keyboard.press('j');
+  await expect.poll(async () => drawer.locator('[data-dossier-title]').innerText()).not.toBe(first);
+  const second = await drawer.locator('[data-dossier-title]').innerText();
+  await page.keyboard.press('k');
+  await expect.poll(async () => drawer.locator('[data-dossier-title]').innerText()).toBe(first);
+  expect(second).not.toBe(first);
+
+  await page.keyboard.press('Escape');
+  await expect(drawer).toBeHidden();
+  expect(page.url()).toBe(url);
+});
+
+test('lead brief: the satellite parcel aerial renders with a boundary overlay or the architectural fallback', async ({ page }) => {
+  await page.goto(brief);
+  const aerial = page.locator('[data-hero-aerial] [data-parcel-aerial-figure]');
+  await expect(aerial).toBeVisible();
+  await expect(aerial.locator('[data-aerial-map] canvas, [data-aerial-fallback] svg').first()).toBeVisible();
+  await expect(aerial).toContainText(/Parcel boundary|No geometry on file/);
+  await expect(aerial).toContainText('Esri World Imagery');
+});
+
+test('Trends: the Opportunity Matrix plots leads and its accessible table opens the dossier drawer', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/trends');
+  const matrix = page.locator('[data-opportunity-matrix]');
+  await expect(matrix).toBeVisible();
+  await expect(matrix.locator('[data-matrix-chart] canvas')).toBeVisible();
+  await expect(matrix.locator('[data-matrix-table] summary')).toContainText('View the top');
+  await matrix.locator('[data-matrix-table] summary').click();
+  const row = matrix.locator('[data-matrix-row]').first();
+  await expect(row).toBeVisible();
+  const apn = await row.getAttribute('data-matrix-row');
+  expect(apn).toBeTruthy();
+  await row.click();
+  const drawer = page.locator('#dossier-drawer');
+  await expect(drawer).toBeVisible();
+  await expect.poll(async () => drawer.locator('[data-dossier-open-full]').getAttribute('href')).toContain(apn!);
 });

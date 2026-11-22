@@ -2,14 +2,13 @@
 import AppShell from '../../components/ui/AppShell.astro';
 import PageHeader from '../../components/ui/PageHeader.astro';
 import Stack from '../../components/ui/Stack.astro';
-import LeadCard from '../../components/ui/LeadCard.astro';
+import LeadList from '../../components/ui/LeadList.astro';
 import EmptyState from '../../components/ui/EmptyState.astro';
 import Select from '../../components/ui/Select.astro';
 import Button from '../../components/ui/Button.astro';
 import { SIGNAL_GROUPS, SENSITIVE_RECIPES, LEAD_STATUS } from '../../lib/data';
 import { filtersFrom } from '../../lib/filters';
 import { fmtNum } from '../../lib/format';
-import { isNewLead } from '../../lib/present';
 export const prerender = false;
 
 const PAGE_SIZE = 20;
@@ -61,7 +60,7 @@ const now = new Date();
 
     {result.items.length === 0
       ? <EmptyState title="No leads match" description="Remove a filter or pick another view." />
-      : <Stack as="ul" gap={3}>{result.items.map((l, i) => <li><LeadCard lead={l} rank={(page - 1) * PAGE_SIZE + i + 1} isNew={isNewLead(l, now)} /></li>)}</Stack>}
+      : <LeadList leads={result.items} startRank={(page - 1) * PAGE_SIZE + 1} now={now} />}
 
     <nav aria-label="Pagination" class="flex items-center justify-between gap-3 text-sm">
       <span class="text-ink-muted">Page {page} of {pages}</span>

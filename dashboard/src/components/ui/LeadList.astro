@@ -1,0 +1,11 @@
+---
+import type { LeadSummary } from '../../lib/data/types';
+import { isNewLead } from '../../lib/present';
+import LeadRow from './LeadRow.astro';
+/** A hairline-separated triage list. One container, no nested bordered boxes; rows are density-first. */
+export interface Props { leads: LeadSummary[]; startRank?: number; now?: Date; class?: string }
+const { leads, startRank = 1, now = new Date(), class: cls } = Astro.props;
+---
+<div class:list={['overflow-hidden rounded-lg border border-line bg-surface', cls]} data-lead-list>
+  {leads.map((l, i) => <LeadRow lead={l} rank={startRank + i} isNew={isNewLead(l, now)} />)}
+</div>

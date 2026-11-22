@@ -20,9 +20,9 @@ export const brand: Brand = {
   initials: 'KT',
   tagline: 'Territory intelligence',
   colors: {
-    accent: '#17294D',
-    accentStrong: '#0E1C38',
-    accentSoft: '#E9EDF5',
+    accent: '#0F172A',
+    accentStrong: '#020617',
+    accentSoft: '#F1F5F9',
     accentFg: '#FFFFFF',
   },
   fontFamily: "'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif",

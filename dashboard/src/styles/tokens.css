@@ -1,77 +1,84 @@
 /*
  * Design tokens: the single source of visual truth.
- * Neutrals (warm), ONE accent (from brand.ts), semantic colors, type scale,
- * spacing (4/8 base), radius, borders, elevation. Screens never hard-code these.
+ * Monochrome Alabaster & Obsidian precision system: crisp white and slate surfaces,
+ * 1px hairline structure, functional color reserved for score urgency and actions.
+ * Screens never hard-code these.
  */
 @theme static {
   --color-*: initial;
   --color-white: #ffffff;
 
-  /* Neutrals */
-  --color-canvas: #f4f6f9;       /* page background: cool alabaster */
-  --color-surface: #ffffff;      /* cards */
-  --color-sunken: #ebeef3;       /* wells, table headers */
-  --color-line: #dfe3ea;         /* hairlines */
-  --color-line-strong: #c7cdd8;
-  --color-ink: #14171f;          /* primary text, 16:1 on canvas */
-  --color-ink-muted: #565c6b;    /* secondary text, 6.5:1 on white */
-  --color-ink-faint: #626777;    /* tertiary text, 5:1 on canvas and wells */
+  /* Neutrals: alabaster canvas, pure white surfaces, slate hairlines */
+  --color-canvas: #f8fafc;       /* page background: alabaster slate-50 */
+  --color-surface: #ffffff;      /* cards and panels */
+  --color-sunken: #f1f5f9;       /* wells, table headers, hover fills */
+  --color-line: #e2e8f0;         /* structural 1px hairlines */
+  --color-line-strong: #cbd5e1;
+  --color-ink: #0f172a;          /* primary text: obsidian slate-900 */
+  --color-ink-muted: #475569;    /* secondary text, 7.4:1 on white */
+  --color-ink-faint: #64748b;    /* tertiary text, 4.8:1 on white */
 
-  /* The one accent, swappable per client */
-  --color-accent: var(--brand-accent, #17294d);
-  --color-accent-strong: var(--brand-accent-strong, #0e1c38);
-  --color-accent-soft: var(--brand-accent-soft, #e9edf5);
+  /* The one accent: obsidian, swappable per client */
+  --color-accent: var(--brand-accent, #0f172a);
+  --color-accent-strong: var(--brand-accent-strong, #020617);
+  --color-accent-soft: var(--brand-accent-soft, #f1f5f9);
   --color-accent-fg: var(--brand-accent-fg, #ffffff);
 
-  /* Muted gold: used sparingly for highlights and "new" markers. Text uses gold-strong (4.9:1 on white). */
-  --color-gold: #b8862d;          /* restrained gold: active highlights */
+  /* Architectural gold: parcel boundaries, selected markers and "new" accents.
+     Text uses gold-strong (4.9:1 on white). */
+  --color-gold: #b8862d;
   --color-gold-bright: #c6923a;
   --color-gold-strong: #86671c;
-  --color-gold-soft: #f6efdc;
+  --color-gold-soft: #f8f1df;
 
-  /* Sidebar: deep navy, white text at 80% */
-  --color-side: #0e1c38;
-  --color-side-raised: #14264b;
-  --color-side-ink: rgb(255 255 255 / 0.8);
-  --color-side-faint: rgb(255 255 255 / 0.62);
-  --color-side-line: rgb(255 255 255 / 0.12);
+  /* Parcel geometry overlay: crisp gold by default, crimson for immediate-tier urgency */
+  --color-parcel: #d4a017;
+  --color-parcel-alert: #dc2626;
+  --color-parcel-fill: rgb(212 160 23 / 0.16);
+
+  /* Rail: obsidian, white text at 80% */
+  --color-side: #0b1220;
+  --color-side-raised: #111b2e;
+  --color-side-ink: rgb(255 255 255 / 0.82);
+  --color-side-faint: rgb(255 255 255 / 0.58);
+  --color-side-line: rgb(255 255 255 / 0.10);
   --color-side-hover: rgb(255 255 255 / 0.07);
   --color-side-active: rgb(255 255 255 / 0.14);
 
   /* Semantic */
-  --color-good: #1d6f48;
-  --color-good-soft: #e5f2ea;
-  --color-warning: #85560a;
-  --color-warning-soft: #fbf0d9;
-  --color-critical: #a8281f;
-  --color-critical-soft: #fbe7e4;
+  --color-good: #15803d;
+  --color-good-soft: #ecfdf3;
+  --color-warning: #a16207;
+  --color-warning-soft: #fef8e7;
+  --color-critical: #b91c1c;
+  --color-critical-soft: #fef2f2;
 
-  /* Score bands: navy ramp (map + badges) */
+  /* Score bands: cool slate ramp (map + badges) */
   /* The lightest band (low) is >= 3.5:1 against white and against the lightest-to-darkest basemap fills (land,
      water, parks), checked by scripts/check-contrast.ts. Dot SIZE also steps up with band (--dot-*), so the
      lowest steps (1.3:1 apart in color) stay distinguishable. */
-  --color-band-low: #62709a;
-  --color-band-low-soft: #eceef1;
+  --color-band-low: #64748b;
+  --color-band-low-soft: #f1f5f9;
   --color-band-watch: #3b5ea8;
-  --color-band-watch-soft: #e4eaf4;
+  --color-band-watch-soft: #e8eef8;
   --color-band-warm: #1f3f80;
-  --color-band-warm-soft: #d9e3f3;
-  --color-band-hot: #0a1630;
-  --color-band-hot-soft: #0e1c38;
+  --color-band-warm-soft: #dce6f4;
+  --color-band-hot: #0b1220;
+  --color-band-hot-soft: #0b1220;
 
   /* Score tiers (Phase 5J): four semantic colors, one per tier. Each is >= 4.5:1 on white. See lib/ring.ts for the cut-offs. */
   --color-tier-immediate: #b91c1c;   /* 80-100 crimson */
   --color-tier-priority: #b45309;    /* 65-79 warm gold */
   --color-tier-watchlist: #1e3a8a;   /* 45-64 navy-indigo */
   --color-tier-monitor: #64748b;     /* under 45 slate */
-  --color-tier-immediate-soft: #fbe9e7;
-  --color-tier-priority-soft: #fbefdc;
-  --color-tier-watchlist-soft: #e3e9f7;
-  --color-tier-monitor-soft: #edf0f4;
+  --color-tier-immediate-soft: #fef2f2;
+  --color-tier-priority-soft: #fef8e7;
+  --color-tier-watchlist-soft: #e8eef8;
+  --color-tier-monitor-soft: #f1f5f9;
 
   /* Briefing hero */
-  --color-hero: #0f1e36;
-  --color-hero-raised: #17294b;
+  --color-hero: #0b1220;
+  --color-hero-raised: #111b2e;
 
   /* Type */
   --font-sans: var(--brand-font, 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif);
@@ -85,25 +92,26 @@
   --text-3xl: 2.25rem;    --text-3xl--line-height: 2.5rem;
   --text-4xl: 3rem;       --text-4xl--line-height: 3.25rem;
 
-  /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* Radius: razor-sharp architectural corners */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
   --radius-full: 9999px;
 
-  /* Elevation: restrained */
-  --shadow-xs: 0 1px 0 rgb(20 23 31 / 0.04);
-  --shadow-sm: 0 1px 2px rgb(20 23 31 / 0.05), 0 1px 1px rgb(20 23 31 / 0.03);
-  --shadow-md: 0 8px 24px -8px rgb(20 23 31 / 0.14), 0 2px 6px rgb(20 23 31 / 0.05);
+  /* Elevation: restrained hairlines, one crisp lift for overlays */
+  --shadow-xs: 0 1px 0 rgb(15 23 42 / 0.04);
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05), 0 1px 1px rgb(15 23 42 / 0.03);
+  --shadow-md: 0 12px 32px -12px rgb(15 23 42 / 0.18), 0 2px 6px rgb(15 23 42 / 0.05);
   /* Multi-stop lift for hover/focus: contact, ambient and a soft far shadow */
-  --shadow-lift: 0 1px 1px rgb(15 30 54 / 0.06), 0 3px 6px -1px rgb(15 30 54 / 0.07), 0 12px 24px -8px rgb(15 30 54 / 0.14), 0 24px 40px -16px rgb(15 30 54 / 0.10);
-  --shadow-lg: 0 24px 48px -16px rgb(20 23 31 / 0.22);
+  --shadow-lift: 0 1px 1px rgb(15 23 42 / 0.05), 0 4px 10px -2px rgb(15 23 42 / 0.08), 0 16px 32px -12px rgb(15 23 42 / 0.14), 0 28px 48px -20px rgb(15 23 42 / 0.10);
+  --shadow-lg: 0 28px 64px -20px rgb(15 23 42 / 0.28);
 
   --breakpoint-sm: 40rem;
   --breakpoint-md: 48rem;
   --breakpoint-lg: 64rem;
   --breakpoint-xl: 80rem;
+  --breakpoint-2xl: 96rem;
 }
 /* spacing: Tailwind's default scale is already 4px-based (--spacing: 0.25rem); 8px steps are the even numbers. */
 
