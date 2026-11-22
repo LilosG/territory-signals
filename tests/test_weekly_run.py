@@ -99,6 +99,7 @@ def _seed_weekly(db, tmp_path: Path) -> dict:
     files = {
         "stro_licenses": STRO,
         "dev_permits": [permit_path],
+        "code_enforcement": FIXTURES / "code_enforcement_empty.csv",
         "permit_signal_map": PERMIT_MAP,
         "tax_default": TAX,
         **_transit_files(tmp_path),
@@ -172,8 +173,8 @@ def test_local_dry_run_skip_ai_runs_every_stage_and_writes_the_digest(db, tmp_pa
                                    report_dir=tmp_path, outbox_dir=tmp_path / "outbox", out=out)
     statuses = {s.name: s.status for s in result.stages}
     assert result.ok, out.getvalue()
-    for name in ("stro_licenses", "dev_permits", "tax_default", "upzoning_estimate",
-                 "permit_rederive", "score", "refresh_aggregates", "digest"):
+    for name in ("stro_licenses", "dev_permits", "code_enforcement", "tax_default", "upzoning_estimate",
+                 "permit_rederive", "portfolio", "score", "refresh_aggregates", "digest"):
         assert statuses[name] == "success", (name, statuses, out.getvalue())
     assert statuses["fire_zones"] == "awaiting"
     assert statuses["ai"] == "skipped"

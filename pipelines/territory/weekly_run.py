@@ -2,14 +2,15 @@
 
 Runs the weekly pipeline in a fixed order and logs each stage's duration, row counts and status:
 
-  1. live sources: stro_licenses, dev_permits, tax_default, upzoning_estimate, then fire_zones
+  1. live sources: stro_licenses, dev_permits, code_enforcement, tax_default, upzoning_estimate, then fire_zones
      (fire_zones only waits for Mike's manual file; that state never aborts the batch)
   2. permit_rederive
-  3. score
-  4. refresh the dashboard SQL aggregates (private.refresh_dashboard_aggregates)
-  5. AI (unless --skip-ai): lead_brief (cached, so only new/changed leads cost anything, within the client's
+  3. portfolio (deterministic entity / mailing-address clustering over the current owners snapshot)
+  4. score
+  5. refresh the dashboard SQL aggregates (private.refresh_dashboard_aggregates)
+  6. AI (unless --skip-ai): lead_brief (cached, so only new/changed leads cost anything, within the client's
      monthly budget) and weekly_brief
-  6. Monday Executive Digest HTML + text; write data/outbox/latest_digest.html, or send it with --send-digest
+  7. Monday Executive Digest HTML + text; write data/outbox/latest_digest.html, or send it with --send-digest
 
 The cloud guard is preserved: every connection refuses a non-local host unless --cloud is passed.
 Local runs reuse the newest on-disk download under data/raw/<source>/ when one exists, so a dry run is repeatable
@@ -30,6 +31,7 @@ from territory.config import ClientConfig, load_client
 from territory.db import connect, db_host, refresh_dashboard_aggregates, LOCAL_HOSTS
 from territory.net import DATA_DIR
 from territory.permit_rederive import SOURCE_KEY as PERMIT_REDERIVE_KEY, rederive, write_report as write_permit_report
+from territory.portfolio import recompute_portfolios
 from territory.run import run_one
 from territory.runner import AWAITING_MESSAGE, WorkResult, tracked_run
 from territory.score import run_score
@@ -38,7 +40,7 @@ from territory.scoring_engine import load_scoring_config
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_DIR = ROOT / "config"
 
-LIVE_SOURCES = ["stro_licenses", "dev_permits", "tax_default", "upzoning_estimate", "fire_zones"]
+LIVE_SOURCES = ["stro_licenses", "dev_permits", "code_enforcement", "tax_default", "upzoning_estimate", "fire_zones"]
 AI_TASKS = ["lead_brief", "weekly_brief"]
 
 
@@ -93,6 +95,9 @@ def cached_local_files(source_key: str, run_date: date) -> dict[str, Any]:
         if not permits:
             return {}
         return {"dev_permits": permits, "permit_signal_map": CONFIG_DIR / "permit_signal_map.yaml"}
+    if source_key == "code_enforcement":
+        f = next((f for f in files if f.suffix.lower() == ".csv"), None)
+        return {"code_enforcement": f} if f else {}
     if source_key == "stro_licenses":
         f = next((f for f in files if f.suffix.lower() == ".csv"), None)
         return {"stro_licenses": f} if f else {}
@@ -154,6 +159,19 @@ def _permit_rederive_stage(run_date: date, report_dir: Path | None) -> Stage:
         pass
     return Stage("permit_rederive", "success", seconds, o.rows_fetched,
                  f"superseded={out.get('superseded', 0)} inserted={out.get('inserted', 0)}")
+
+
+def _portfolio_stage() -> Stage:
+    started = time.perf_counter()
+    try:
+        with connect() as conn:
+            summary = recompute_portfolios(conn)
+    except SystemExit:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        return Stage("portfolio", "failed", time.perf_counter() - started, 0, f"{type(exc).__name__}: {exc}")
+    return Stage("portfolio", "success", time.perf_counter() - started, int(summary["parcels"]),
+                 f"portfolios={summary['portfolios']} multi_parcels={summary['multi_parcel_parcels']}")
 
 
 def _score_stage(run_date: date, report_dir: Path | None) -> Stage:
@@ -251,6 +269,10 @@ def run_weekly(client: ClientConfig, run_date: date | None = None, *, skip_ai: b
         print(stage.line(), file=out)
 
     stage = _permit_rederive_stage(run_date, report_dir)
+    result.stages.append(stage)
+    print(stage.line(), file=out)
+
+    stage = _portfolio_stage()
     result.stages.append(stage)
     print(stage.line(), file=out)
 

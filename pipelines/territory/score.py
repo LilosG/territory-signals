@@ -13,6 +13,7 @@ import argparse
 import csv
 import sys
 from collections import Counter, defaultdict
+from dataclasses import replace
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
@@ -72,6 +73,18 @@ def load_sales(conn, apns: list[str]) -> dict[str, list[tuple[date | None, str |
     return out
 
 
+def load_portfolios(conn, apns: list[str]) -> dict[str, tuple[str, str, int, bool]]:
+    """apn -> (portfolio_key, entity_type, territory_parcel_count, is_sample) from the latest portfolio recompute.
+    An older database without the Phase 5L table simply has no portfolio modifier."""
+    if conn.execute("select to_regclass('public.parcel_portfolios')").fetchone()[0] is None:
+        return {}
+    rows = conn.execute(
+        "select distinct on (apn) apn, portfolio_key, entity_type, territory_parcel_count, is_sample "
+        "from parcel_portfolios where apn = any(%s) "
+        "order by apn, computed_at desc, created_at desc", (apns,)).fetchall()
+    return {r[0]: (r[1], r[2], int(r[3]), bool(r[4])) for r in rows}
+
+
 NORM_DOC_TYPE_SQL = "lower(regexp_replace(btrim(coalesce(doc_type, '')), '\\s+', ' ', 'g'))"
 
 
@@ -129,6 +142,11 @@ def run_score(conn, cfg: Mapping[str, Any], as_of: date, scored_at: datetime | N
     # Ownership rule: a transfer by death, trust or inheritance restarts the current owner's tenure.
     sales = load_sales(conn, apns)
     owners = {a: resolve_tenure(o, sales.get(a, []), cfg["transfer_types"]) for a, o in owners.items()}
+    portfolios = load_portfolios(conn, apns)
+    owners = {a: (replace(o, portfolio_key=p[0], portfolio_entity_type=p[1],
+                          portfolio_parcel_count=p[2], portfolio_is_sample=p[3])
+                  if (p := portfolios.get(a)) else o)
+              for a, o in owners.items()}
     suppressed = load_suppressed(conn, apns, as_of, cfg["suppression"]["recent_sale_months"],
                                  cfg["transfer_types"])
     sigs = load_signals(conn, apns, list(cfg["signals"]))
@@ -141,6 +159,7 @@ def run_score(conn, cfg: Mapping[str, Any], as_of: date, scored_at: datetime | N
     summary: dict[str, Any] = {
         "model_version": cfg["model_version"], "as_of": str(as_of), "residential_parcels": len(parcels),
         "suppressed": Counter(), "scored": 0, "equity_cutoff": cutoff, "loaded_data": data, "area_median_lot_sqft": medians,
+        "portfolio_multi_parcels": sum(1 for p in portfolios.values() if p[2] >= 2),
         "non_residential_parcels": conn.execute("select count(*) from parcels").fetchone()[0] - len(parcels)}
     for apn, area, _land_use, lot in parcels:
         if apn in suppressed:

@@ -21,6 +21,7 @@ Probe scripts: `recon/scripts/` (one per source, plus `_http.py` which sets the 
 | 8b | Transit stops / SB 79 | USABLE-WITH-LIMITS / UNCONFIRMED (official SB 79 layer) | No | n/a | n/a | Weekly (catalog) | GeoJSON; SB 79 map is viewer-only |
 | 9 | Community planning areas | USABLE | No | n/a | n/a | Weekly (catalog) | GeoJSON download |
 | 10 | Obituaries | BLOCKED (terms) | n/a | n/a | n/a | n/a | Not accessed |
+| 11 | City code enforcement violations | USABLE-WITH-LIMITS | Yes (`apn`, 10-digit) | n/a (historical extract) | n/a (historical extract) | Historical extract; last updated Jan 19, 2018 | Direct CSV download (seshat.datasd.org) |
 
 ---
 
@@ -120,6 +121,15 @@ Probe scripts: `recon/scripts/` (one per source, plus `_http.py` which sets the 
 - **San Diego Union-Tribune / La Jolla Light** (La Jolla Light is on the Union-Tribune platform, same site): robots.txt header says content is for personal, non-commercial use under MediaNews Group terms, and prohibits "text and data mining", "caching or archiving the Content", AI use, and lists AI and many other crawlers as disallowed; La Jolla Light pages carry `noarchive` and `tdm-reservation` meta tags. Obituary paths on those hosts were not tested.
 - **Legacy.com** (obituary host for many papers): robots.txt `Disallow: /newspaper/obituaries/`, `/obituaries/name2/`, `/obituaries/*/api/`, and others. Terms of Use section 2(a): no "robot, spider, web crawler, extraction software" or other automated process to "scrape, copy, or monitor", no incorporation in "any database", personal non-commercial use only; 2(b)(v) no commercial activities.
 - **Fields:** not verified (nothing was accessed). **Verdict:** BLOCKED-BY-TERMS; no sample.
+
+## 11. City of San Diego code enforcement violations — USABLE-WITH-LIMITS
+- **Page:** https://data.sandiego.gov/datasets/code-enforcement-violations/ (Development Services; page dated Jan 19, 2018).
+- **Download:** https://seshat.datasd.org/code_enforcement_violations/code_enf_past_3_yr_datasd.csv (17,708 rows observed 2026-11-21), dictionary at `.../code_enforcement_dictionary_datasd.csv`, remedies at `.../code_enf_remedies_datasd.csv`.
+- **Fields:** `case_id, apn, address_street, case_source, description, date_open, date_closed, close_reason, close_note, lat, lng, nad83_northing, nad83_easting, workgroup, investigator_name, investigator_phone_number, investigator_email_address, investigator_active, last_action, date_last_action_due, remedy_msg`.
+- **Coverage:** the public extract is historical (cases reported before January 2018 and closed between 2015 and 2018); it is not a current enforcement feed. In the two-ZIP bounding box (92037/92109) about 13,946 rows fall inside the La Jolla / Pacific Beach / Mission Beach coordinates. The adapter filters to territory parcels by APN, then by point-in-polygon.
+- **Privacy:** `investigator_name`, `investigator_phone_number` and `investigator_email_address` are personal data and are dropped on read. `description` and `close_note` can contain owner names; the adapter stores only the violation category (text before the source's `[Addr: ... Owner: ...]` bracket) and drops reassignment notes. No phone number or email is stored.
+- **Endpoint status (2026-11-21):** the direct CSV was reachable. Because the published extract is historical, the adapter keeps a trimmed, non-personal cache at `data/raw/code_enforcement/<date>/` (and a small packaged fallback at `pipelines/territory/sources/fixtures/code_enforcement_fallback.csv`) and falls back to it cleanly when the endpoint is unreachable or blocked in a local/offline run; with neither the source reports `awaiting manual download` and the weekly batch continues.
+- **Next step:** confirm a current City code enforcement feed (the Open Data page has no current extract) or use the City's Get It Done / 311 case data under its own terms. Tracked in BACKLOG.md.
 
 ---
 

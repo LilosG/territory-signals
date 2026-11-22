@@ -19,6 +19,7 @@ from territory.config import load_client
 from territory.db import connect, refresh_dashboard_aggregates
 from territory.owner_data.attom import AttomOwnerProvider
 from territory.owner_data.sample import SampleOwnerProvider
+from territory.portfolio import recompute_portfolios
 from territory.scoring_engine import load_scoring_config, norm_doc_type
 
 BATCH = 2000
@@ -99,6 +100,8 @@ def main(argv=None) -> int:
     client = load_client(args.client)
     with connect() as conn:
         res = load_owner_layer(conn, client, args.as_of or date.today())
+        # The portfolio layer is derived from the owners snapshot, so refresh it in the same command.
+        res["portfolios"] = recompute_portfolios(conn, args.as_of)
     refresh_dashboard_aggregates()
     print(res)
     return 0

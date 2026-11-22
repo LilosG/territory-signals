@@ -1,6 +1,6 @@
 # Scoring report
 
-Model v0.5-handset, as of 2026-11-21.
+Model v0.6-handset, as of 2026-11-21.
 
 - residential parcels: 26591; scored: 26268; non-residential (not scored): 4275
 - suppressed: {'sale within 24 months': 323}

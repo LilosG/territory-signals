@@ -36,8 +36,9 @@ const SENSITIVE_PHRASES = [
   /(?:^|,\s*)[^,.]*tax[- ]default(?:ed)?[^,.]*/gi,
   /(?:^|,\s*)[^,.]*(?:ownership transfer|transfer of ownership|probate|inherit|death)[^,.]*/gi,
   /(?:^|,\s*)[^,.]*financial pressure[^,.]*/gi,
+  /(?:^|,\s*)[^,.]*open (?:city )?code enforcement[^,.]*/gi,
 ];
-/** Reason text without anything about tax default, ownership transfer or financial pressure (for lead cards and lists). */
+/** Reason text without anything about tax default, ownership transfer, financial pressure or an open code case (for lead cards and lists). */
 export function publicReason(text: string | null | undefined): string {
   let t = text ?? '';
   for (const re of SENSITIVE_PHRASES) t = t.replace(re, '');
@@ -52,7 +53,7 @@ export interface Marked { text: string; sample?: boolean; estimate?: boolean; ic
 
 const shortDate = (s: string | null | undefined) => (s ? new Date(`${s.slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : '');
 
-const isSensitiveKey = (key: string) => key.startsWith('tax_default') || key === 'owner:ownership_transfer';
+const isSensitiveKey = (key: string) => key.startsWith('tax_default') || key === 'owner:ownership_transfer' || key === 'code_violation_open';
 
 /**
  * The signal that earned the parcel the most score: highest contribution, never one with zero (or less) weight, never a
@@ -98,6 +99,8 @@ function componentLine(c: TopComponent): Marked {
     return { ...base, text: `${n > 1 ? pluralPermitLabel(label, n) : label} approved${date ? ` ${date}` : ''}` };
   }
   if (c.key === 'permit_stalled') return { ...base, text: 'Permit expired with no close date' };
+  if (c.key === 'code_violation_open') return { ...base, text: 'Open code enforcement case' };
+  if (c.key === 'code_violation_closed') return { ...base, text: 'Code enforcement case closed' };
   if (c.key === 'stro_license_active') return { ...base, text: `Active short-term rental license${f.tier ? ` (${f.tier})` : ''}` };
   if (c.key === 'stro_license_removed') return { ...base, text: 'Short-term rental license removed' };
   if (c.key === 'sb9_lot_split_estimate') return { ...base, text: 'SB 9 lot-split eligibility' };
@@ -162,7 +165,7 @@ export function recipeSignalLine(recipeKey: string, components: unknown): Marked
 }
 
 /** Words that mark a distress or life-event fact. A chip containing any of them is dropped, whatever built it. */
-const DISTRESS_WORDS = /tax|default|transfer|probate|inherit|death|deceas|financial|pressure|foreclos|lien|divorce|trust/i;
+const DISTRESS_WORDS = /tax|default|transfer|probate|inherit|death|deceas|financial|pressure|foreclos|lien|divorce|trust|code enforcement|code violation/i;
 
 /**
  * Up to three key facts for a card, each with a category icon. Built only from the whitelisted categories below (upzoning,
@@ -325,8 +328,8 @@ export function detailHeadline(lead: LeadDetail): Marked | null {
   return first ? { text: first.text.replace(/[.,]$/, ''), sample: first.sample, estimate: first.estimate } : null;
 }
 
-/** Score components that describe tax default or ownership transfer: shown only in the brief's labeled sensitive section. */
-export const isSensitiveComponent = (key: string) => key.startsWith('tax_default') || key === 'owner:ownership_transfer';
+/** Score components that describe tax default, ownership transfer or an open code case: shown only in the brief's labeled sensitive section. */
+export const isSensitiveComponent = (key: string) => key.startsWith('tax_default') || key === 'owner:ownership_transfer' || key === 'code_violation_open';
 
 /* ── AI claims (Phase 5F) ── */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

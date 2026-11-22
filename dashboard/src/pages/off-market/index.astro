@@ -9,9 +9,10 @@ import EmptyState from '../../components/ui/EmptyState.astro';
 import Select from '../../components/ui/Select.astro';
 import TabLinks from '../../components/ui/TabLinks.astro';
 import StatusPill from '../../components/ui/StatusPill.astro';
+import SampleDataBadge from '../../components/ui/SampleDataBadge.astro';
 import { landUseLabel } from '../../data/landUse';
 import { signalTypeLabel } from '../../lib/present';
-import { fmtDate, fmtNum, fmtApn } from '../../lib/format';
+import { fmtDate, fmtNum, fmtApn, fmtUsdCompact } from '../../lib/format';
 import type { OffMarketFilters } from '../../lib/data/types';
 export const prerender = false;
 
@@ -67,6 +68,13 @@ const KIND_LABEL: Record<string, string> = { builder_bait: 'Builder bait', tired
                       </div>
                       {p.top_signal && <p class="mt-0.5 text-sm text-ink-muted" data-top-signal><Fact {...p.top_signal} /></p>}
                       {facts && <p class="mt-0.5 text-sm text-ink-muted">{facts}</p>}
+                      {p.portfolio && (
+                        <div class="mt-1.5 flex flex-wrap items-center gap-x-1.5 rounded-md bg-accent-soft/60 px-2.5 py-1.5 text-xs text-ink" data-portfolio>
+                          <span class="font-semibold">Territory Portfolio</span>
+                          <span class="text-ink-muted">· Holds {p.portfolio.territory_parcel_count} parcels in territory{p.portfolio.total_est_value != null && <> · <Fact text={fmtUsdCompact(p.portfolio.total_est_value)} sample={p.portfolio.is_sample} estimate /> combined value</>}</span>
+                          {p.portfolio.is_sample && <SampleDataBadge />}
+                        </div>
+                      )}
                       <ul class="mt-2 flex flex-wrap gap-1.5">
                         {p.kinds.map((k) => <li class="rounded-md bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">{KIND_LABEL[k] ?? k}</li>)}
                         {p.upzoning.map((u) => <li class="rounded-md bg-sunken px-2 py-0.5 text-xs font-medium text-ink-muted">{signalTypeLabel(u)}<span class="est-tag">est.</span></li>)}

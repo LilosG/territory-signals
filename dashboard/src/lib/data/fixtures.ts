@@ -6,7 +6,7 @@ import type { DataProvider, MarkSample, SharePageReader } from './provider';
 import { buildTrends, leadStatus, scoreItems, yearsSince } from './shared';
 import type {
   Backtest, FixtureBundle, FunnelRow, LeadDetail, LeadFilters, LeadPage, LeadSummary, MapData, NavCounts, OffMarketPage, OutreachItem,
-  OutreachTab, Performance, Pipeline, RecipeCard, SearchHit, Signal, SharePage, SignalEvent, SourceCard, StageEvent, StageValue, StatSeries, TodayFeed,
+  OutreachTab, Performance, Pipeline, PortfolioInfo, RecipeCard, SearchHit, Signal, SharePage, SignalEvent, SourceCard, StageEvent, StageValue, StatSeries, TodayFeed,
 } from './types';
 
 const db = raw as unknown as FixtureBundle;
@@ -19,6 +19,58 @@ const ownerBy = new Map(db.owners.map((o) => [o.apn, o]));
 const signalsBy = new Map<string, Signal[]>();
 for (const s of db.signals) (signalsBy.get(s.apn) ?? signalsBy.set(s.apn, []).get(s.apn)!).push(s);
 const suppressed = new Set(db.suppressions.map((s) => s.apn));
+
+/* ── territory portfolios (mirrors territory/portfolio.py for the fixture bundle) ── */
+const normText = (v: unknown) => String(v ?? '').toLowerCase().replace(/[.,;:#]/g, ' ').replace(/\s+/g, ' ').trim();
+const entityKind = (name: unknown): 'llc_corp' | 'trust' | null => {
+  const s = normText(name);
+  if (/\b(llc|l l c|lp|l p|llp|inc|incorporated|corp|corporation|company|co|properties|holdings)\b/.test(s)) return 'llc_corp';
+  if (/\b(trust|trustee|trustees|estate)\b/.test(s)) return 'trust';
+  return null;
+};
+function fixturePortfolios(): Map<string, PortfolioInfo> {
+  const owners = db.owners.filter((o) => o.apn);
+  const parent = new Map(owners.map((o) => [o.apn, o.apn]));
+  const find = (x: string): string => { let r = x; while (parent.get(r) !== r) r = parent.get(r)!; parent.set(x, r); return r; };
+  const union = (a: string, b: string) => { const ra = find(a), rb = find(b); if (ra !== rb) parent.set(ra > rb ? ra : rb, ra > rb ? rb : ra); };
+  const keyMembers = new Map<string, string[]>();
+  const keysBy = new Map<string, string[]>();
+  for (const o of owners) {
+    const keys: string[] = [];
+    const name = normText(o.owner_name);
+    if (name && entityKind(name)) keys.push(`name:${name}`);
+    const mail = normText(o.mailing_address);
+    if (mail && /\d/.test(mail) && !['unknown', 'n a', 'na', 'none'].includes(mail)) keys.push(`mail:${mail}`);
+    keysBy.set(o.apn, keys);
+    for (const k of keys) keyMembers.set(k, [...(keyMembers.get(k) ?? []), o.apn]);
+  }
+  for (const members of keyMembers.values()) if (members.length > 1) for (const a of members.slice(1)) union(members[0]!, a);
+  const groups = new Map<string, typeof owners>();
+  for (const o of owners) { const r = find(o.apn); groups.set(r, [...(groups.get(r) ?? []), o]); }
+  const out = new Map<string, PortfolioInfo>();
+  for (const members of groups.values()) {
+    const apns = members.map((m) => m.apn).sort();
+    const keys = [...new Set(apns.flatMap((a) => keysBy.get(a) ?? []))].sort();
+    const kinds = new Set(keys.filter((k) => k.startsWith('name:')).map((k) => entityKind(k.slice(5))));
+    const entity_type: PortfolioInfo['entity_type'] = kinds.has('llc_corp') ? 'llc_corp' : kinds.has('trust') ? 'trust' : apns.length >= 2 ? 'individual_multi' : 'single';
+    const nameKey = keys.find((k) => k.startsWith('name:'));
+    const mailKey = keys.find((k) => k.startsWith('mail:'));
+    const portfolio_key = apns.length >= 2 && keys.length ? (nameKey ?? mailKey ?? keys[0]!) : `apn:${apns[0]}`;
+    const total = (f: (o: (typeof owners)[number]) => number | null) => {
+      const xs = members.map(f).filter((x): x is number => x != null);
+      return xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) * 100) / 100 : null;
+    };
+    const info: PortfolioInfo = {
+      portfolio_key, entity_type, territory_parcel_count: apns.length,
+      total_est_value: total((o) => o.est_value ?? null), total_est_equity: total((o) => o.est_equity ?? null),
+      is_sample: members.some((m) => m.is_sample),
+    };
+    if (apns.length >= 2) for (const a of apns) out.set(a, info);
+  }
+  return out;
+}
+const PORTFOLIOS = fixturePortfolios();
+const portfolioFor = (apn: string) => PORTFOLIOS.get(apn) ?? null;
 
 function summary(apn: string): LeadSummary {
   const sigs = [...(signalsBy.get(apn) ?? [])].sort((a, b) => (b.signal_date ?? '').localeCompare(a.signal_date ?? ''));
@@ -127,6 +179,7 @@ export function fixturesProvider(mark: MarkSample, territory: string | null = nu
         trait_signals: (signalsBy.get(apn) ?? []).filter((s) => (TRAIT_TYPES as readonly string[]).includes(s.signal_type)),
         outreach: out, stage_events: db.stage_events.filter((e) => e.apn === apn).sort((a, b) => b.occurred_at.localeCompare(a.occurred_at)),
         share_links: db.share_links.filter((l) => l.apn === apn && !l.revoked_at), status: leadStatus(out), is_sample: true, ai_brief: null,
+        portfolio: portfolioFor(apn),
       };
     },
     async getMapData(filters = {}): Promise<MapData> {
@@ -194,7 +247,7 @@ export function fixturesProvider(mark: MarkSample, territory: string | null = nu
       const apns = ranked({}).filter((a) => (scoreBy.get(a)!.recipe_matches ?? []).some((r) => kinds.includes(r)));
       return { total: apns.length, page, pageSize, links: [], items: apns.slice((page - 1) * pageSize, page * pageSize).map((a) => { const p = parcelBy.get(a)!;
         return { apn: a, situs_address: p.situs_address, neighborhood: p.neighborhood, lot_sqft: p.lot_sqft, zoning: p.zoning, year_built: p.year_built, land_use: p.land_use,
-          kinds: (scoreBy.get(a)!.recipe_matches ?? []).filter((r) => kinds.includes(r)), upzoning: (signalsBy.get(a) ?? []).filter((s) => s.is_estimate).map((s) => s.signal_type), has_share_link: db.share_links.some((l) => l.apn === a && !l.revoked_at), top_signal: leadHeadline(summary(a)) }; }) };
+          kinds: (scoreBy.get(a)!.recipe_matches ?? []).filter((r) => kinds.includes(r)), upzoning: (signalsBy.get(a) ?? []).filter((s) => s.is_estimate).map((s) => s.signal_type), has_share_link: db.share_links.some((l) => l.apn === a && !l.revoked_at), top_signal: leadHeadline(summary(a)), portfolio: portfolioFor(a) }; }) };
     },
     async searchLeads(q): Promise<SearchHit[]> {
       const t = q.trim().toLowerCase(); if (t.length < 2) return [];

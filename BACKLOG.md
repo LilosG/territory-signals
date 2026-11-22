@@ -173,3 +173,12 @@ Added during Phase 5K:
 - [ ] **Digest lead links assume the production dashboard URL.** Make the base URL a client config value (or `DASHBOARD_BASE_URL`) so a second client's digest points at its own Worker.
 - [ ] **Weekly digest AI briefs are shared with the dashboard.** The digest shows the latest valid `weekly_brief`; if the AI stage is skipped or over budget, the digest falls back to deterministic signal counts only. Consider a deterministic newsletter fallback.
 - [ ] **No retry/alert on a failed weekly run.** A failed stage stops the run and systemd records the failure; nothing emails Mike. Add `OnFailure=` (a mail unit or a healthcheck ping).
+
+Added during Phase 5L:
+
+- [ ] **The public code enforcement extract is historical (2015-2018).** `data.sandiego.gov/datasets/code-enforcement-violations/` was last updated in January 2018; there is no current bulk feed on the portal. The adapter is correct for the same field set, but current open/closed cases will not appear until a live source is confirmed (City Get It Done/311 case data under its own terms, or a Development Services arrangement). Tracked with SOURCES.md #11.
+- [ ] **Code enforcement endpoint fallback is a cache, not a subscription.** When the CSV is unreachable the adapter uses the newest file in `data/raw/code_enforcement/`, else the packaged `pipelines/territory/sources/fixtures/code_enforcement_fallback.csv`, and reports the fallback; refresh the cache by hand if the endpoint moves.
+- [ ] **Portfolio clustering is exact-match only.** It groups an exact normalized mailing address or an exact normalized corporate/trust name; it does not fuzzy-match "SMITH JOHN" and "JOHN SMITH", "123 Main St" and "123 Main Street", or entities with slightly different names. ATTOM owner data in Phase 6 may need entity-name normalization and a review queue before portfolios drive outreach.
+- [ ] **Portfolio totals depend on sample owner values until Phase 6.** `total_est_value` and `total_est_equity` sum the current `owners` rows, which are sample data today; the dashboard labels them "est." and "Sample", but the numbers are not decision-grade yet.
+- [ ] **No portfolio-level dashboard view yet.** The badge is per parcel; a dedicated portfolio page (all parcels under one `portfolio_key`, combined value, outreach status) would make the moat usable by an agent.
+- [ ] **Code violation categories are the source's raw abbreviations** ("GARAGE CONVERSN", "BOARDED STRUCTUR"). Add a plain-English category map if the details are shown in more places.

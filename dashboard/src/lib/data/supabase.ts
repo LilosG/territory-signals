@@ -127,6 +127,22 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
     const rows = must(await db.from('latest_scores').select('apn,components').in('apn', apns), 'latest_scores') as Row[];
     return new Map(rows.map((r) => [String(r.apn), r.components]));
   }
+  /** Territory portfolios for parcels whose owner holds 2+ territory parcels. An older database without the
+   *  Phase 5L table simply returns no portfolios (nothing is invented). */
+  async function portfolios(apns: string[]): Promise<Map<string, NonNullable<LeadDetail['portfolio']>>> {
+    if (apns.length === 0) return new Map();
+    const res = await db.from('latest_parcel_portfolios').select('*').in('apn', apns).gte('territory_parcel_count', 2);
+    if (res.error) return new Map();
+    const rows = (res.data ?? []) as Row[];
+    if (rows.some((r) => r.is_sample)) mark();
+    return new Map(rows.map((r) => [String(r.apn), {
+      portfolio_key: String(r.portfolio_key), entity_type: r.entity_type,
+      territory_parcel_count: num(r.territory_parcel_count),
+      total_est_value: r.total_est_value != null ? Number(r.total_est_value) : null,
+      total_est_equity: r.total_est_equity != null ? Number(r.total_est_equity) : null,
+      is_sample: !!r.is_sample,
+    }]));
+  }
   const toWeekly = (r: Row): WeeklyBriefAi => {
     const o = r.output as Row;
     return { week_start: String(r.subject_id), title: o.title, intro: o.intro, sections: o.sections ?? [], newsletter_paragraph: o.newsletter_paragraph, model: r.model, created_at: r.created_at };
@@ -245,8 +261,10 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
       if (isSample) mark();
       const briefRow = (await aiRows('lead_brief', [apn]))[0];
       const bo = briefRow?.output as Row | undefined;
+      const portfolioBy = await portfolios([apn]);
       return {
         ai_brief: briefRow && bo ? { headline: bo.headline, summary: bo.summary, claims: bo.claims ?? [], suggested_angle: bo.suggested_angle, uses_sample: !!briefRow.uses_sample, model: briefRow.model, created_at: briefRow.created_at } : null,
+        portfolio: portfolioBy.get(apn) ?? null,
         parcel: { ...p, situs_address: titleAddress(p.situs_address) || null, geom: null, centroid: p.centroid ?? null } as LeadDetail['parcel'],
         score: sc as LeadDetail['score'],
         score_items: scoreItems(sc.components),
@@ -424,11 +442,13 @@ export function supabaseProvider(db: SupabaseClient, mark: MarkSample, territory
       ]);
       const rows = must(inv, 'off_market_inventory') as Row[];
       const lines = await topSignalLines(rows.map((r) => String(r.apn)));
+      const portfolioBy = await portfolios(rows.map((r) => String(r.apn)));
       return {
         total: num(rows[0]?.total), page, pageSize,
         items: rows.map((r) => ({
           apn: r.apn, situs_address: titleAddress(r.situs_address) || null, neighborhood: r.neighborhood, lot_sqft: r.lot_sqft != null ? Number(r.lot_sqft) : null,
           zoning: r.zoning, year_built: r.year_built, land_use: r.land_use, kinds: r.kinds ?? [], upzoning: r.upzoning_estimates ?? [], has_share_link: !!r.has_share_link, top_signal: lines.get(String(r.apn)) ?? null,
+          portfolio: portfolioBy.get(String(r.apn)) ?? null,
         })),
         links: (must(links, 'share links') as Row[]).map((l) => ({ token: l.token, apn: l.apn, situs_address: titleAddress(l.situs_address) || null, neighborhood: l.neighborhood, created_by: l.created_by, created_at: l.created_at })),
       };

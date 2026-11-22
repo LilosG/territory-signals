@@ -53,6 +53,8 @@ def component_specs(cfg: Mapping[str, Any]) -> list[dict[str, Any]]:
          "max_points": float(om["mortgage_open_false"]["weight"])},
         {"key": "owner:est_equity_top_quartile", "kind": "owner", "family": "owner",
          "max_points": float(om["est_equity_top_quartile"]["weight"])},
+        {"key": "owner:portfolio_owner_multi", "kind": "owner", "family": "owner",
+         "max_points": float(om["portfolio_owner_multi"]["weight"])},
         {"key": "owner:ownership_transfer", "kind": "owner", "family": "owner", "max_points": 0.0},
     ]
     return specs
