@@ -1,0 +1,176 @@
+---
+import type { MatrixPoint } from '../../lib/data/types';
+import { TIERS, tierOf } from '../../lib/ring';
+import { fmtNum } from '../../lib/format';
+import SampleDataBadge from '../ui/SampleDataBadge.astro';
+import Icon from '../ui/Icon.astro';
+/**
+ * Interactive Opportunity Matrix (Phase 7): estimated equity (x) against seller momentum score (y), bubble size =
+ * estimated GCI, color = score tier. Hover shows a preview in the tooltip; click opens the Quick-Dossier drawer.
+ * A table view gives the same properties to keyboard and screen-reader users (WCAG AA).
+ */
+export interface Props { points: MatrixPoint[]; class?: string }
+const { points, class: cls } = Astro.props;
+const withEquity = points.filter((p) => p.equity > 0);
+const sorted = [...withEquity].sort((a, b) => b.score - a.score || b.equity - a.equity);
+const tableRows = sorted.slice(0, 40);
+const tierCounts = TIERS.map((t) => ({ ...t, count: withEquity.filter((p) => tierOf(p.score) === t.key).length }));
+const sample = withEquity.some((p) => p.is_sample);
+const median = (() => {
+  if (!withEquity.length) return null;
+  const xs = withEquity.map((p) => p.equity).sort((a, b) => a - b);
+  const mid = xs.length >> 1;
+  return Math.round(xs.length % 2 ? xs[mid]! : (xs[mid - 1]! + xs[mid]!) / 2);
+})();
+const payload = { points: withEquity, median, tiers: TIERS };
+const label = `Opportunity matrix: ${withEquity.length} properties plotted by estimated equity and seller momentum score, bubble size estimated GCI, colored by score tier.`;
+---
+<section id="opportunity-matrix" data-opportunity-matrix aria-labelledby="matrix-h" class:list={['scroll-mt-20', cls]}>
+  <header class="flex flex-wrap items-end justify-between gap-3 border-b border-line pb-3">
+    <div class="min-w-0">
+      <p class="eyebrow">Opportunity quadrant · estimated</p>
+      <h2 id="matrix-h" class="t-h2 mt-0.5 text-ink">Equity × seller momentum</h2>
+      <p class="mt-1 max-w-3xl text-sm text-ink-muted">Bubble size is estimated GCI. Hover any property to preview it; click to open the quick dossier.</p>
+    </div>
+    <span class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-ink-muted">
+      <Icon name="crosshair" size={13} class="text-gold" />{fmtNum(withEquity.length)} opportunities
+    </span>
+  </header>
+
+  {withEquity.length === 0
+    ? (
+      <div class="mt-4 rounded-lg border border-dashed border-line bg-surface px-5 py-10 text-center" data-matrix-empty>
+        <p class="text-sm font-semibold text-ink">No properties with an estimated equity yet.</p>
+        <p class="mt-1 text-sm text-ink-muted">The matrix fills in as owner values arrive.</p>
+      </div>
+    )
+    : (
+      <>
+        <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
+          <div class="overflow-hidden rounded-lg border border-line bg-surface">
+            <div data-matrix-chart role="img" aria-label={label} style="height:360px" class="w-full"></div>
+          </div>
+          <aside class="flex flex-col gap-3" aria-label="Opportunity matrix legend">
+            <div class="rounded-lg border border-line bg-surface p-3">
+              <p class="eyebrow">By score tier</p>
+              <ul class="mt-2 flex flex-col gap-1.5 text-sm">
+                {tierCounts.map((t) => (
+                  <li class="flex items-center justify-between gap-2">
+                    <span class="inline-flex items-center gap-2 text-ink-muted"><i class="matrix-dot" style={`background:${t.color}`}></i>{t.label}</span>
+                    <span class="font-semibold tabular-nums text-ink">{fmtNum(t.count)}</span>
+                  </li>
+                ))}
+              </ul>
+              {sample && <div class="mt-3 border-t border-line pt-3"><SampleDataBadge /></div>}
+            </div>
+            <div class="rounded-lg border border-line bg-sunken/50 p-3 text-xs leading-relaxed text-ink-muted">
+              <p class="font-semibold text-ink">How to read it</p>
+              <p class="mt-1"><span class="font-medium text-ink">Right</span> means more estimated equity. <span class="font-medium text-ink">Up</span> means stronger seller momentum. The dashed lines mark the priority score (65) and the territory's median equity.</p>
+            </div>
+          </aside>
+        </div>
+
+        <details class="mt-3 rounded-lg border border-line bg-surface px-4 py-3" data-matrix-table>
+          <summary class="cursor-pointer text-sm font-medium text-ink-muted hover:text-ink">View the top {tableRows.length} as a table</summary>
+          <div class="mt-3 overflow-x-auto">
+            <table class="matrix-table w-full min-w-[32rem] text-sm">
+              <caption class="sr-only">Top opportunities by seller momentum score, with estimated equity and GCI</caption>
+              <thead><tr><th scope="col">Address</th><th scope="col">Score</th><th scope="col">Est. equity</th><th scope="col">Est. GCI</th><th scope="col"><span class="sr-only">Open</span></th></tr></thead>
+              <tbody>
+                {tableRows.map((p) => (
+                  <tr>
+                    <td class="pr-3"><span class="block max-w-[16rem] truncate font-medium text-ink">{p.address ?? p.apn}</span><span class="block truncate text-2xs text-ink-muted">{p.neighborhood}{p.is_sample ? ' · Sample' : ''}</span></td>
+                    <td class="pr-3 tabular-nums">{p.score}</td>
+                    <td class="pr-3 tabular-nums text-ink-muted">{p.equity >= 1_000_000 ? `$${(p.equity / 1_000_000).toFixed(1)}M` : `$${Math.round(p.equity / 1000)}k`}<span class="est-tag">est.</span></td>
+                    <td class="pr-3 tabular-nums text-ink-muted">${Math.round(p.gci / 1000)}k<span class="est-tag">est.</span></td>
+                    <td class="text-right"><button type="button" data-matrix-row={p.apn} class="rounded-md border border-line-strong px-2.5 py-1 text-xs font-semibold text-ink hover:bg-sunken">Open</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </>
+    )}
+  <script type="application/json" data-matrix-data set:html={JSON.stringify(payload)} />
+</section>
+
+<script>
+  import { init, use } from 'echarts/core';
+  import { ScatterChart } from 'echarts/charts';
+  import { GridComponent, TooltipComponent, MarkLineComponent } from 'echarts/components';
+  import { CanvasRenderer } from 'echarts/renderers';
+  import { chartTheme } from '../../lib/chartTheme';
+  use([ScatterChart, GridComponent, TooltipComponent, MarkLineComponent, CanvasRenderer]);
+
+  type Tier = { key: string; label: string; min: number; color: string };
+  type Point = {
+    apn: string; address: string | null; neighborhood: string | null; score: number; equity: number; gci: number;
+    lot_sqft: number | null; zoning: string | null; is_sample: boolean; tier: string;
+  };
+  const host = document.querySelector<HTMLElement>('[data-opportunity-matrix]');
+  const chartEl = host?.querySelector<HTMLElement>('[data-matrix-chart]');
+  if (host && chartEl) {
+    const spec = JSON.parse(host.querySelector<HTMLScriptElement>('[data-matrix-data]')!.textContent!) as { points: Point[]; median: number | null; tiers: Tier[] };
+    const t = chartTheme();
+    const tierColor = Object.fromEntries(spec.tiers.map((x) => [x.key, x.color]));
+    const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+    const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 });
+    const usd0 = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+    const chart = init(chartEl, undefined, { renderer: 'canvas' });
+    const data = spec.points.map((p) => ({ ...p, value: [p.equity, p.score, p.gci], itemStyle: { color: tierColor[p.tier] ?? '#64748B' } }));
+    chart.setOption({
+      ...t.base,
+      grid: { left: 10, right: 18, top: 24, bottom: 10, containLabel: true },
+      tooltip: {
+        ...t.base.tooltip,
+        trigger: 'item',
+        formatter: (p: { data: Point }) => {
+          const d = p.data;
+          return `<div style="font-weight:600;color:${t.ink}">${esc(d.address ?? d.apn)}</div>
+            <div style="color:${t.muted}">${esc(d.neighborhood ?? '')}${d.is_sample ? ' · Sample' : ''}</div>
+            <div style="margin-top:6px">Momentum <b>${d.score}</b> · ${esc(spec.tiers.find((x) => x.key === d.tier)?.label ?? '')}</div>
+            <div>Est. equity <b>${esc(usd0.format(d.equity))}</b></div>
+            <div>Est. GCI <b>${esc(usd0.format(d.gci))}</b> <span style="color:${t.muted}">(est.)</span></div>
+            <div style="margin-top:6px;color:${t.muted}">Click to open the quick dossier</div>`;
+        },
+      },
+      xAxis: {
+        ...t.base.xAxis, type: 'value', name: 'Est. equity', nameLocation: 'middle', nameGap: 30,
+        axisLabel: { ...t.base.xAxis.axisLabel, formatter: (v: number) => usd.format(v) },
+        splitLine: { lineStyle: { color: t.line } },
+      },
+      yAxis: {
+        ...t.base.yAxis, type: 'value', min: 0, max: 100, name: 'Seller momentum', nameLocation: 'middle', nameGap: 34,
+        axisLabel: { ...t.base.yAxis.axisLabel },
+      },
+      series: [{
+        type: 'scatter',
+        data,
+        symbolSize: (_val: number[], p: { data: Point }) => Math.max(9, Math.min(38, Math.sqrt(Math.max(1, p.data.gci)) / 14)),
+        emphasis: { scale: 1.18, itemStyle: { borderColor: '#fff', borderWidth: 2 } },
+        markLine: {
+          silent: true, symbol: 'none',
+          lineStyle: { color: t.line, type: 'dashed' },
+          label: { color: t.muted, fontSize: 10 },
+          data: [
+            { yAxis: 65, label: { formatter: 'Priority 65', position: 'insideEndTop' } },
+            ...(spec.median != null ? [{ xAxis: spec.median, label: { formatter: 'Median equity', position: 'insideEndTop' } }] : []),
+          ],
+        },
+      }],
+    });
+    chart.on('click', (p) => {
+      const apn = (p.data as Point | null | undefined)?.apn;
+      if (apn) document.dispatchEvent(new CustomEvent('dossier:open', { detail: { apn } }));
+    });
+    const resize = () => chart.resize();
+    new ResizeObserver(resize).observe(chartEl);
+    window.addEventListener('resize', resize);
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-matrix-row]').forEach((b) => b.addEventListener('click', () => {
+    const apn = b.dataset.matrixRow;
+    if (apn) document.dispatchEvent(new CustomEvent('dossier:open', { detail: { apn } }));
+  }));
+</script>

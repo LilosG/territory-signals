@@ -1,0 +1,41 @@
+---
+import type { MultiPolygon, Point } from 'geojson';
+import Icon from '../ui/Icon.astro';
+/**
+ * Satellite parcel preview (Phase 7). Renders free Esri World Imagery tiles with a crisp gold/crimson boundary
+ * overlay, or an architectural lot-footprint SVG when the parcel has no geometry. Client-side map code is shared
+ * with the slide-over dossier (lib/aerial.ts), so both surfaces stay identical.
+ */
+export interface Props {
+  apn: string;
+  address?: string | null;
+  neighborhood?: string | null;
+  lotSqft?: number | null;
+  zoning?: string | null;
+  score?: number | null;
+  centroid?: Point | null;
+  geom?: MultiPolygon | null;
+  height?: number;
+  interactive?: boolean;
+  caption?: string;
+  class?: string;
+}
+const { apn, address = null, neighborhood = null, lotSqft = null, zoning = null, score = null, centroid = null, geom = null,
+  height = 208, interactive = true, caption, class: cls } = Astro.props;
+const data = { apn, address, neighborhood, lotSqft, zoning, score, centroid, geom };
+const label = `Satellite aerial preview of ${address ?? apn}${neighborhood ? ` in ${neighborhood}` : ''} with the parcel boundary outlined`;
+---
+<figure class:list={['flex flex-col gap-1.5', cls]} data-parcel-aerial-figure>
+  <div class="aerial-frame" data-parcel-aerial data-aerial-height={height} data-aerial-interactive={interactive ? '1' : '0'} aria-label={label}>
+    <script type="application/json" data-aerial-data set:html={JSON.stringify(data)} />
+    <div class="grid h-full place-items-center text-xs text-ink-muted">Loading satellite preview…</div>
+  </div>
+  <figcaption class="flex items-center justify-between gap-3 text-2xs text-ink-muted">
+    <span class="truncate">{caption ?? 'Satellite aerial · parcel boundary overlay'}</span>
+    <span class="inline-flex shrink-0 items-center gap-1"><Icon name="layers" size={12} /> Esri World Imagery</span>
+  </figcaption>
+</figure>
+<script>
+  import { hydrateAerials } from '../../lib/aerial';
+  hydrateAerials();
+</script>

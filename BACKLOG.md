@@ -182,3 +182,16 @@ Added during Phase 5L:
 - [ ] **Portfolio totals depend on sample owner values until Phase 6.** `total_est_value` and `total_est_equity` sum the current `owners` rows, which are sample data today; the dashboard labels them "est." and "Sample", but the numbers are not decision-grade yet.
 - [ ] **No portfolio-level dashboard view yet.** The badge is per parcel; a dedicated portfolio page (all parcels under one `portfolio_key`, combined value, outreach status) would make the moat usable by an agent.
 - [ ] **Code violation categories are the source's raw abbreviations** ("GARAGE CONVERSN", "BOARDED STRUCTUR"). Add a plain-English category map if the details are shown in more places.
+
+Added during Phase 7:
+
+- [ ] **Parcel geometry is returned whole.** `/api/dossier` sends the full `parcels.geom` MultiPolygon for one parcel. It is small today, but simplify with `ST_SimplifyPreserveTopology` or add a dedicated geometry RPC if parcels with many vertices make the drawer slow.
+- [ ] **Esri World Imagery is a public tile service.** Attribution is shown; review Esri's terms before production-scale use and add a tile proxy/cache or a licensed imagery provider if traffic grows or the free endpoint changes.
+- [ ] **Opportunity Matrix window is fixed.** It shows the top 300 leads scoring 30+ that have an estimated equity, unfiltered by recipe or neighborhood (the territory cookie still applies). Add equity/score/recipe controls and a "show all" option, and move it to a server-side aggregate if the lead count grows.
+- [ ] **J/K traverses the current page only.** On Leads, the drawer moves through the 20 rows on screen. Add cross-page navigation by reading the filtered list API for the next page, or keep a larger cached list for triage.
+- [ ] **The drawer reads `getLead` per open.** That fetches signals, outreach and stage events the drawer does not use. Add a lean dossier RPC if opening hundreds of dossiers becomes a hot path.
+- [ ] **Hover expansion overlays the main column.** The compact rail grows to 232px on hover/focus without shifting content, which is intentional; consider a pin/open-on-focus behavior if it hides table content for keyboard users.
+- [ ] **Coverage pill is an extra read.** `AppShell` calls `getCoverage()` on every page for the command header. Fold parcels/source counts into `nav_counts` or cache them if it becomes costly.
+- [ ] **No shortcut help overlay.** `J`, `K`, `Escape`, `⌘K` are documented in the drawer footer and search trigger only. Add a `?` keyboard-shortcut sheet and a visible hint on lists.
+- [ ] **Aerial imagery has no explicit outage state.** If Esri tiles fail, the SVG/schematic fallback stays visible, which is graceful, but the label still says Satellite. Add a quiet "imagery unavailable" note after a timeout and a retry.
+- [ ] **Matrix markline labels are crowded on mobile.** The median-equity label is rotated and tight at 390px. Consider a horizontal legend beneath the chart on small screens.

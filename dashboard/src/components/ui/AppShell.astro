@@ -3,7 +3,10 @@ import '../../styles/global.css';
 import { brand, brandCssVars } from '../../config/brand';
 import { NAV, MOBILE_TABS, type NavKey } from '../../lib/nav';
 import { loadClientConfig, enabledRecipeCount } from '../../lib/config';
+import { MODEL_VERSION } from '../../lib/data/catalog';
+import { fmtNum } from '../../lib/format';
 import Icon from './Icon.astro';
+import DossierDrawer from './DossierDrawer.astro';
 export interface Props { title: string; active?: NavKey; bleed?: boolean; description?: string }
 const { title, active, bleed = false, description } = Astro.props;
 const email = Astro.locals.user?.email ?? '';
@@ -14,8 +17,10 @@ const territory = Astro.locals.territory;
 const hoods = ['All', ...cfg.territory.neighborhoods];
 const recipeCount = enabledRecipeCount();
 const counts = await Astro.locals.data.getNavCounts().catch(() => null);
+const coverage = await Astro.locals.data.getCoverage().catch(() => null);
 const teamName = cfg.team_profile.display_name || brand.name;
 const back = Astro.url.pathname + Astro.url.search;
+const activeNav = NAV.flatMap((g) => g.items).find((i) => i.key === active);
 const badge = (item: (typeof NAV)[number]['items'][number]) => (counts && item.count ? item.count(counts, recipeCount) : null);
 const fmtBadge = (n: number) => (n > 999 ? '999+' : String(n));
 const mobileItems = NAV.flatMap((g) => g.items).filter((i) => MOBILE_TABS.includes(i.key));
@@ -31,17 +36,21 @@ const mobileItems = NAV.flatMap((g) => g.items).filter((i) => MOBILE_TABS.includ
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230E1C38'/%3E%3C/svg%3E" />
     <title>{title} · {brand.shortName}</title>
     <style set:html={brandCssVars()}></style>
+    <script is:inline>
+      try { document.documentElement.dataset.rail = localStorage.getItem('ts-rail') === 'compact' ? 'compact' : 'expanded'; }
+      catch { document.documentElement.dataset.rail = 'expanded'; }
+    </script>
   </head>
   <body class="min-h-dvh">
     <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:shadow-md">Skip to content</a>
-    <div class="lg:pl-64">
-      <aside id="sidebar" aria-label="Sidebar" class="no-print hidden bg-side text-side-ink lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-64 lg:flex-col">
-        <div class="flex flex-col gap-3 border-b border-side-line px-4 pb-4 pt-5">
-          <a href="/" class="flex items-center gap-3 rounded-md focus-visible:outline-white">
+    <div class="app-main-wrap">
+      <aside id="sidebar" aria-label="Sidebar" class="app-rail no-print hidden bg-side text-side-ink lg:flex lg:flex-col">
+        <div class="flex flex-col gap-3 border-b border-side-line px-3 pb-3 pt-4">
+          <a href="/" class="rail-brand flex items-center gap-3 rounded-md px-1 focus-visible:outline-white" title={teamName}>
             <span class="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-gold text-sm font-semibold tracking-wide text-side">{brand.initials}</span>
-            <span class="min-w-0 leading-tight"><span class="block truncate text-sm font-semibold text-white">{teamName}</span><span class="block truncate text-xs text-side-faint">{brand.tagline}</span></span>
+            <span class="rail-text min-w-0 leading-tight"><span class="block truncate text-sm font-semibold text-white">{teamName}</span><span class="block truncate text-2xs uppercase tracking-[0.12em] text-side-faint">{brand.tagline}</span></span>
           </a>
-          <form method="post" action="/actions/territory" id="territory-form">
+          <form method="post" action="/actions/territory" id="territory-form" class="rail-expandable">
             <input type="hidden" name="back" value={back} />
             <label for="territory" class="sr-only">Territory</label>
             <div class="relative">
@@ -52,20 +61,26 @@ const mobileItems = NAV.flatMap((g) => g.items).filter((i) => MOBILE_TABS.includ
             </div>
             <noscript><button type="submit" class="mt-2 rounded-md bg-side-active px-3 py-1 text-xs text-white">Apply</button></noscript>
           </form>
-          <button type="button" data-search-open class="flex h-9 w-full items-center gap-2 rounded-md border border-side-line bg-side-raised px-3 text-left text-sm text-side-faint hover:bg-side-hover focus-visible:outline-white">
+          <button type="button" data-search-open class="rail-expandable flex h-9 w-full items-center gap-2 rounded-md border border-side-line bg-side-raised px-3 text-left text-sm text-side-faint hover:bg-side-hover focus-visible:outline-white">
             <Icon name="search" size={16} /><span class="flex-1 truncate">Search address or APN</span><kbd class="rounded border border-side-line px-1.5 text-2xs text-side-faint">⌘K</kbd>
           </button>
+          <button type="button" data-rail-toggle aria-label="Toggle navigation rail" title="Expand or collapse the navigation rail"
+            class="flex h-8 w-full items-center gap-2 rounded-md border border-side-line px-2 text-xs font-medium text-side-faint hover:bg-side-hover hover:text-white focus-visible:outline-white">
+            <Icon name="panel" size={16} class="shrink-0" />
+            <span class="rail-text rail-label-expanded">Collapse rail</span>
+            <span class="rail-text rail-label-compact">Expand rail</span>
+          </button>
         </div>
-        <nav aria-label="Primary" class="flex-1 overflow-y-auto px-3 py-4">
+        <nav aria-label="Primary" class="flex-1 overflow-y-auto px-2 py-4">
           {NAV.map((g) => (
             <div class="mb-5 last:mb-0">
-              <p class="px-3 pb-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-side-faint">{g.label}</p>
+              <p class="rail-group-label px-3 pb-1.5 text-2xs font-semibold uppercase tracking-[0.09em] text-side-faint">{g.label}</p>
               <ul class="flex flex-col gap-0.5">
                 {g.items.map((n) => {
                   const b = badge(n);
                   return (
-                    <li><a href={n.href} class="side-link" aria-current={active === n.key ? 'page' : undefined}>
-                      <Icon name={n.icon} size={18} class="shrink-0" /><span class="truncate">{n.label}</span>
+                    <li><a href={n.href} class="side-link" title={n.label} aria-label={n.label} aria-current={active === n.key ? 'page' : undefined}>
+                      <Icon name={n.icon} size={18} class="shrink-0" /><span class="rail-text truncate">{n.label}</span>
                       {b != null && b > 0 && <span class="side-badge" data-count={n.key}>{fmtBadge(b)}</span>}
                     </a></li>
                   );
@@ -74,9 +89,9 @@ const mobileItems = NAV.flatMap((g) => g.items).filter((i) => MOBILE_TABS.includ
             </div>
           ))}
         </nav>
-        <div class="flex items-center gap-3 border-t border-side-line px-4 py-3">
+        <div class="flex items-center gap-3 border-t border-side-line px-3 py-3">
           <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-side-active text-xs font-semibold text-white" aria-hidden="true">{initials}</span>
-          <span class="min-w-0 flex-1 truncate text-xs text-side-ink" title={email} data-user-email>{email}</span>
+          <span class="rail-text min-w-0 flex-1 truncate text-xs text-side-ink" title={email} data-user-email>{email}</span>
           <form method="post" action="/auth/signout"><button type="submit" class="grid h-8 w-8 place-items-center rounded-md text-side-ink hover:bg-side-hover hover:text-white focus-visible:outline-white" title="Sign out" aria-label="Sign out"><Icon name="logout" size={18} /></button></form>
         </div>
       </aside>
@@ -84,7 +99,7 @@ const mobileItems = NAV.flatMap((g) => g.items).filter((i) => MOBILE_TABS.includ
       <div class="flex min-h-dvh min-w-0 flex-col">
         {Astro.locals.sample.used && (
           <div role="status" data-sample-banner class="no-print border-b border-warning/25 bg-warning-soft px-4 py-1.5 text-center text-xs text-warning">
-            <strong class="font-semibold">Sample data.</strong> Some owner records, sales or scores on this page are sample data, labeled <span class="font-semibold">Sample</span>. Real owner data is connected in Phase 6.
+            <strong class="font-semibold">Sample data.</strong> Some owner records, sales or scores on this page are sample data, labeled <span class="font-semibold">Sample</span>. Real owner data replaces sample records as it is connected.
           </div>
         )}
         {flash && (
@@ -100,11 +115,40 @@ const mobileItems = NAV.flatMap((g) => g.items).filter((i) => MOBILE_TABS.includ
             <span class="max-w-[7rem] truncate text-xs text-ink-muted">{territory ?? 'All territory'}</span>
           </span>
         </header>
-        <main id="main" tabindex="-1" class:list={[bleed ? 'flex-1' : 'mx-auto w-full max-w-[84rem] flex-1 px-4 py-8 pb-28 sm:px-8 lg:pb-12']}>
+
+        <header class="command-bar no-print sticky top-0 z-30 hidden items-center justify-between gap-4 border-b border-line bg-surface/90 px-6 backdrop-blur lg:flex">
+          <div class="flex min-w-0 items-center gap-3">
+            <span class="hidden text-2xs font-semibold uppercase tracking-[0.14em] text-ink-faint xl:inline">Territory</span>
+            <form method="post" action="/actions/territory" class="flex items-center">
+              <input type="hidden" name="back" value={back} />
+              <label for="territory-bar" class="sr-only">Territory</label>
+              <div class="relative">
+                <select id="territory-bar" name="territory" data-territory class="h-8 min-w-[9.5rem] appearance-none rounded-md border border-line bg-surface pl-2.5 pr-7 text-xs font-semibold text-ink hover:bg-sunken focus-visible:outline-accent">
+                  {hoods.map((h) => <option value={h === 'All' ? '' : h} selected={(territory ?? 'All') === h}>{h === 'All' ? 'All territory' : h}</option>)}
+                </select>
+                <Icon name="chevrondown" size={14} class="pointer-events-none absolute right-2 top-2 text-ink-muted" />
+              </div>
+              <noscript><button type="submit" class="ml-2 rounded-md border border-line px-2 text-xs">Apply</button></noscript>
+            </form>
+            <span class="hidden h-4 w-px bg-line xl:block"></span>
+            <span class="command-pill">Model <strong>{MODEL_VERSION}</strong></span>
+            {coverage && <span class="command-pill max-xl:hidden"><strong>{fmtNum(coverage.parcels_monitored)}</strong> parcels <span class="text-line-strong">·</span> <strong>{coverage.sources_live}/{coverage.sources_total}</strong> sources live</span>}
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="hidden text-2xs font-medium uppercase tracking-[0.12em] text-ink-faint xl:inline">{activeNav?.label ?? ''}</span>
+            <button type="button" data-search-open aria-label="Search" class="flex h-8 items-center gap-2 rounded-md border border-line bg-surface px-2.5 text-xs font-medium text-ink-muted hover:bg-sunken hover:text-ink focus-visible:outline-accent">
+              <Icon name="search" size={15} /><span class="hidden xl:inline">Search address or APN</span><kbd class="rounded border border-line px-1.5 text-2xs text-ink-faint">⌘K</kbd>
+            </button>
+          </div>
+        </header>
+
+        <main id="main" tabindex="-1" class:list={[bleed ? 'flex-1' : 'mx-auto w-full max-w-[112rem] flex-1 px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-12']}>
           <slot />
         </main>
       </div>
     </div>
+
+    <DossierDrawer />
 
     <nav aria-label="Primary (mobile)" class="no-print fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
       {mobileItems.map((n) => (
@@ -151,6 +195,19 @@ const mobileItems = NAV.flatMap((g) => g.items).filter((i) => MOBILE_TABS.includ
 
       // Territory switcher: submit as soon as it changes.
       document.querySelectorAll<HTMLSelectElement>('select[data-territory]').forEach((s) => s.addEventListener('change', () => s.form?.submit()));
+
+      // Collapsible rail: 64px icon rail or 232px labelled rail; the choice persists per browser.
+      const railToggle = document.querySelector<HTMLElement>('[data-rail-toggle]');
+      const railRoot = document.documentElement;
+      railToggle?.setAttribute('aria-expanded', String(railRoot.dataset.rail !== 'compact'));
+      railToggle?.addEventListener('click', (event) => {
+        const next = railRoot.dataset.rail === 'compact' ? 'expanded' : 'compact';
+        railRoot.dataset.rail = next;
+        try { localStorage.setItem('ts-rail', next); } catch { /* private mode: the in-memory state still works */ }
+        railToggle.setAttribute('aria-expanded', String(next === 'expanded'));
+        // A mouse user collapsing the rail should see the compact rail immediately, not keep focus-expanded.
+        if (next === 'compact' && (event as MouseEvent).detail > 0) railToggle.blur();
+      });
 
       // Phone menu
       const more = $<HTMLDialogElement>('#more-menu');

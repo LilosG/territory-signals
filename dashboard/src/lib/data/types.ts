@@ -315,6 +315,49 @@ export interface LeadDetail {
   portfolio: PortfolioInfo | null;
 }
 
+/** One draft the slide-over dossier can show and copy. Content is the drafted text; blocked_reason is internal. */
+export interface DossierOutreach {
+  channel: OutreachChannel;
+  status: OutreachStatus;
+  content: string | null;
+  blocked_reason: string | null;
+  uses_sample_data: boolean;
+}
+
+/**
+ * The slide-over Quick-Dossier payload (Phase 7). It deliberately carries no owner identity, mailing address or
+ * sensitive signal: the drawer is a list surface, so distress and life-event facts stay in the full workspace.
+ */
+export interface Dossier {
+  parcel: Parcel;
+  score: Pick<Score, 'score' | 'reason_text' | 'recipe_matches' | 'primary_recipe' | 'model_version' | 'uses_sample_data'>;
+  score_items: ScoreItem[];
+  top_signal: Marked | null;
+  ai_brief: Pick<LeadBriefAi, 'headline' | 'summary' | 'suggested_angle' | 'uses_sample' | 'model' | 'created_at'> | null;
+  owner: { is_sample: boolean; est_value: number | null; est_equity: number | null; absentee: boolean | null; out_of_state: boolean | null } | null;
+  years_owned: number | null;
+  /** Estimated gross commission income (2.5% of estimated value); null when no estimated value exists. */
+  gci: number | null;
+  outreach: DossierOutreach | null;
+  portfolio: PortfolioInfo | null;
+  status: LeadStatus;
+  is_sample: boolean;
+}
+
+/** One bubble in the Trends Opportunity Matrix. Equity and score are the two axes; GCI sizes the bubble. */
+export interface MatrixPoint {
+  apn: string;
+  address: string | null;
+  neighborhood: string | null;
+  score: number;
+  equity: number;
+  gci: number;
+  lot_sqft: number | null;
+  zoning: string | null;
+  is_sample: boolean;
+  tier: 'immediate' | 'priority' | 'watchlist' | 'monitor';
+}
+
 export interface MapPoint { apn: string; score: number; band: ScoreBand; recipe: string | null; neighborhood: string; lng: number; lat: number }
 export interface MapData { points: MapPoint[]; is_sample: boolean }
 

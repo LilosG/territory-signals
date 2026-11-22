@@ -4,7 +4,7 @@ import PageHeader from '../components/ui/PageHeader.astro';
 import Section from '../components/ui/Section.astro';
 import Grid from '../components/ui/Grid.astro';
 import Stack from '../components/ui/Stack.astro';
-import LeadCard from '../components/ui/LeadCard.astro';
+import LeadList from '../components/ui/LeadList.astro';
 import EmptyState from '../components/ui/EmptyState.astro';
 import Button from '../components/ui/Button.astro';
 import StatCard from '../components/ui/StatCard.astro';
@@ -15,7 +15,7 @@ import ApprovalRow from '../components/ui/ApprovalRow.astro';
 import CallTaskRow from '../components/ui/CallTaskRow.astro';
 import WeekCard from '../components/ui/WeekCard.astro';
 import { fmtDate, fmtNum } from '../lib/format';
-import { isNewLead, publicRecipes } from '../lib/present';
+import { publicRecipes } from '../lib/present';
 
 export const prerender = false;
 const feed = await Astro.locals.data.getTodayFeed();
@@ -37,6 +37,7 @@ const anyAiHeadline = feed.top_leads.some((l) => l.ai_headline);
 ---
 <AppShell title="Today" active="today">
   <PageHeader eyebrow={fmtDate(feed.as_of.slice(0, 10))} title={`${greeting} · ${where}`} description="Your best leads and what changed this week.">
+    <Button href="/trends#opportunity-matrix" variant="secondary" icon="trends" class="max-sm:hidden">Opportunity matrix</Button>
     <Button href="/map" variant="secondary" icon="map" class="max-sm:hidden">Open map</Button>
   </PageHeader>
 
@@ -56,7 +57,7 @@ const anyAiHeadline = feed.top_leads.some((l) => l.ai_headline);
       <Section title="Top leads" description={anyAiHeadline ? 'Ranked by score · Headlines written by AI' : 'Ranked by score'}>
         {feed.top_leads.length === 0
           ? <EmptyState title="No leads here yet" description="Nothing scores in this territory yet." />
-          : <Stack as="ul" gap={3}>{feed.top_leads.map((l, i) => <li><LeadCard lead={l} rank={i + 1} isNew={isNewLead(l, asOf)} /></li>)}</Stack>}
+          : <LeadList leads={feed.top_leads} now={asOf} />}
         <p class="t-meta"><a href="/leads" class="text-accent hover:underline">See all {feed.leads_total} leads →</a></p>
       </Section>
 
